@@ -1,6 +1,8 @@
 package model;
 
+import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class HexCoordinate {
 
@@ -16,8 +18,8 @@ public class HexCoordinate {
         this.r = r;
     }
 
-    public ArrayList<HexCoordinate> findNeighbours() {
-        ArrayList<HexCoordinate> neighbours = new ArrayList<>();
+    public List<HexCoordinate> findNeighbours() {
+        List<HexCoordinate> neighbours = new ArrayList<>();
 
         for (int[] direction : DIRECTIONS) {
             int newQ = this.q + direction[0];
@@ -34,6 +36,19 @@ public class HexCoordinate {
         int ds = (- this.q - this.r) - (- other.q - other.r);
 
         return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof HexCoordinate)) return false;
+        HexCoordinate that = (HexCoordinate) o;
+        return this.q == that.q && this.r == that.r;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(q, r);
     }
 
     public int getQ() { return q; }

@@ -13,12 +13,15 @@ public class GameState {
     }
 
     public enum TerrainType {
-
+        PLAIN, FOREST, MOUNTAIN, GRASSLAND;
     }
 
     public enum NaturalResourceType {
-        NONE,
+        NONE, TREE, STONE, IRON, WHEAT, RICE, COW, SHEEP;
+    }
 
+    public enum ResourceType {
+        WOOD, FOOD, STONE, IRON;
     }
 
     public void addHexes(Hex hex) {
