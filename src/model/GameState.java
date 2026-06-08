@@ -12,6 +12,15 @@ public class GameState {
         FREE
     }
 
+    public enum TerrainType {
+
+    }
+
+    public enum NaturalResourceType {
+        NONE,
+
+    }
+
     public void addHexes(Hex hex) {
         this.hexes.add(hex);
     }
