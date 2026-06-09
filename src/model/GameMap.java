@@ -1,7 +1,5 @@
 package model;
 
-import model.HexCoordinate;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +7,10 @@ import java.util.Map;
 public class GameMap {
 
     private Map<HexCoordinate, Hex> hexes;
+
+    public GameMap(Map<HexCoordinate, Hex> hexes) {
+        this.hexes = hexes;
+    }
 
     public Hex getHex(HexCoordinate coordinate) {
         return hexes.get(coordinate);
