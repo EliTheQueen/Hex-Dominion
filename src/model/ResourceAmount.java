@@ -17,4 +17,22 @@ public class ResourceAmount {
     public int getWood() { return wood; }
     public int getStone() { return stone; }
     public int getIron() { return iron; }
+
+    public void addResourceAmount(ResourceAmount amount) {
+        food += amount.getFood();
+        wood += amount.getWood();
+        stone += amount.getStone();
+        iron += amount.getIron();
+    }
+
+    public void subtractResourceAmount(ResourceAmount amount) {
+        food -= amount.getFood();
+        wood -= amount.getWood();
+        stone -= amount.getStone();
+        iron -= amount.getIron();
+    }
+
+    public boolean hasEnoughResource(ResourceAmount cost) {
+        return food >= cost.getFood() && wood >= cost.getWood() && stone >= cost.getStone() && iron >= cost.getIron();
+    }
 }
