@@ -2,7 +2,7 @@ package model;
 
 
 import java.util.*;
-import model.Constants;
+import model.Constants.TerrainType;
 
 public class MapGenerator {
 
@@ -40,7 +40,7 @@ public class MapGenerator {
                 }
             }
             else  if (terrainType == Constants.TerrainType.FOREST) {
-                hex.addNaturalResource(Constants.NaturalResourceType.TREE, 100);
+                hex.addNaturalResource(Constants.NaturalResourceType.WOOD, 100);
             }
             else if (terrainType == Constants.TerrainType.GRASSLAND) {
                 double r = Math.random();

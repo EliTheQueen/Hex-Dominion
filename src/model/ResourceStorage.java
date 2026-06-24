@@ -1,82 +1,57 @@
 package model;
+import static model.Constants.ResourceType;
 
 public class ResourceStorage {
-    private int currentFood;
-    private int currentWood;
-    private int currentStone;
-    private int currentIron;
+    private ResourceAmount current;
+    private ResourceAmount capacity;
 
-    private int capacityFood;
-    private int capacityWood;
-    private int capacityStone;
-    private int capacityIron;
-
-    public ResourceStorage(int capacityFood, int capacityWood, int capacityStone, int capacityIron) {
-        this.capacityFood = capacityFood;
-        this.capacityWood = capacityWood;
-        this.capacityStone = capacityStone;
-        this.capacityIron = capacityIron;
-
-        this.currentFood = 0;
-        this.currentWood = 0;
-        this.currentStone = 0;
-        this.currentIron = 0;
+    public ResourceStorage(int cap) {
+        current = ResourceAmount.of(0, 0, 0, 0);
+        capacity = ResourceAmount.of(cap, cap, cap, cap);
     }
 
-    public void addResource(ResourceAmount amount) {
-        currentFood = Math.min(currentFood + amount.getFood(), capacityFood);
-        currentWood = Math.min(currentWood + amount.getWood(), capacityWood);
-        currentStone = Math.min(currentStone + amount.getStone(), capacityStone);
-        currentIron = Math.min(currentIron + amount.getIron(), capacityIron);
-    }
-
-    public boolean spendResource(ResourceAmount cost) {
-        ResourceAmount current = new ResourceAmount(
-                currentFood,
-                currentWood,
-                currentStone,
-                currentIron
-        );
-
-        if (!current.hasEnoughResource(cost)) {
-            return false;
+    public void addResources(ResourceAmount amount) {
+        for (ResourceType r : ResourceType.values()) {
+            int newVal = Math.min(current.get(r) + amount.get(r), capacity.get(r));
+            current.set(r, newVal);
         }
+    }
 
-        currentFood -= cost.getFood();
-        currentWood -= cost.getWood();
-        currentStone -= cost.getStone();
-        currentIron -= cost.getIron();
+    public boolean canAfford(ResourceAmount cost) {
+        return current.hasEnough(cost);
+    }
 
+    public boolean spend(ResourceAmount cost) {
+        if (!canAfford(cost)) return false;
+        for (ResourceType r : ResourceType.values()) {
+            current.set(r, current.get(r) - cost.get(r));
+        }
         return true;
     }
 
     public int forceSpendFood(int amount) {
-        int shortage = amount - currentFood;
-
-        currentFood -= amount;
-
-        if (currentFood < 0) {
-            currentFood = 0;
-        }
-
-        if (shortage > 0) {
-            return shortage;
-        }
-
-        return 0;
+        int have = current.get(ResourceType.FOOD);
+        int shortage = Math.max(0, amount - have);
+        current.set(ResourceType.FOOD, Math.max(0, have - amount));
+        return shortage;
     }
 
-    public void upgradeCapacity(ResourceAmount extraCapacity) {
-        capacityFood += extraCapacity.getFood();
-        capacityWood += extraCapacity.getWood();
-        capacityStone += extraCapacity.getStone();
-        capacityIron += extraCapacity.getIron();
+    public void upgradeCapacity(ResourceAmount extra) {
+        for (ResourceType r : ResourceType.values()) {
+            capacity.set(r, capacity.get(r) + extra.get(r));
+        }
     }
 
-    public String getResourceStatus() {
-        return "Food: " + currentFood + "/" + capacityFood
-                + ", Wood: " + currentWood + "/" + capacityWood
-                + ", Stone: " + currentStone + "/" + capacityStone
-                + ", Iron: " + currentIron + "/" + capacityIron;
+    public ResourceAmount getCurrent() { return current.copy(); }
+    public ResourceAmount getCapacity() { return capacity.copy(); }
+
+    public int get(ResourceType r) { return current.get(r); }
+    public int getCap(ResourceType r) { return capacity.get(r); }
+
+    public String getStatus() {
+        return "Food:" + current.get(ResourceType.FOOD) + "/" + capacity.get(ResourceType.FOOD)
+             + " Wood:" + current.get(ResourceType.WOOD) + "/" + capacity.get(ResourceType.WOOD)
+             + " Stone:" + current.get(ResourceType.STONE) + "/" + capacity.get(ResourceType.STONE)
+             + " Iron:" + current.get(ResourceType.IRON) + "/" + capacity.get(ResourceType.IRON);
     }
 }

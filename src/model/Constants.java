@@ -6,7 +6,7 @@ import java.util.Map;
 
 public final class Constants {
 
-    public enum TerrainType { PLAINS, FOREST, MOUNTAIN, GRASSLAND }
+    public enum TerrainType { PLAINS, FOREST, MOUNTAIN, PLAIN, GRASSLAND }
     public enum ResourceType { FOOD, WOOD, STONE, IRON }
     public enum NaturalResourceType { NONE, WOOD, STONE, IRON, WHEAT, RICE, COW, SHEEP }
     public enum UnitType { EXPLORER, BUILDER, WORKER, BORDER_EXPANDER }
