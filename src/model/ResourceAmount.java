@@ -13,6 +13,13 @@ public class ResourceAmount {
         this.iron = iron;
     }
 
+    public static ResourceAmount of(int i, int i1, int i2, int i3) {
+        
+    }
+
+    public static ResourceAmount zero() {
+    }
+
     public int getFood() { return food; }
     public int getWood() { return wood; }
     public int getStone() { return stone; }

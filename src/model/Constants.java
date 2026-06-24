@@ -34,4 +34,59 @@ public final class Constants {
     public static final Map<BuildingType,Integer> BASE_RATE = new EnumMap<>(BuildingType.class);
     public static final Map<BuildingType,ResourceAmount> BUILD_COST = new EnumMap<>(BuildingType.class);
     public static final Map<BuildingType,ResourceAmount> UPKEEP = new EnumMap<>(BuildingType.class);
-    public static final Map<UnitType,ResourceAmount> UNIT_COST = new EnumMap<>(UnitType.class);}
+    public static final Map<UnitType,ResourceAmount> UNIT_COST = new EnumMap<>(UnitType.class);
+
+    static {
+        MOVE_COST.put(TerrainType.PLAINS,1);
+        MOVE_COST.put(TerrainType.GRASSLAND,1);
+        MOVE_COST.put(TerrainType.FOREST,2);
+        MOVE_COST.put(TerrainType.MOUNTAIN,4);
+        UNIT_AP.put(UnitType.EXPLORER,6);
+        UNIT_AP.put(UnitType.BUILDER,4);
+        UNIT_AP.put(UnitType.WORKER,3);
+        UNIT_AP.put(UnitType.BORDER_EXPANDER,3);
+        UNIT_VISION.put(UnitType.EXPLORER,3);
+        UNIT_VISION.put(UnitType.BUILDER,2);
+        UNIT_VISION.put(UnitType.WORKER,1);
+        UNIT_VISION.put(UnitType.BORDER_EXPANDER,2);
+        for (BuildingType b: BuildingType.values()) {
+            BUILD_AP.put(b,1);
+            WORKER_CAP.put(b,0);
+            UPKEEP.put(b, ResourceAmount.of(0,0,0,0));
+        }
+        BUILD_AP.put(BuildingType.TOWNSHIP,2);
+        WORKER_CAP.put(BuildingType.LUMBER_MILL,2);
+        WORKER_CAP.put(BuildingType.STONE_MINE,2);
+        WORKER_CAP.put(BuildingType.IRON_MINE,2);
+        WORKER_CAP.put(BuildingType.FARM,3);
+        WORKER_CAP.put(BuildingType.STABLE,2);
+        PRODUCES.put(BuildingType.LUMBER_MILL, ResourceType.WOOD);
+        PRODUCES.put(BuildingType.STONE_MINE, ResourceType.STONE);
+        PRODUCES.put(BuildingType.IRON_MINE, ResourceType.IRON);
+        PRODUCES.put(BuildingType.FARM, ResourceType.FOOD);
+        PRODUCES.put(BuildingType.STABLE, ResourceType.FOOD);
+        BASE_RATE.put(BuildingType.LUMBER_MILL,5);
+        BASE_RATE.put(BuildingType.STONE_MINE,4);
+        BASE_RATE.put(BuildingType.IRON_MINE,3);
+        BASE_RATE.put(BuildingType.FARM,6);
+        BASE_RATE.put(BuildingType.STABLE,5);
+        BUILD_COST.put(BuildingType.LUMBER_MILL, ResourceAmount.of(0,8,0,0));
+        BUILD_COST.put(BuildingType.FARM, ResourceAmount.of(0,6,0,0));
+        BUILD_COST.put(BuildingType.STABLE, ResourceAmount.of(0,10,0,0));
+        BUILD_COST.put(BuildingType.STONE_MINE, ResourceAmount.of(0,12,0,0));
+        BUILD_COST.put(BuildingType.IRON_MINE, ResourceAmount.of(0,16,8,0));
+        BUILD_COST.put(BuildingType.TOWNSHIP, ResourceAmount.of(0,25,25,8));
+        BUILD_COST.put(BuildingType.TOWN_HALL, ResourceAmount.zero());
+        UPKEEP.put(BuildingType.LUMBER_MILL, ResourceAmount.of(0,1,0,0));
+        UPKEEP.put(BuildingType.FARM, ResourceAmount.of(0,1,0,0));
+        UPKEEP.put(BuildingType.STABLE, ResourceAmount.of(0,1,0,0));
+        UPKEEP.put(BuildingType.STONE_MINE, ResourceAmount.of(0,1,1,0));
+        UPKEEP.put(BuildingType.IRON_MINE, ResourceAmount.of(0,1,1,0));
+        UPKEEP.put(BuildingType.TOWNSHIP, ResourceAmount.of(1,1,1,0));
+        UNIT_COST.put(UnitType.EXPLORER, ResourceAmount.of(8,8,0,0));
+        UNIT_COST.put(UnitType.BUILDER, ResourceAmount.of(10,12,0,0));
+        UNIT_COST.put(UnitType.WORKER, ResourceAmount.of(8,8,0,0));
+        UNIT_COST.put(UnitType.BORDER_EXPANDER, ResourceAmount.of(12,20,8,0));
+    }
+}
+
