@@ -35,18 +35,30 @@ public abstract class Unit {
     public void kill() { alive = false; }
     public int getVisionRadius() { return Constants.UNIT_VISION.getOrDefault(unitType, 1); }
 
+    /** Whether the unit can reach {@code dest} this turn following a valid path within its AP. */
     public boolean canMoveTo(GameMap map, HexCoordinate dest) {
+        if (dest == null || dest.equals(position)) return false;
         if (!map.containsCoordinate(dest)) return false;
-        Hex destHex = map.getHex(dest);
-        if (destHex == null) return false;
-        int cost = Constants.MOVE_COST.getOrDefault(destHex.getTerrainType(), 1);
-        return currentAP >= cost;
+        java.util.List<HexCoordinate> path = PathFinder.findPath(map, position, dest, currentAP);
+        return path != null && path.size() > 1;
+    }
+
+    /** Total terrain cost of walking the given path (excluding the starting hex). */
+    private int pathCost(GameMap map, java.util.List<HexCoordinate> path) {
+        int cost = 0;
+        for (int i = 1; i < path.size(); i++) {
+            Hex h = map.getHex(path.get(i));
+            cost += Constants.MOVE_COST.getOrDefault(h.getTerrainType(), 1);
+        }
+        return cost;
     }
 
     public boolean moveTo(GameMap map, HexCoordinate dest) {
-        if (!canMoveTo(map, dest)) return false;
-        Hex destHex = map.getHex(dest);
-        int cost = Constants.MOVE_COST.getOrDefault(destHex.getTerrainType(), 1);
+        if (dest == null || dest.equals(position)) return false;
+        java.util.List<HexCoordinate> path = PathFinder.findPath(map, position, dest, currentAP);
+        if (path == null || path.size() < 2) return false;
+        int cost = pathCost(map, path);
+        if (cost > currentAP) return false;
         spendAP(cost);
         position = dest;
         state = Constants.UnitState.MOVING;

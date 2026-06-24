@@ -282,20 +282,10 @@ public class GameController {
         pendingBuildType = null;
     }
 
-    /** Hexes the selected unit can reach this turn (used to tint the map). */
+    /** Hexes the selected unit can reach this turn (used to tint the map green). */
     public List<HexCoordinate> getReachableHexes() {
         if (selectedUnit == null || !selectedUnit.canAct()) return Collections.emptyList();
-        List<HexCoordinate> reachable = new ArrayList<>();
-        int ap = selectedUnit.getCurrentAP();
-        for (Hex h : gameState.getMap().getAllHexes()) {
-            HexCoordinate coord = h.getCoordinate();
-            int dist = selectedUnit.getPosition().distanceTo(coord);
-            if (dist > 0 && dist <= ap) {
-                List<HexCoordinate> path = PathFinder.findPath(
-                        gameState.getMap(), selectedUnit.getPosition(), coord, ap);
-                if (path != null) reachable.add(coord);
-            }
-        }
-        return reachable;
+        return new ArrayList<>(PathFinder.reachable(
+                gameState.getMap(), selectedUnit.getPosition(), selectedUnit.getCurrentAP()));
     }
 }

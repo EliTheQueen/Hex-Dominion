@@ -57,7 +57,8 @@ public class MapPanel extends JPanel
     private static final Color FOG_COLOR = new Color(12, 14, 28);
     private static final Color EXPLORED_OVERLAY = new Color(0, 0, 0, 140);
     private static final Color TERRITORY_BORDER = new Color(212, 175, 55, 220);
-    private static final Color REACHABLE_COLOR = new Color(90, 200, 90, 55);
+    private static final Color REACHABLE_COLOR = new Color(110, 235, 110, 95);
+    private static final Color REACHABLE_BORDER = new Color(150, 255, 150, 200);
     private static final Color GOLD = new Color(212, 175, 55);
 
     private HexCoordinate hoverHex = null;
@@ -166,7 +167,7 @@ public class MapPanel extends JPanel
             if (b.getType() == Constants.BuildingType.TOWN_HALL) {
                 Point2D p = hexToPixelRaw(b.getPosition());
                 offsetX = getWidth() / 2.0 - p.getX();
-                offsetY = (getHeight() - 60) / 2.0 - p.getY();
+                offsetY = getHeight() / 2.0 - p.getY();
                 return;
             }
         }
@@ -214,6 +215,9 @@ public class MapPanel extends JPanel
         if (reachableHexes.contains(coord)) {
             g2.setColor(REACHABLE_COLOR);
             g2.fillPolygon(poly);
+            g2.setColor(REACHABLE_BORDER);
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawPolygon(poly);
         }
 
         if (player.isInTerritory(coord)) {
