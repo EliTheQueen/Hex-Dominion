@@ -6,32 +6,32 @@ import java.util.Map;
 public class Hex {
 
     private final HexCoordinate coordinate;
-    private Map<GameState.NaturalResourceType, Integer> naturalResources = new HashMap<>();
-    private GameState.TerrainType terrainType;
+    private Map<Constants.NaturalResourceType, Integer> naturalResources = new HashMap<>();
+    private Constants.TerrainType terrainType;
     private boolean isExplored = false;
     private boolean isVisible = false;
     private boolean isExpanded = false;
     private boolean hasBuilding = false;
 
 
-    public Hex(HexCoordinate coordinate, GameState.TerrainType terrainType) {
+    public Hex(HexCoordinate coordinate, Constants.TerrainType terrainType) {
         this.coordinate = coordinate;
         this.terrainType = terrainType;
     };
 
     public HexCoordinate getCoordinate() { return coordinate; }
-    public GameState.TerrainType getTerrainType() { return terrainType; }
-    public void setTerrainType(GameState.TerrainType terrainType) { this.terrainType = terrainType; }
-    public Map<GameState.NaturalResourceType, Integer> getNaturalResources() {
+    public Constants.TerrainType getTerrainType() { return terrainType; }
+    public void setTerrainType(Constants.TerrainType terrainType) { this.terrainType = terrainType; }
+    public Map<Constants.NaturalResourceType, Integer> getNaturalResources() {
         return naturalResources;
     }
-    public void addNaturalResource(GameState.NaturalResourceType resourceType, int amount) {
-        if (resourceType == GameState.NaturalResourceType.NONE || amount <= 0) {
+    public void addNaturalResource(Constants.NaturalResourceType resourceType, int amount) {
+        if (resourceType == Constants.NaturalResourceType.NONE || amount <= 0) {
             return;
         }
         this.naturalResources.put(resourceType, amount);
     }
-    public int getNaturalResourceAmount(GameState.NaturalResourceType resourceType) {
+    public int getNaturalResourceAmount(Constants.NaturalResourceType resourceType) {
         return naturalResources.getOrDefault(resourceType, 0);
     }
     public boolean getIsExplored() { return isExplored; }
@@ -47,7 +47,7 @@ public class Hex {
         return !naturalResources.isEmpty();
     }
 
-    public boolean isResourceDepleted(GameState.NaturalResourceType resourceType) {
+    public boolean isResourceDepleted(Constants.NaturalResourceType resourceType) {
         return !naturalResources.containsKey(resourceType)
                 || naturalResources.get(resourceType) <= 0;
     }
@@ -56,7 +56,7 @@ public class Hex {
         return naturalResources.isEmpty();
     }
 
-    public void decreaseNaturalResource(GameState.NaturalResourceType resourceType, int amount) {
+    public void decreaseNaturalResource(Constants.NaturalResourceType resourceType, int amount) {
         if (amount <= 0 || !naturalResources.containsKey(resourceType)) {
             return;
         }
