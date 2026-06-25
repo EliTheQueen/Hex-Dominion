@@ -114,8 +114,8 @@ public class GameController {
         Builder builder = (Builder) selectedUnit;
         ResourceAmount cost = BUILD_COST.get(pendingBuildType);
 
-        if (!player.canBuildAt(coord, pendingBuildType)) {
-            statusMessage = "Cannot build there (need territory / tech / empty hex)";
+        if (!gameState.canBuildAt(coord, pendingBuildType)) {
+            statusMessage = "Cannot build there (need territory / tech / matching resource)";
         } else if (coord.distanceTo(builder.getPosition()) > 1) {
             statusMessage = "Builder must be adjacent to the build site";
         } else if (!builder.hasCharges()) {
@@ -176,62 +176,54 @@ public class GameController {
         }
     }
 
+    /** Whether a unit of this type can be queued: affordable and below the unit cap. */
     public boolean canRecruit(UnitType type) {
         if (gameState == null) return false;
+        Player player = gameState.getPlayer();
         ResourceAmount cost = UNIT_COST.get(type);
-        return cost != null && gameState.getPlayer().canAfford(cost) && findFreeHexNearTownHall() != null;
+        return cost != null && player.canAfford(cost) && !player.atUnitCap();
     }
 
+    /** Recruiting enqueues the unit in the Town Hall production queue (not instant). */
     public void onRecruitUnit(UnitType type) {
         if (gameState == null) return;
+        Player player = gameState.getPlayer();
         ResourceAmount cost = UNIT_COST.get(type);
-        if (cost == null || !gameState.getPlayer().canAfford(cost)) {
+        if (cost == null || !player.canAfford(cost)) {
             statusMessage = "Not enough resources to recruit " + type.name();
             return;
         }
-        HexCoordinate pos = findFreeHexNearTownHall();
-        if (pos == null) {
-            statusMessage = "No free hex near Town Hall";
+        if (player.atUnitCap()) {
+            statusMessage = "Unit cap reached (build a Township to raise it)";
             return;
         }
-        gameState.getPlayer().spend(cost);
-
-        Unit unit;
-        switch (type) {
-            case EXPLORER:        unit = new Explorer(pos); break;
-            case BUILDER:         unit = new Builder(pos); break;
-            case WORKER:          unit = new Worker(pos); break;
-            case BORDER_EXPANDER: unit = new BorderExpander(pos); break;
-            default: return;
-        }
-        gameState.getPlayer().addUnit(unit);
-        gameState.updateVisibility();
-        statusMessage = "Recruited " + type.name();
+        player.spend(cost);
+        player.getProductionQueue().enqueue(model.ProductionTask.forUnit(type));
+        statusMessage = "Queued " + type.name() + " for production";
     }
 
-    private HexCoordinate findFreeHexNearTownHall() {
-        Player player = gameState.getPlayer();
-        for (Building b : player.getBuildings()) {
-            if (b.getType() == BuildingType.TOWN_HALL) {
-                HexCoordinate center = b.getPosition();
-                if (player.getUnitAt(center) == null) return center;
-                for (HexCoordinate n : center.findNeighbours()) {
-                    if (gameState.getMap().containsCoordinate(n) && player.getUnitAt(n) == null) {
-                        return n;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
+    /** Research is queued in the Town Hall and applies when the queue completes it. */
     public void onResearchChosen(TechnologyType tech) {
         if (gameState == null) return;
-        if (gameState.getPlayer().research(tech)) {
-            statusMessage = "Researched " + tech.name();
+        if (gameState.getPlayer().queueTech(tech)) {
+            statusMessage = "Queued research: " + tech.name();
         } else {
-            statusMessage = "Cannot research " + tech.name();
+            statusMessage = "Cannot research " + tech.name() + " (prereqs/resources)";
         }
+    }
+
+    /** Whether the selected builder could place this building on some adjacent valid hex now. */
+    public boolean canBuildType(BuildingType type) {
+        if (gameState == null || !(selectedUnit instanceof Builder)) return false;
+        Builder b = (Builder) selectedUnit;
+        if (!b.hasCharges()) return false;
+        ResourceAmount cost = BUILD_COST.get(type);
+        if (cost == null || !gameState.getPlayer().canAfford(cost)) return false;
+        if (gameState.canBuildAt(b.getPosition(), type)) return true;
+        for (HexCoordinate n : b.getPosition().findNeighbours()) {
+            if (gameState.canBuildAt(n, type)) return true;
+        }
+        return false;
     }
 
     public void onAutoExploreToggled() {
@@ -244,10 +236,15 @@ public class GameController {
         if (selectedUnit instanceof BorderExpander) {
             BorderExpander be = (BorderExpander) selectedUnit;
             if (be.expand(gameState.getMap(), gameState.getPlayer())) {
+                // The expander is consumed (removed from the map) after claiming territory.
+                be.kill();
+                gameState.getPlayer().removeUnit(be);
+                selectedUnit = null;
+                selectedHex = null;
                 gameState.updateVisibility();
-                statusMessage = "Border expanded";
+                statusMessage = "Border expanded — expander consumed";
             } else {
-                statusMessage = "Not enough AP to expand";
+                statusMessage = "Cannot expand (need AP and an explored hex)";
             }
         }
     }
@@ -266,6 +263,16 @@ public class GameController {
         } else {
             statusMessage = "Cannot station (full or no AP)";
         }
+    }
+
+    /** Whether the selected worker is standing on a building with a free worker slot. */
+    public boolean canStationHere() {
+        if (gameState == null || !(selectedUnit instanceof Worker)) return false;
+        Worker w = (Worker) selectedUnit;
+        if (w.getCurrentAP() < Constants.WORKER_STATION_AP_COST) return false;
+        Building b = gameState.getPlayer().getBuildingAt(w.getPosition());
+        return b != null && b.isActive() && b.getWorkerCap() > 0
+                && (b.getWorkerCount() < b.getWorkerCap() || (w.isStationed() && w.getStationedAt() == b));
     }
 
     public void onUnstationWorker() {

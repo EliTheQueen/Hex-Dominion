@@ -12,6 +12,7 @@ public class Hex {
     private boolean isVisible = false;
     private boolean isExpanded = false;
     private boolean hasBuilding = false;
+    private boolean everHadResource = false;
 
 
     public Hex(HexCoordinate coordinate, Constants.TerrainType terrainType) {
@@ -30,6 +31,31 @@ public class Hex {
             return;
         }
         this.naturalResources.put(resourceType, amount);
+        this.everHadResource = true;
+    }
+
+    /** The defining natural resource of this hex, or NONE if it has/had none. */
+    public Constants.NaturalResourceType getPrimaryResource() {
+        Constants.NaturalResourceType best = Constants.NaturalResourceType.NONE;
+        int bestAmount = 0;
+        for (Map.Entry<Constants.NaturalResourceType, Integer> e : naturalResources.entrySet()) {
+            if (e.getValue() > bestAmount) {
+                bestAmount = e.getValue();
+                best = e.getKey();
+            }
+        }
+        return best;
+    }
+
+    /** True if this hex once held a natural resource but it has now been fully consumed. */
+    public boolean isDepleted() {
+        return everHadResource && naturalResources.isEmpty();
+    }
+
+    public boolean everHadResource() { return everHadResource; }
+
+    public boolean hasResource(Constants.NaturalResourceType type) {
+        return naturalResources.getOrDefault(type, 0) > 0;
     }
     public int getNaturalResourceAmount(Constants.NaturalResourceType resourceType) {
         return naturalResources.getOrDefault(resourceType, 0);

@@ -21,10 +21,12 @@ import javax.swing.SwingUtilities;
 
 import controller.GameController;
 import model.Constants;
+import model.GameState;
 import model.Player;
+import model.ProductionTask;
 import model.ResourceStorage;
 
-/** Top heads-up display: resources, turn counter, score and global action buttons. */
+/** Top heads-up display: resources with net rates, unit cap, turn, queue, warnings and actions. */
 public class HudPanel extends JPanel {
     private final GameController controller;
     private final GamePanel gamePanel;
@@ -35,14 +37,14 @@ public class HudPanel extends JPanel {
     private static final Color BG = new Color(15, 17, 35);
     private static final Color BORDER_COLOR = new Color(80, 70, 30);
     private static final Color GOLD = new Color(212, 175, 55);
-    private static final Color GREEN = new Color(80, 200, 80);
-    private static final Color RED = new Color(220, 80, 80);
+    private static final Color GREEN = new Color(90, 210, 90);
+    private static final Color RED = new Color(225, 85, 85);
     private static final Color YELLOW = new Color(230, 200, 60);
 
     public HudPanel(GameController controller, GamePanel gamePanel) {
         this.controller = controller;
         this.gamePanel = gamePanel;
-        setPreferredSize(new Dimension(0, 66));
+        setPreferredSize(new Dimension(0, 92));
         setBackground(BG);
         setLayout(null);
         setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
@@ -98,9 +100,9 @@ public class HudPanel extends JPanel {
     @Override
     public void doLayout() {
         super.doLayout();
-        endTurnBtn.setBounds(getWidth() - 130, 13, 115, 40);
-        techBtn.setBounds(getWidth() - 255, 13, 115, 40);
-        recruitBtn.setBounds(getWidth() - 380, 13, 115, 40);
+        endTurnBtn.setBounds(getWidth() - 130, 14, 115, 40);
+        techBtn.setBounds(getWidth() - 255, 14, 115, 40);
+        recruitBtn.setBounds(getWidth() - 380, 14, 115, 40);
     }
 
     public void update() { repaint(); }
@@ -113,26 +115,31 @@ public class HudPanel extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        Player p = controller.getGameState().getPlayer();
+        GameState gs = controller.getGameState();
+        Player p = gs.getPlayer();
         ResourceStorage rs = p.getResources();
+        int[] net = gs.getNetRate();
 
         GradientPaint bgGrad = new GradientPaint(0, 0, new Color(18, 20, 40), getWidth(), 0, BG);
         g2.setPaint(bgGrad);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        int x = 14;
+        int x = 12;
         x = drawResource(g2, x, "FOOD", rs.get(Constants.ResourceType.FOOD), rs.getCap(Constants.ResourceType.FOOD),
-                new Color(110, 220, 90));
+                net[Constants.ResourceType.FOOD.ordinal()], new Color(120, 220, 100));
         x = drawResource(g2, x, "WOOD", rs.get(Constants.ResourceType.WOOD), rs.getCap(Constants.ResourceType.WOOD),
-                new Color(190, 140, 70));
+                net[Constants.ResourceType.WOOD.ordinal()], new Color(195, 145, 75));
         x = drawResource(g2, x, "STONE", rs.get(Constants.ResourceType.STONE), rs.getCap(Constants.ResourceType.STONE),
-                new Color(185, 185, 190));
+                net[Constants.ResourceType.STONE.ordinal()], new Color(190, 190, 195));
         x = drawResource(g2, x, "IRON", rs.get(Constants.ResourceType.IRON), rs.getCap(Constants.ResourceType.IRON),
-                new Color(220, 110, 110));
+                net[Constants.ResourceType.IRON.ordinal()], new Color(225, 115, 115));
 
-        // Turn + score block, centred in the free area between resources and buttons.
-        int turn = controller.getGameState().getCurrentTurn();
-        int maxTurn = controller.getGameState().getMaxTurns();
+        // Units x/cap box.
+        x = drawUnitBox(g2, x, p);
+
+        // Turn + score block.
+        int turn = gs.getCurrentTurn();
+        int maxTurn = gs.getMaxTurns();
         String turnText = "TURN  " + turn + " / " + maxTurn;
         g2.setFont(new Font("Georgia", Font.BOLD, 20));
         FontMetrics fm = g2.getFontMetrics();
@@ -143,36 +150,73 @@ public class HudPanel extends JPanel {
         int centerX = areaStart + Math.max(0, (areaEnd - areaStart - tw) / 2);
 
         g2.setColor(new Color(80, 70, 30, 110));
-        g2.fillRoundRect(centerX - 12, 10, tw + 24, 30, 8, 8);
+        g2.fillRoundRect(centerX - 12, 10, tw + 24, 28, 8, 8);
         g2.setColor(GOLD);
-        g2.drawString(turnText, centerX, 33);
+        g2.drawString(turnText, centerX, 32);
 
-        int score = controller.getGameState().getCurrentScore();
+        int score = gs.getCurrentScore();
         g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
         g2.setColor(new Color(170, 155, 110));
         String scoreStr = "Score: " + score;
-        g2.drawString(scoreStr, centerX + (tw - g2.getFontMetrics().stringWidth(scoreStr)) / 2, 54);
+        g2.drawString(scoreStr, centerX + (tw - g2.getFontMetrics().stringWidth(scoreStr)) / 2, 50);
 
-        // Status message (left-aligned under resources area is tight; show near center bottom).
+        // Production queue (front task) under the turn block.
+        ProductionTask front = p.getProductionQueue().getFront();
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        if (front != null) {
+            g2.setColor(new Color(150, 200, 240));
+            String q = "Producing: " + front.getLabel()
+                    + (p.getProductionQueue().size() > 1 ? "  (+" + (p.getProductionQueue().size() - 1) + " queued)" : "");
+            g2.drawString(q, areaStart, 70);
+        } else {
+            g2.setColor(new Color(120, 120, 140));
+            g2.drawString("Production queue empty", areaStart, 70);
+        }
+
+        // Warnings (starvation, idle units) on the bottom row, prominent.
+        int wy = 86;
+        int wx = areaStart;
+        if (gs.isStarving()) {
+            wx = drawBadge(g2, wx, wy, "⚠ STARVATION", RED);
+        }
+        int idle = gs.getIdleUnitsWithAP().size();
+        if (idle > 0) {
+            wx = drawBadge(g2, wx, wy, idle + " unit" + (idle == 1 ? "" : "s") + " still have AP", YELLOW);
+        }
+
+        // Status message near the buttons.
         String status = controller.getStatusMessage();
         if (status != null && !status.isEmpty()) {
             g2.setFont(new Font("SansSerif", Font.ITALIC, 11));
             g2.setColor(new Color(210, 190, 130));
-            g2.drawString(status, areaStart, 18);
+            FontMetrics sfm = g2.getFontMetrics();
+            g2.drawString(status, getWidth() - 130 - sfm.stringWidth(status) - 12, 70);
         }
 
         g2.dispose();
     }
 
-    private int drawResource(Graphics2D g2, int x, String name, int val, int cap, Color bright) {
-        int boxW = 108, boxH = 46, y = 10;
+    private int drawBadge(Graphics2D g2, int x, int y, String text, Color color) {
+        g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+        FontMetrics fm = g2.getFontMetrics();
+        int w = fm.stringWidth(text) + 16;
+        g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 45));
+        g2.fillRoundRect(x, y - 14, w, 19, 8, 8);
+        g2.setColor(color);
+        g2.setStroke(new BasicStroke(1f));
+        g2.drawRoundRect(x, y - 14, w, 19, 8, 8);
+        g2.drawString(text, x + 8, y);
+        return x + w + 10;
+    }
+
+    private int drawResource(Graphics2D g2, int x, String name, int val, int cap, int rate, Color bright) {
+        int boxW = 118, boxH = 50, y = 10;
         g2.setColor(new Color(30, 35, 60));
         g2.fillRoundRect(x, y, boxW, boxH, 6, 6);
         g2.setColor(bright.darker().darker());
         g2.setStroke(new BasicStroke(1f));
         g2.drawRoundRect(x, y, boxW, boxH, 6, 6);
 
-        // Colour swatch.
         g2.setColor(bright);
         g2.fillOval(x + 8, y + 6, 10, 10);
 
@@ -180,19 +224,46 @@ public class HudPanel extends JPanel {
         g2.setColor(bright.brighter());
         g2.drawString(name, x + 24, y + 15);
 
+        // Net rate, coloured by sign.
+        String rateStr = (rate >= 0 ? "+" : "") + rate;
+        g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g2.setColor(rate < 0 ? RED : (rate == 0 ? new Color(150, 150, 165) : GREEN));
+        FontMetrics rfm = g2.getFontMetrics();
+        g2.drawString(rateStr, x + boxW - rfm.stringWidth(rateStr) - 8, y + 15);
+
         String valStr = val + " / " + cap;
-        g2.setFont(new Font("SansSerif", Font.BOLD, 13));
+        g2.setFont(new Font("SansSerif", Font.BOLD, 14));
         Color valColor = val < cap * 0.15 ? RED : (val < cap * 0.4 ? YELLOW : GREEN);
         g2.setColor(valColor);
-        g2.drawString(valStr, x + 8, y + 33);
+        g2.drawString(valStr, x + 8, y + 35);
 
         g2.setColor(new Color(40, 40, 60));
-        g2.fillRect(x + 8, y + 38, boxW - 16, 5);
+        g2.fillRect(x + 8, y + 41, boxW - 16, 5);
         float pct = cap > 0 ? Math.min(1f, (float) val / cap) : 0f;
         g2.setColor(bright);
-        g2.fillRect(x + 8, y + 38, (int) ((boxW - 16) * pct), 5);
+        g2.fillRect(x + 8, y + 41, (int) ((boxW - 16) * pct), 5);
 
-        return x + boxW + 8;
+        return x + boxW + 7;
+    }
+
+    private int drawUnitBox(Graphics2D g2, int x, Player p) {
+        int boxW = 96, boxH = 50, y = 10;
+        boolean atCap = p.atUnitCap();
+        g2.setColor(new Color(30, 35, 60));
+        g2.fillRoundRect(x, y, boxW, boxH, 6, 6);
+        g2.setColor(atCap ? RED.darker() : new Color(70, 70, 100));
+        g2.setStroke(new BasicStroke(1f));
+        g2.drawRoundRect(x, y, boxW, boxH, 6, 6);
+
+        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2.setColor(new Color(180, 180, 200));
+        g2.drawString("UNITS", x + 8, y + 15);
+
+        String v = p.getUnitCount() + " / " + p.getUnitCap();
+        g2.setFont(new Font("SansSerif", Font.BOLD, 16));
+        g2.setColor(atCap ? RED : GOLD);
+        g2.drawString(v, x + 8, y + 36);
+        return x + boxW + 10;
     }
 
     private void showTechDialog() {

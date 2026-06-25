@@ -102,8 +102,20 @@ public class SidePanel extends JPanel {
         statsPanel.add(Box.createVerticalStrut(4));
         statsPanel.add(makeCentered(makeLabel("Territory: " + p.getTerritorySize(), TEXT_COLOR, Font.PLAIN, 11)));
         statsPanel.add(makeCentered(makeLabel("Buildings: " + p.getBuildingCount(), TEXT_COLOR, Font.PLAIN, 11)));
-        statsPanel.add(makeCentered(makeLabel("Units: " + p.getUnitCount(), TEXT_COLOR, Font.PLAIN, 11)));
+        statsPanel.add(makeCentered(makeLabel("Units: " + p.getUnitCount() + "/" + p.getUnitCap(), TEXT_COLOR, Font.PLAIN, 11)));
         statsPanel.add(makeCentered(makeLabel("Tech: " + p.getResearched().size() + "/6", TEXT_COLOR, Font.PLAIN, 11)));
+
+        model.ProductionQueue queue = p.getProductionQueue();
+        if (!queue.isEmpty()) {
+            statsPanel.add(Box.createVerticalStrut(6));
+            statsPanel.add(makeCentered(makeLabel("PRODUCTION QUEUE", new Color(150, 200, 240), Font.BOLD, 11)));
+            int shown = 0;
+            for (model.ProductionTask t : queue.getTasks()) {
+                if (shown++ >= 4) break;
+                statsPanel.add(makeCentered(makeLabel(t.getLabel(), TEXT_COLOR, Font.PLAIN, 10)));
+            }
+        }
+
         statsPanel.add(Box.createVerticalStrut(4));
         statsPanel.add(makeCentered(makeLabel("Score: " + controller.getGameState().getCurrentScore(), GOLD, Font.BOLD, 13)));
     }
@@ -156,9 +168,22 @@ public class SidePanel extends JPanel {
                     e.isAutoExploreMode() ? new Color(80, 200, 80) : TEXT_COLOR, Font.PLAIN, 11)));
         } else if (u instanceof Worker) {
             Worker w = (Worker) u;
-            String stationed = w.isStationed() ? w.getStationedAt().getType().name() : "No";
             unitInfoPanel.add(Box.createVerticalStrut(4));
-            unitInfoPanel.add(makeCentered(makeLabel("Stationed: " + stationed, TEXT_COLOR, Font.PLAIN, 11)));
+            if (w.isStationed()) {
+                model.Building b = w.getStationedAt();
+                unitInfoPanel.add(makeCentered(makeLabel("Working: " + b.getType().name().replace("_", " "),
+                        new Color(120, 210, 120), Font.BOLD, 11)));
+                unitInfoPanel.add(makeCentered(makeLabel("Crew: " + b.getWorkerCount() + "/" + b.getWorkerCap(),
+                        TEXT_COLOR, Font.PLAIN, 11)));
+            } else {
+                model.Building here = controller.getGameState().getPlayer().getBuildingAt(w.getPosition());
+                if (here != null && here.getWorkerCap() > 0) {
+                    unitInfoPanel.add(makeCentered(makeLabel("On " + here.getType().name().replace("_", " ")
+                            + " (" + here.getWorkerCount() + "/" + here.getWorkerCap() + ")", TEXT_COLOR, Font.PLAIN, 11)));
+                } else {
+                    unitInfoPanel.add(makeCentered(makeLabel("Idle — stand on a building", TEXT_COLOR, Font.ITALIC, 11)));
+                }
+            }
         }
     }
 
@@ -167,26 +192,41 @@ public class SidePanel extends JPanel {
         actionPanel.add(Box.createVerticalStrut(8));
 
         if (u instanceof Explorer) {
-            addActionBtn("Toggle Auto-Explore", e -> { controller.onAutoExploreToggled(); gamePanel.repaintAll(); });
+            Explorer e = (Explorer) u;
+            addActionBtn((e.isAutoExploreMode() ? "Stop Auto-Explore" : "Start Auto-Explore"), true,
+                    ev -> { controller.onAutoExploreToggled(); gamePanel.repaintAll(); });
         } else if (u instanceof Builder) {
-            addActionBtn("Build Lumber Mill", e -> { controller.onBuildChosen(Constants.BuildingType.LUMBER_MILL); gamePanel.repaintAll(); });
-            addActionBtn("Build Farm", e -> { controller.onBuildChosen(Constants.BuildingType.FARM); gamePanel.repaintAll(); });
-            addActionBtn("Build Stable", e -> { controller.onBuildChosen(Constants.BuildingType.STABLE); gamePanel.repaintAll(); });
-            addActionBtn("Build Stone Mine", e -> { controller.onBuildChosen(Constants.BuildingType.STONE_MINE); gamePanel.repaintAll(); });
-            addActionBtn("Build Iron Mine", e -> { controller.onBuildChosen(Constants.BuildingType.IRON_MINE); gamePanel.repaintAll(); });
-            addActionBtn("Build Township", e -> { controller.onBuildChosen(Constants.BuildingType.TOWNSHIP); gamePanel.repaintAll(); });
+            addBuildBtn("Lumber Mill", Constants.BuildingType.LUMBER_MILL);
+            addBuildBtn("Farm", Constants.BuildingType.FARM);
+            addBuildBtn("Stable", Constants.BuildingType.STABLE);
+            addBuildBtn("Stone Mine", Constants.BuildingType.STONE_MINE);
+            addBuildBtn("Iron Mine", Constants.BuildingType.IRON_MINE);
+            addBuildBtn("Township", Constants.BuildingType.TOWNSHIP);
         } else if (u instanceof Worker) {
-            addActionBtn("Station Here", e -> { controller.onStationWorker(); gamePanel.repaintAll(); });
-            addActionBtn("Unstation", e -> { controller.onUnstationWorker(); gamePanel.repaintAll(); });
+            Worker w = (Worker) u;
+            boolean canStation = controller.canStationHere();
+            addActionBtn(w.isStationed() ? "Re-station Here" : "Station Here", canStation,
+                    ev -> { controller.onStationWorker(); gamePanel.repaintAll(); });
+            addActionBtn("Leave Building", w.isStationed(),
+                    ev -> { controller.onUnstationWorker(); gamePanel.repaintAll(); });
         } else if (u instanceof BorderExpander) {
-            addActionBtn("Expand Border", e -> { controller.onExpandBorder(); gamePanel.repaintAll(); });
+            BorderExpander be = (BorderExpander) u;
+            addActionBtn("Expand Border", be.canExpand(),
+                    ev -> { controller.onExpandBorder(); gamePanel.repaintAll(); });
         }
 
         actionPanel.add(Box.createVerticalStrut(6));
-        addActionBtn("Deselect (ESC)", e -> { controller.deselectUnit(); gamePanel.repaintAll(); });
+        addActionBtn("Deselect (ESC)", true, ev -> { controller.deselectUnit(); gamePanel.repaintAll(); });
     }
 
-    private void addActionBtn(String text, ActionListener al) {
+    private void addBuildBtn(String label, Constants.BuildingType type) {
+        boolean enabled = controller.canBuildType(type);
+        addActionBtn("Build " + label, enabled,
+                ev -> { controller.onBuildChosen(type); gamePanel.repaintAll(); });
+    }
+
+    private void addActionBtn(String text, boolean enabled, ActionListener al) {
+        final boolean en = enabled;
         JButton btn = new JButton(text) {
             boolean hovered = false;
             {
@@ -199,12 +239,21 @@ public class SidePanel extends JPanel {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                g2.setColor(hovered ? new Color(50, 60, 100) : new Color(35, 40, 75));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
-                g2.setColor(hovered ? GOLD : new Color(100, 90, 50));
-                g2.setStroke(new BasicStroke(1f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
-                g2.setColor(TEXT_COLOR);
+                if (!en) {
+                    g2.setColor(new Color(28, 30, 45));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                    g2.setColor(new Color(55, 55, 70));
+                    g2.setStroke(new BasicStroke(1f));
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
+                    g2.setColor(new Color(95, 95, 110));
+                } else {
+                    g2.setColor(hovered ? new Color(50, 60, 100) : new Color(35, 40, 75));
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                    g2.setColor(hovered ? GOLD : new Color(100, 90, 50));
+                    g2.setStroke(new BasicStroke(1f));
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
+                    g2.setColor(TEXT_COLOR);
+                }
                 g2.setFont(new Font("SansSerif", Font.PLAIN, 11));
                 FontMetrics fm = g2.getFontMetrics();
                 g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
@@ -216,11 +265,12 @@ public class SidePanel extends JPanel {
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
-        btn.setMaximumSize(new Dimension(195, 32));
-        btn.setPreferredSize(new Dimension(195, 32));
+        btn.setEnabled(en);
+        btn.setMaximumSize(new Dimension(195, 30));
+        btn.setPreferredSize(new Dimension(195, 30));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.addActionListener(al);
+        btn.setCursor(Cursor.getPredefinedCursor(en ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+        if (en) btn.addActionListener(al);
         actionPanel.add(btn);
         actionPanel.add(Box.createVerticalStrut(5));
     }

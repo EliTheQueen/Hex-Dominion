@@ -16,6 +16,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,12 @@ public class MapPanel extends JPanel
     private float selectionPulse = 0f;
     private final Timer pulseTimer;
 
+    // Smooth movement animation: each unit's displayed position eases toward its hex (no teleport).
+    private final Map<Unit, Point2D> animatedRaw = new HashMap<>();
+
+    // Minimap geometry (bottom-right corner).
+    private static final int MINI_W = 188, MINI_H = 150, MINI_PAD = 12;
+
     public MapPanel(GameController controller, GamePanel gamePanel) {
         this.controller = controller;
         this.gamePanel = gamePanel;
@@ -74,12 +81,30 @@ public class MapPanel extends JPanel
         addMouseMotionListener(this);
         addMouseWheelListener(this);
 
-        pulseTimer = new Timer(40, e -> {
+        pulseTimer = new Timer(33, e -> {
             selectionPulse += 0.08f;
             if (selectionPulse > 2 * Math.PI) selectionPulse -= (float) (2 * Math.PI);
-            if (controller.getSelectedUnit() != null) repaint();
+            stepAnimations();
+            repaint();
         });
         pulseTimer.start();
+    }
+
+    /** Eases every unit's displayed position toward its true hex, in zoom-independent raw space. */
+    private void stepAnimations() {
+        if (controller.getGameState() == null) return;
+        for (Unit u : controller.getGameState().getPlayer().getUnits()) {
+            if (!u.isAlive()) continue;
+            Point2D target = hexToPixelRaw(u.getPosition());
+            Point2D cur = animatedRaw.get(u);
+            if (cur == null) {
+                animatedRaw.put(u, target);
+            } else {
+                double nx = cur.getX() + (target.getX() - cur.getX()) * 0.25;
+                double ny = cur.getY() + (target.getY() - cur.getY()) * 0.25;
+                animatedRaw.put(u, new Point2D.Double(nx, ny));
+            }
+        }
     }
 
     @Override
@@ -127,12 +152,12 @@ public class MapPanel extends JPanel
             if (!u.isAlive()) continue;
             Hex hex = map.getHex(u.getPosition());
             if (hex != null && hex.isVisible()) {
-                drawUnit(g2, u, hexToPixel(u.getPosition()));
+                drawUnit(g2, u, animatedCenter(u));
             }
         }
 
         if (controller.getSelectedUnit() != null) {
-            drawSelectionGlow(g2, hexToPixel(controller.getSelectedUnit().getPosition()));
+            drawSelectionGlow(g2, animatedCenter(controller.getSelectedUnit()));
         } else if (controller.getSelectedHex() != null) {
             drawHexHighlight(g2, hexToPixel(controller.getSelectedHex()), new Color(100, 150, 255, 90));
         }
@@ -153,13 +178,110 @@ public class MapPanel extends JPanel
                     + controller.getPendingBuildType().name(), 26, getHeight() - 23);
         }
 
+        drawMinimap(g2, gs, map, player);
+
         // Controls hint.
         g2.setFont(new Font("SansSerif", Font.PLAIN, 11));
         g2.setColor(new Color(150, 150, 175, 170));
-        g2.drawString("Drag to pan  •  Scroll to zoom  •  Right-click / ESC to deselect",
+        g2.drawString("Drag to pan  •  Scroll to zoom  •  Click minimap to jump  •  Right-click / ESC to deselect",
                 16, getHeight() - 6);
 
         g2.dispose();
+    }
+
+    // ---- Minimap -----------------------------------------------------------
+
+    private java.awt.Rectangle minimapRect() {
+        return new java.awt.Rectangle(getWidth() - MINI_W - MINI_PAD,
+                getHeight() - MINI_H - MINI_PAD - 18, MINI_W, MINI_H);
+    }
+
+    private void drawMinimap(Graphics2D g2, GameState gs, GameMap map, Player player) {
+        java.awt.Rectangle r = minimapRect();
+        g2.setColor(new Color(8, 9, 20, 235));
+        g2.fillRoundRect(r.x - 4, r.y - 16, r.width + 8, r.height + 22, 8, 8);
+        g2.setColor(GOLD);
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(r.x - 4, r.y - 16, r.width + 8, r.height + 22, 8, 8);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2.drawString("MINIMAP", r.x, r.y - 4);
+
+        int maxQ = 0, maxR = 0;
+        for (Hex h : map.getAllHexes()) {
+            maxQ = Math.max(maxQ, h.getCoordinate().getQ());
+            maxR = Math.max(maxR, h.getCoordinate().getR());
+        }
+        double cellW = (double) r.width / (maxQ + 1);
+        double cellH = (double) r.height / (maxR + 1.5);
+
+        for (Hex h : map.getAllHexes()) {
+            HexCoordinate c = h.getCoordinate();
+            int mx = r.x + (int) (c.getQ() * cellW);
+            int my = r.y + (int) ((c.getR() + 0.5 * (c.getQ() & 1)) * cellH);
+            int w = (int) Math.ceil(cellW) + 1, hh = (int) Math.ceil(cellH) + 1;
+            Color cell;
+            if (!h.getIsExplored()) {
+                cell = new Color(18, 20, 34);
+            } else {
+                cell = getTerrainColor(h.getTerrainType());
+                if (!h.isVisible()) cell = desaturate(cell, 0.4f);
+            }
+            g2.setColor(cell);
+            g2.fillRect(mx, my, w, hh);
+            if (h.getIsExplored() && player.isInTerritory(c)) {
+                g2.setColor(new Color(212, 175, 55, 90));
+                g2.fillRect(mx, my, w, hh);
+            }
+        }
+        // Buildings (gold) and town hall (bright).
+        for (Building b : player.getBuildings()) {
+            if (!b.isActive()) continue;
+            HexCoordinate c = b.getPosition();
+            int mx = r.x + (int) (c.getQ() * cellW);
+            int my = r.y + (int) ((c.getR() + 0.5 * (c.getQ() & 1)) * cellH);
+            g2.setColor(b.getType() == Constants.BuildingType.TOWN_HALL ? Color.WHITE : new Color(240, 200, 90));
+            g2.fillRect(mx - 1, my - 1, 4, 4);
+        }
+        // Units.
+        for (Unit u : player.getUnits()) {
+            if (!u.isAlive()) continue;
+            HexCoordinate c = u.getPosition();
+            int mx = r.x + (int) (c.getQ() * cellW);
+            int my = r.y + (int) ((c.getR() + 0.5 * (c.getQ() & 1)) * cellH);
+            g2.setColor(getUnitColor(u.getUnitType()));
+            g2.fillOval(mx - 1, my - 1, 4, 4);
+        }
+        // Current viewport box.
+        g2.setColor(new Color(255, 255, 255, 160));
+        g2.setStroke(new BasicStroke(1f));
+        double vx = (-offsetX) / (hexSize * 1.5);
+        double vy = (-offsetY) / (hexSize * Math.sqrt(3));
+        double vw = getWidth() / (hexSize * 1.5);
+        double vh = getHeight() / (hexSize * Math.sqrt(3));
+        int bx = r.x + (int) (vx * cellW);
+        int by = r.y + (int) (vy * cellH);
+        g2.drawRect(bx, by, (int) (vw * cellW), (int) (vh * cellH));
+    }
+
+    /** If the click landed on the minimap, recenter the main camera there and return true. */
+    private boolean handleMinimapClick(int px, int py) {
+        java.awt.Rectangle r = minimapRect();
+        if (!r.contains(px, py)) return false;
+        GameMap map = controller.getGameState().getMap();
+        int maxQ = 0, maxR = 0;
+        for (Hex h : map.getAllHexes()) {
+            maxQ = Math.max(maxQ, h.getCoordinate().getQ());
+            maxR = Math.max(maxR, h.getCoordinate().getR());
+        }
+        double cellW = (double) r.width / (maxQ + 1);
+        double cellH = (double) r.height / (maxR + 1.5);
+        int q = (int) Math.round((px - r.x) / cellW);
+        int rr = (int) Math.round((py - r.y) / cellH - 0.5 * (q & 1));
+        Point2D raw = hexToPixelRaw(new HexCoordinate(q, rr));
+        offsetX = getWidth() / 2.0 - raw.getX();
+        offsetY = getHeight() / 2.0 - raw.getY();
+        repaint();
+        return true;
     }
 
     private void centerOnTownHall(Player player) {
@@ -236,7 +358,45 @@ public class MapPanel extends JPanel
 
         if (hex.isVisible() && hex.hasNaturalResource()) {
             drawNaturalResources(g2, hex, center);
+        } else if (hex.isVisible() && hex.isDepleted()) {
+            drawDepletedMarker(g2, hex, center);
         }
+    }
+
+    /** Distinct rendering for a hex whose resource has been exhausted (empty forest/mine/farm). */
+    private void drawDepletedMarker(Graphics2D g2, Hex hex, Point2D center) {
+        // Grey out the tile slightly so it reads as spent.
+        Polygon poly = createHexPolygon(center);
+        g2.setColor(new Color(40, 40, 45, 90));
+        g2.fillPolygon(poly);
+
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+        g2.setColor(new Color(120, 110, 100));
+        switch (hex.getTerrainType()) {
+            case FOREST: // tree stumps
+                for (int[] t : new int[][]{{-10, 4}, {8, -2}, {2, 10}}) {
+                    g2.fillRect(cx + t[0] - 3, cy + t[1] - 2, 6, 5);
+                    g2.setColor(new Color(90, 70, 50));
+                    g2.drawRect(cx + t[0] - 3, cy + t[1] - 2, 6, 5);
+                    g2.setColor(new Color(120, 110, 100));
+                }
+                break;
+            case MOUNTAIN: // collapsed mine entrance
+                g2.setColor(new Color(60, 55, 50));
+                g2.fillArc(cx - 9, cy - 4, 18, 16, 0, 180);
+                g2.setColor(new Color(30, 28, 26));
+                g2.fillArc(cx - 5, cy, 10, 8, 0, 180);
+                break;
+            default: // tilled-out empty field
+                g2.setColor(new Color(110, 95, 70));
+                for (int i = -1; i <= 1; i++) g2.drawLine(cx - 10, cy + i * 5, cx + 10, cy + i * 5);
+                break;
+        }
+        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
+        g2.setColor(new Color(220, 120, 120, 200));
+        String t = "EMPTY";
+        g2.drawString(t, cx - g2.getFontMetrics().stringWidth(t) / 2, cy + (int) (hexSize * 0.55));
     }
 
     private void drawTerrainDetails(Graphics2D g2, Hex hex, Point2D center) {
@@ -579,6 +739,13 @@ public class MapPanel extends JPanel
         return new Point2D.Double(raw.getX() + offsetX, raw.getY() + offsetY);
     }
 
+    /** Screen position of a unit using its eased animation position (falls back to its hex). */
+    private Point2D animatedCenter(Unit u) {
+        Point2D raw = animatedRaw.get(u);
+        if (raw == null) raw = hexToPixelRaw(u.getPosition());
+        return new Point2D.Double(raw.getX() + offsetX, raw.getY() + offsetY);
+    }
+
     public HexCoordinate pixelToHex(int px, int py) {
         GameMap map = controller.getGameState().getMap();
         HexCoordinate best = null;
@@ -640,6 +807,11 @@ public class MapPanel extends JPanel
         if (SwingUtilities.isRightMouseButton(e)) {
             controller.deselectUnit();
             gamePanel.repaintAll();
+            return;
+        }
+        if (SwingUtilities.isLeftMouseButton(e) && handleMinimapClick(e.getX(), e.getY())) {
+            dragging = true; // suppress the click-as-select that would otherwise follow
+            return;
         }
         dragStartX = e.getX();
         dragStartY = e.getY();
@@ -671,8 +843,49 @@ public class MapPanel extends JPanel
         HexCoordinate coord = pixelToHex(e.getX(), e.getY());
         if (!Objects.equals(coord, hoverHex)) {
             hoverHex = coord;
+            setToolTipText(buildTooltip(coord));
             repaint();
         }
+    }
+
+    /** Rich hover tooltip: terrain, resource (and remaining), building and stationed workers. */
+    private String buildTooltip(HexCoordinate coord) {
+        if (coord == null) return null;
+        GameState gs = controller.getGameState();
+        Hex h = gs.getMap().getHex(coord);
+        if (h == null) return null;
+        if (!h.getIsExplored()) return "Unexplored";
+
+        Player player = gs.getPlayer();
+        StringBuilder sb = new StringBuilder("<html>");
+        sb.append("<b>Terrain:</b> ").append(h.getTerrainType().name());
+        if (h.hasNaturalResource()) {
+            sb.append("<br><b>Resource:</b> ");
+            boolean first = true;
+            for (Map.Entry<Constants.NaturalResourceType, Integer> en : h.getNaturalResources().entrySet()) {
+                if (!first) sb.append(", ");
+                sb.append(en.getKey().name()).append(" (").append(en.getValue()).append(" left)");
+                first = false;
+            }
+        } else if (h.isDepleted()) {
+            sb.append("<br><b>Resource:</b> depleted (empty)");
+        } else {
+            sb.append("<br><b>Resource:</b> none");
+        }
+        Building b = player.getBuildingAt(coord);
+        if (b != null) {
+            sb.append("<br><b>Building:</b> ").append(b.getType().name().replace("_", " "));
+            if (b.isRuined()) sb.append(" (RUINED)");
+            else if (b.getWorkerCap() > 0) sb.append(" — workers ").append(b.getWorkerCount()).append("/").append(b.getWorkerCap());
+        }
+        Unit u = player.getUnitAt(coord);
+        if (u != null) {
+            sb.append("<br><b>Unit:</b> ").append(u.getUnitType().name().replace("_", " "))
+              .append(" (AP ").append(u.getCurrentAP()).append("/").append(u.getMaxAP()).append(")");
+        }
+        if (player.isInTerritory(coord)) sb.append("<br><i>Your territory</i>");
+        sb.append("</html>");
+        return sb.toString();
     }
 
     @Override

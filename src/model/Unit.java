@@ -23,6 +23,7 @@ public abstract class Unit {
     public int getCurrentAP() { return currentAP; }
     public int getMaxAP() { return maxAP; }
     public void resetAP() { currentAP = maxAP; }
+    public void setCurrentAP(int ap) { currentAP = Math.max(0, Math.min(ap, maxAP)); }
     public boolean spendAP(int amount) {
         if (currentAP < amount) return false;
         currentAP -= amount;

@@ -42,15 +42,16 @@ public class MapGenerator {
             else  if (terrainType == Constants.TerrainType.FOREST) {
                 hex.addNaturalResource(Constants.NaturalResourceType.WOOD, 100);
             }
-            else if (terrainType == Constants.TerrainType.GRASSLAND) {
+            else if (terrainType == Constants.TerrainType.PLAIN) {
+                // Plains (دشت): some hexes hold domestic animals.
                 double r = Math.random();
                 if (r < 0.33) {
-
                     hex.addNaturalResource(Constants.NaturalResourceType.COW, 80);
                 } else if (0.33 <= r && r < 0.66) {
                     hex.addNaturalResource(Constants.NaturalResourceType.SHEEP, 80);
                 }
-            } else if (terrainType == Constants.TerrainType.PLAIN) {
+            } else if (terrainType == Constants.TerrainType.GRASSLAND) {
+                // Grassland (سبزه‌زار): some hexes hold wheat or rice.
                 double r = Math.random();
                 if (r < 0.33) {
                     hex.addNaturalResource(Constants.NaturalResourceType.WHEAT, 100);

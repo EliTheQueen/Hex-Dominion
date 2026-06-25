@@ -1,7 +1,6 @@
 package model;
 
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
 
 public final class Constants {
@@ -18,12 +17,29 @@ public final class Constants {
     }
 
     public static final int MAP_RADIUS = 7;
-    public static final int INITIAL_CAP = 10;
+    public static final int INITIAL_CAP = 6;
+    public static final int CAP_PER_TOWNSHIP = 4;
     public static final int INITIAL_STORAGE = 100;
-    public static final int INITIAL_FOOD = 40, INITIAL_WOOD = 30, INITIAL_IRON = 0;
+    public static final int INITIAL_FOOD = 40, INITIAL_WOOD = 30, INITIAL_STONE = 10, INITIAL_IRON = 0;
     public static final int BUILDER_CHARGES = 3;
     public static final int WORKER_STATION_AP_COST = 1;
     public static final int FOOD_PER_UNIT = 1;
+
+    // Town Hall passive "safeguard" production each turn so the player is never fully stuck.
+    public static final int TOWN_HALL_FOOD = 1;
+    public static final int TOWN_HALL_WOOD = 1;
+
+    // A building that cannot pay upkeep this many consecutive turns falls into ruin.
+    public static final int UPKEEP_GRACE_TURNS = 3;
+
+    // During a starvation crisis units only receive this fraction of their action points.
+    public static final double STARVATION_AP_FACTOR = 0.5;
+
+    // How much of a hex's natural resource is consumed per unit produced from it.
+    public static final int DEPLETION_PER_PRODUCTION = 1;
+
+    // Default building vision radius for fog of war.
+    public static final int BUILDING_VISION = 2;
 
     public static final Map<TerrainType,Integer> MOVE_COST = new EnumMap<>(TerrainType.class);
     public static final Map<UnitType,Integer> UNIT_AP = new EnumMap<>(UnitType.class);
@@ -35,9 +51,12 @@ public final class Constants {
     public static final Map<BuildingType,ResourceAmount> BUILD_COST = new EnumMap<>(BuildingType.class);
     public static final Map<BuildingType,ResourceAmount> UPKEEP = new EnumMap<>(BuildingType.class);
     public static final Map<UnitType,ResourceAmount> UNIT_COST = new EnumMap<>(UnitType.class);
+    // How many turns each unit takes to come out of the Town Hall production queue.
+    public static final Map<UnitType,Integer> UNIT_BUILD_TURNS = new EnumMap<>(UnitType.class);
 
     static {
         MOVE_COST.put(TerrainType.PLAINS,1);
+        MOVE_COST.put(TerrainType.PLAIN,1);
         MOVE_COST.put(TerrainType.GRASSLAND,1);
         MOVE_COST.put(TerrainType.FOREST,2);
         MOVE_COST.put(TerrainType.MOUNTAIN,4);
@@ -87,6 +106,9 @@ public final class Constants {
         UNIT_COST.put(UnitType.BUILDER, ResourceAmount.of(10,12,0,0));
         UNIT_COST.put(UnitType.WORKER, ResourceAmount.of(8,8,0,0));
         UNIT_COST.put(UnitType.BORDER_EXPANDER, ResourceAmount.of(12,20,8,0));
+        UNIT_BUILD_TURNS.put(UnitType.EXPLORER,2);
+        UNIT_BUILD_TURNS.put(UnitType.BUILDER,3);
+        UNIT_BUILD_TURNS.put(UnitType.WORKER,2);
+        UNIT_BUILD_TURNS.put(UnitType.BORDER_EXPANDER,3);
     }
 }
-

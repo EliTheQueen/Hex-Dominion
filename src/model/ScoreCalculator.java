@@ -13,7 +13,7 @@ public class ScoreCalculator {
 
     public static int territoryScore(Player p) { return p.getTerritorySize() * 5; }
 
-    public static int buildingScore(Player p) { return p.getBuildingCount() * 10; }
+    public static int buildingScore(Player p) { return p.getActiveBuildingCount() * 10; }
 
     public static int techScore(Player p) { return p.getResearched().size() * 15; }
 
