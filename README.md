@@ -23,8 +23,10 @@ Or simply open the project in IntelliJ IDEA and run `app.Main`.
 
 ## Gameplay
 
-You lead a young civilization on a fog-covered hex map. Over **50 turns** you explore,
-claim territory, build an economy and research technologies to maximise your final score.
+You lead a young civilization on a fog-covered hex map. This is an open-ended **sandbox**:
+there is no turn limit and no win condition — you explore, claim territory, build an economy
+and research technologies for as long as you like. Your live score is always shown in the HUD.
+The only way to lose is to let your whole empire (every unit and building) be wiped out.
 
 You start with **1 Explorer, 2 Builders and 2 Workers**.
 
@@ -56,8 +58,12 @@ Food, Wood, Stone, Iron — capped by your storage capacity. Every unit eats 1 f
 Storage I/II (capacity), Stone Mining, Iron Mining, Professional Tools (+50% production), Township.
 
 ### Scoring
-Final score = Territory ×5 + Buildings ×10 + Technologies ×15 + Explored hexes ×2 + Resources ÷10.
-Reach 300+ for a Victory.
+A running score = Territory ×5 + Buildings ×10 + Technologies ×15 + Explored hexes ×2 + Resources ÷10,
+shown live in the HUD as a measure of how your empire is developing (the sandbox has no target to "win").
+
+### Settings
+A Settings dialog (from the main menu or the in-game gear button) offers a music-volume slider and a
+mute toggle. Quitting the game always asks for confirmation first.
 
 ## Controls
 - **Left-click** a unit to select it, then click a reachable hex to move (reachable hexes are tinted green; units walk there with a smooth animation, never teleporting).
