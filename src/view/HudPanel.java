@@ -33,6 +33,7 @@ public class HudPanel extends JPanel {
     private final JButton endTurnBtn;
     private final JButton techBtn;
     private final JButton recruitBtn;
+    private final JButton settingsBtn;
 
     private static final Color BG = new Color(15, 17, 35);
     private static final Color BORDER_COLOR = new Color(80, 70, 30);
@@ -52,6 +53,7 @@ public class HudPanel extends JPanel {
         endTurnBtn = createBtn("END TURN", new Color(140, 100, 20), new Color(185, 135, 30));
         techBtn = createBtn("RESEARCH", new Color(20, 60, 120), new Color(30, 90, 160));
         recruitBtn = createBtn("RECRUIT", new Color(60, 30, 80), new Color(90, 50, 120));
+        settingsBtn = createBtn("⚙", new Color(45, 50, 70), new Color(70, 78, 105));
 
         endTurnBtn.addActionListener(e -> {
             controller.onEndTurnClicked();
@@ -59,6 +61,10 @@ public class HudPanel extends JPanel {
         });
         techBtn.addActionListener(e -> showTechDialog());
         recruitBtn.addActionListener(e -> showRecruitDialog());
+        settingsBtn.addActionListener(e -> {
+            java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+            new SettingsPanel(w).setVisible(true);
+        });
     }
 
     private JButton createBtn(String text, Color normal, Color hover) {
@@ -103,6 +109,7 @@ public class HudPanel extends JPanel {
         endTurnBtn.setBounds(getWidth() - 130, 14, 115, 40);
         techBtn.setBounds(getWidth() - 255, 14, 115, 40);
         recruitBtn.setBounds(getWidth() - 380, 14, 115, 40);
+        settingsBtn.setBounds(getWidth() - 428, 14, 40, 40);
     }
 
     public void update() { repaint(); }
@@ -139,14 +146,13 @@ public class HudPanel extends JPanel {
 
         // Turn + score block.
         int turn = gs.getCurrentTurn();
-        int maxTurn = gs.getMaxTurns();
-        String turnText = "TURN  " + turn + " / " + maxTurn;
+        String turnText = "TURN  " + turn;
         g2.setFont(new Font("Georgia", Font.BOLD, 20));
         FontMetrics fm = g2.getFontMetrics();
         int tw = fm.stringWidth(turnText);
 
         int areaStart = x + 10;
-        int areaEnd = getWidth() - 395;
+        int areaEnd = getWidth() - 443;
         int centerX = areaStart + Math.max(0, (areaEnd - areaStart - tw) / 2);
 
         g2.setColor(new Color(80, 70, 30, 110));

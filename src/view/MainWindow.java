@@ -3,8 +3,11 @@ package view;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import controller.GameController;
@@ -18,10 +21,16 @@ public class MainWindow extends JFrame {
 
     public MainWindow() {
         super("Hex Dominion");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        // Confirm before exiting (handled in confirmExit) rather than closing immediately.
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override public void windowClosing(WindowEvent e) { confirmExit(); }
+        });
         setSize(1280, 800);
         setMinimumSize(new Dimension(1024, 700));
         setLocationRelativeTo(null);
+
+        SoundManager.getInstance().startMusic();
 
         controller = new GameController();
         controller.setMainWindow(this);
@@ -42,6 +51,21 @@ public class MainWindow extends JFrame {
 
     public void showMenu() {
         cardLayout.show(cardPanel, "MENU");
+    }
+
+    /** Opens the settings dialog (music volume, mute). */
+    public void showSettings() {
+        new SettingsPanel(this).setVisible(true);
+    }
+
+    /** Asks the player to confirm before quitting the game. */
+    public void confirmExit() {
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to exit Hex Dominion?", "Exit game",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (choice == JOptionPane.YES_OPTION) {
+            System.exit(0);
+        }
     }
 
     public void startGame() {

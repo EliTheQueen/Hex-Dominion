@@ -9,7 +9,6 @@ public class GameState {
     private final Player player;
     private final HexCoordinate townHallPos;
     private int currentTurn;
-    private static final int MAX_TURNS = 50;
     private boolean gameOver;
     private String gameOverReason;
     private int finalScore;
@@ -42,7 +41,7 @@ public class GameState {
         spawnStartingUnits(center);
 
         updateVisibility();
-
+ 
         currentTurn = 1;
         gameOver = false;
         gameOverReason = "";
@@ -136,13 +135,10 @@ public class GameState {
         // 7. Reveal hexes around units/buildings.
         updateVisibility();
 
-        // 8. Advance turn and run end conditions.
+        // 8. Advance turn. This is an open-ended sandbox: there is no turn limit and no
+        // "victory". The only terminal state is losing every unit and building.
         currentTurn++;
-        if (currentTurn > MAX_TURNS) {
-            gameOver = true;
-            gameOverReason = "Max turns reached";
-            finalScore = ScoreCalculator.calculate(player, map);
-        } else if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
+        if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
             gameOver = true;
             gameOverReason = "All units and buildings lost";
             finalScore = ScoreCalculator.calculate(player, map);
@@ -357,7 +353,6 @@ public class GameState {
     public Player getPlayer() { return player; }
     public HexCoordinate getTownHallPos() { return townHallPos; }
     public int getCurrentTurn() { return currentTurn; }
-    public int getMaxTurns() { return MAX_TURNS; }
     public boolean isGameOver() { return gameOver; }
     public boolean isStarving() { return starving; }
     public String getGameOverReason() { return gameOverReason; }

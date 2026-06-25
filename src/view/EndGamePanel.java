@@ -44,7 +44,7 @@ public class EndGamePanel extends JPanel {
         add(exitBtn);
 
         playAgainBtn.addActionListener(e -> mainWindow.startGame());
-        exitBtn.addActionListener(e -> System.exit(0));
+        exitBtn.addActionListener(e -> mainWindow.confirmExit());
     }
 
     @Override
@@ -60,10 +60,10 @@ public class EndGamePanel extends JPanel {
         g2.setPaint(bgGrad);
         g2.fillRect(0, 0, w, h);
 
-        boolean victory = totalScore >= 300;
+        // Sandbox: the run only ends when the empire is wiped out, so this is always a defeat.
         g2.setFont(new Font("Georgia", Font.BOLD, 56));
-        String title = victory ? "VICTORY!" : "GAME OVER";
-        g2.setColor(victory ? GOLD : new Color(220, 80, 80));
+        String title = "GAME OVER";
+        g2.setColor(new Color(220, 80, 80));
         FontMetrics fm = g2.getFontMetrics();
         g2.drawString(title, (w - fm.stringWidth(title)) / 2, h / 2 - 150);
 
