@@ -80,29 +80,79 @@ public final class SoundManager {
      * gentle movement without being distracting.
      */
     private byte[] synthesizeAmbientLoop() {
-        double durationSec = 8.0;
-        int n = (int) (SAMPLE_RATE * durationSec);
-        byte[] data = new byte[n * 2];
+        // A calm I–vi–IV–V progression in C major, played as a soft music-box arpeggio over a
+        // quiet sustained pad. Each note has a gentle bell envelope, so it sounds smooth and warm.
+        double chordDur = 4.0;
+        double[][] chords = {
+                {261.63, 329.63, 392.00}, // C  major  (C4 E4 G4)
+                {220.00, 261.63, 329.63}, // A  minor  (A3 C4 E4)
+                {174.61, 220.00, 261.63}, // F  major  (F3 A3 C4)
+                {196.00, 246.94, 293.66}, // G  major  (G3 B3 D4)
+        };
 
-        double[] freqs = {110.00, 164.81, 220.00, 277.18}; // A2, E3, A3, C#4
-        double[] weights = {0.5, 0.32, 0.28, 0.2};
+        int n = (int) (SAMPLE_RATE * chordDur * chords.length);
+        double[] mix = new double[n];
 
-        for (int i = 0; i < n; i++) {
-            double t = i / (double) SAMPLE_RATE;
-            // Slow tremolo so the pad breathes (one full cycle across the loop = seamless).
-            double lfo = 0.6 + 0.4 * Math.sin(2 * Math.PI * (i / (double) n));
-            double sample = 0;
-            for (int k = 0; k < freqs.length; k++) {
-                sample += weights[k] * Math.sin(2 * Math.PI * freqs[k] * t);
+        for (int c = 0; c < chords.length; c++) {
+            int chordStart = (int) (c * chordDur * SAMPLE_RATE);
+            double[] chord = chords[c];
+
+            // Soft sustained pad: the whole chord, very quiet, with a slow swell.
+            for (double f : chord) {
+                addPad(mix, chordStart, (int) (chordDur * SAMPLE_RATE), f, 0.05);
             }
-            // Gentle fade in/out at the very edges to avoid a loop click.
-            double edge = Math.min(1.0, Math.min(i, n - 1 - i) / (SAMPLE_RATE * 0.05));
-            sample *= lfo * edge * 0.22;
-            int v = (int) (sample * Short.MAX_VALUE);
+            // Gentle bass note an octave below the root.
+            addPad(mix, chordStart, (int) (chordDur * SAMPLE_RATE), chord[0] / 2.0, 0.06);
+
+            // Music-box arpeggio: step through the chord tones (up and back) as soft bells.
+            int[] pattern = {0, 1, 2, 1, 0, 2, 1, 2};
+            double step = chordDur / pattern.length;
+            for (int s = 0; s < pattern.length; s++) {
+                int noteStart = chordStart + (int) (s * step * SAMPLE_RATE);
+                double freq = chord[pattern[s]] * 2.0; // one octave up for a bright, gentle voice
+                addBell(mix, noteStart, (int) (step * 1.6 * SAMPLE_RATE), freq, 0.14);
+            }
+        }
+
+        // Normalise to a comfortable level and fade the loop edges to avoid any click.
+        double max = 1e-9;
+        for (double v : mix) max = Math.max(max, Math.abs(v));
+        double scale = 0.55 / max;
+        int fade = (int) (SAMPLE_RATE * 0.04);
+
+        byte[] data = new byte[n * 2];
+        for (int i = 0; i < n; i++) {
+            double edge = Math.min(1.0, Math.min(i, n - 1 - i) / (double) fade);
+            int v = (int) (mix[i] * scale * edge * Short.MAX_VALUE);
             v = Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, v));
             data[i * 2] = (byte) (v & 0xff);
             data[i * 2 + 1] = (byte) ((v >> 8) & 0xff);
         }
         return data;
+    }
+
+    /** Adds a soft sustained tone (pad) with a slow swell in/out — warm background texture. */
+    private void addPad(double[] mix, int start, int len, double freq, double amp) {
+        for (int i = 0; i < len && start + i < mix.length; i++) {
+            double t = i / SAMPLE_RATE;
+            double env = Math.sin(Math.PI * i / len);          // smooth swell across the note
+            double tremolo = 0.85 + 0.15 * Math.sin(2 * Math.PI * 0.4 * t);
+            double s = Math.sin(2 * Math.PI * freq * t) + 0.25 * Math.sin(2 * Math.PI * 2 * freq * t);
+            mix[start + i] += amp * env * tremolo * s;
+        }
+    }
+
+    /** Adds a bell/music-box note: quick attack, smooth exponential decay, soft harmonics. */
+    private void addBell(double[] mix, int start, int len, double freq, double amp) {
+        double attack = SAMPLE_RATE * 0.008;
+        double tau = len / 3.2;
+        for (int i = 0; i < len && start + i < mix.length; i++) {
+            double t = i / SAMPLE_RATE;
+            double env = (i < attack) ? (i / attack) : Math.exp(-(i - attack) / tau);
+            double s = Math.sin(2 * Math.PI * freq * t)
+                     + 0.35 * Math.sin(2 * Math.PI * 2 * freq * t)
+                     + 0.12 * Math.sin(2 * Math.PI * 3 * freq * t);
+            mix[start + i] += amp * env * s;
+        }
     }
 }

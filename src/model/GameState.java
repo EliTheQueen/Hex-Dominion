@@ -41,7 +41,7 @@ public class GameState {
         spawnStartingUnits(center);
 
         updateVisibility();
- 
+
         currentTurn = 1;
         gameOver = false;
         gameOverReason = "";
