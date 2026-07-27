@@ -22,8 +22,8 @@ public class Player {
     private final List<Unit> units;
     private final List<Building> buildings;
     private final Set<HexCoordinate> territory;
-    private final Set<TechnologyType> researched;
-    private final Set<TechnologyType> queuedTech;
+    private final Set<TechnologyType> researched; //مجموعه‌ی تکنولوژی‌های تمام‌شده.
+    private final Set<TechnologyType> queuedTech; //تکنولوژی‌هایی که در صف هستند
     private final ProductionQueue productionQueue;
 
     public Player(String name) {
@@ -70,7 +70,12 @@ public class Player {
         }
     }
 
-    /** Whether the tech's prerequisites are met and it is not already done or in the queue. */
+    //آیا پیش‌نیازهای این تکنولوژی فراهم است؟
+    /*
+        STORAGE_I → STORAGE_II
+        STONE_MINING → IRON_MINING → PROFESSIONAL_TOOLS
+        TOWNSHIP (مستقل)
+     */
     public boolean prerequisitesMet(TechnologyType tech) {
         if (researched.contains(tech) || queuedTech.contains(tech)) return false;
         switch (tech) {
@@ -81,20 +86,21 @@ public class Player {
         }
     }
 
+    //آیا الان می‌توان این تکنولوژی را تحقیق کرد؟
+    // دو شرط: پیش‌نیاز فراهم باشد و پولش را داشته باشیم. ترکیبِ تمیزِ دو متدِ قبلی.
     public boolean canResearch(TechnologyType tech) {
         return prerequisitesMet(tech) && resources.canAfford(getTechCost(tech));
     }
 
-    /** Pays for the tech and marks it queued; the effect applies once the queue completes it. */
     public boolean queueTech(TechnologyType tech) {
         if (!canResearch(tech)) return false;
         resources.spend(getTechCost(tech));
         queuedTech.add(tech);
+        //به صفِ تولید اضافه می‌شود تا در نوبت‌های بعد پیش برود.
         productionQueue.enqueue(ProductionTask.forTech(tech));
         return true;
     }
 
-    /** Applies a completed technology's effect. */
     public void applyTech(TechnologyType tech) {
         queuedTech.remove(tech);
         researched.add(tech);

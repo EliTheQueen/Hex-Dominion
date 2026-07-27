@@ -7,11 +7,6 @@ public class BorderExpander extends Unit {
 
     public boolean canExpand() { return currentAP >= 2; }
 
-    /**
-     * Claims the current hex and all of its in-bounds, already-explored neighbours for the
-     * player. Unexplored hexes are skipped (they must be scouted first). The caller is
-     * responsible for consuming (removing) the unit afterwards.
-     */
     public boolean expand(GameMap map, Player player) {
         if (!canExpand()) return false;
         Hex here = map.getHex(position);

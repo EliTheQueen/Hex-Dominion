@@ -2,7 +2,6 @@ package model;
 
 
 import java.util.*;
-import model.Constants.TerrainType;
 
 public class MapGenerator {
 
@@ -43,7 +42,6 @@ public class MapGenerator {
                 hex.addNaturalResource(Constants.NaturalResourceType.WOOD, 100);
             }
             else if (terrainType == Constants.TerrainType.PLAIN) {
-                // Plains (دشت): some hexes hold domestic animals.
                 double r = Math.random();
                 if (r < 0.33) {
                     hex.addNaturalResource(Constants.NaturalResourceType.COW, 80);
@@ -51,7 +49,6 @@ public class MapGenerator {
                     hex.addNaturalResource(Constants.NaturalResourceType.SHEEP, 80);
                 }
             } else if (terrainType == Constants.TerrainType.GRASSLAND) {
-                // Grassland (سبزه‌زار): some hexes hold wheat or rice.
                 double r = Math.random();
                 if (r < 0.33) {
                     hex.addNaturalResource(Constants.NaturalResourceType.WHEAT, 100);

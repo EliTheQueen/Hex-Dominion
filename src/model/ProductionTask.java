@@ -1,6 +1,5 @@
 package model;
-
-/** A single queued item in a Town Hall production queue: a unit or a technology. */
+//chi hast?
 public class ProductionTask {
     public enum Kind { UNIT, TECH }
 
@@ -33,9 +32,10 @@ public class ProductionTask {
     public int getTotalTurns() { return totalTurns; }
     public int getTurnsRemaining() { return turnsRemaining; }
 
-    /** Advances the task by one turn. */
     public void tick() {
-        if (turnsRemaining > 0) turnsRemaining--;
+
+        if (turnsRemaining > 0)
+            turnsRemaining--;
     }
 
     public boolean isComplete() { return turnsRemaining <= 0; }

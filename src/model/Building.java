@@ -37,14 +37,8 @@ public class Building {
 
     public void removeWorker(Worker w) { workers.remove(w); }
 
-    /** Records that upkeep was paid this turn, resetting the decay counter. */
     public void payUpkeep() { unpaidTurns = 0; }
 
-    /**
-     * Records that upkeep could not be paid this turn. After {@code UPKEEP_GRACE_TURNS}
-     * consecutive misses the building falls into ruin.
-     * @return true if the building became ruined as a result of this miss.
-     */
     public boolean missUpkeep() {
         unpaidTurns++;
         if (unpaidTurns >= Constants.UPKEEP_GRACE_TURNS && !ruined) {
@@ -53,8 +47,15 @@ public class Building {
         }
         return false;
     }
-
-    /** Destroys the building: it stops producing and ejects all stationed workers. */
+    /*
+    یک نکته‌ی فنیِ مهم:
+     روی new ArrayList<>(workers) حلقه می‌زند، نه مستقیم روی workers.
+      چرا؟ چون w.unstation()
+       داخل خودش stationedAt.removeWorker(this) را صدا می‌زند که از همین لیست workers حذف می‌کند.
+      اگر همزمان روی یک لیست حلقه بزنی و از آن حذف کنی، خطای `ConcurrentModificationException` می‌گیری.
+       ساختنِ یک کپی، روی نسخه‌ی کپی حلقه می‌زند و حذف روی نسخه‌ی
+        اصلی انجام می‌شود — امن. این یک تله‌ی کلاسیک جاواست؛ خوب در ذهن نگه‌دار.
+     */
     public void ruin() {
         ruined = true;
         for (Worker w : new ArrayList<>(workers)) {
@@ -63,7 +64,6 @@ public class Building {
         workers.clear();
     }
 
-    /** Resource yield for this turn, scaled by stationed worker count and tools bonus. */
     public ResourceAmount produce(boolean professionalTools) {
         if (ruined || workers.isEmpty() || type == Constants.BuildingType.TOWN_HALL) {
             return ResourceAmount.zero();
@@ -73,7 +73,8 @@ public class Building {
 
         int baseRate = Constants.BASE_RATE.getOrDefault(type, 0);
         int workerCount = workers.size();
-        // Professional tools only boost stone/iron mining (per the tech description).
+
+        //only for iron and stone
         boolean boosted = professionalTools
                 && (type == Constants.BuildingType.STONE_MINE || type == Constants.BuildingType.IRON_MINE);
         double multiplier = boosted ? 1.5 : 1.0;
@@ -85,7 +86,8 @@ public class Building {
     }
 
     public ResourceAmount getUpkeepCost() {
-        if (ruined) return ResourceAmount.zero();
+        if (ruined)
+            return ResourceAmount.zero();
         return Constants.UPKEEP.getOrDefault(type, ResourceAmount.zero());
     }
 }

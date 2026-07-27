@@ -22,13 +22,15 @@ public class ResourceStorage {
     }
 
     public boolean spend(ResourceAmount cost) {
-        if (!canAfford(cost)) return false;
+        if (!canAfford(cost))
+            return false;
         for (ResourceType r : ResourceType.values()) {
             current.set(r, current.get(r) - cost.get(r));
         }
         return true;
     }
 
+    //in ro dobare bekhoon base ghahti!
     public int forceSpendFood(int amount) {
         int have = current.get(ResourceType.FOOD);
         int shortage = Math.max(0, amount - have);

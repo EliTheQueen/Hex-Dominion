@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class GameMap {
+public class GameMap{
 
     private Map<HexCoordinate, Hex> hexes;
 

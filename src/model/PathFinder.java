@@ -10,11 +10,12 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-/** Dijkstra path-finding over the hex grid, bounded by available action points. */
 public class PathFinder {
 
     public static List<HexCoordinate> findPath(GameMap map, HexCoordinate from, HexCoordinate to, int maxAP) {
-        if (from.equals(to)) return Collections.singletonList(from);
+        if (from.equals(to))
+            //یک لیست تغییرناپذیرِ یک‌عضوی می‌سازد
+            return Collections.singletonList(from);
 
         Map<HexCoordinate, Integer> dist = new HashMap<>();
         Map<HexCoordinate, HexCoordinate> prev = new HashMap<>();
@@ -30,9 +31,11 @@ public class PathFinder {
             if (curr.equals(to)) break;
 
             for (HexCoordinate neighbor : curr.findNeighbours()) {
-                if (!map.containsCoordinate(neighbor)) continue;
+                if (!map.containsCoordinate(neighbor))
+                    continue;
                 Hex hex = map.getHex(neighbor);
-                if (hex == null) continue;
+                if (hex == null)
+                    continue;
                 int cost = Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
                 int newDist = currDist + cost;
                 if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
@@ -43,7 +46,7 @@ public class PathFinder {
                 }
             }
         }
-
+        //kheyli nafahmidam bazam bekhoonesh
         if (!dist.containsKey(to)) return null;
 
         List<HexCoordinate> path = new ArrayList<>();
@@ -55,7 +58,6 @@ public class PathFinder {
         return path;
     }
 
-    /** All coordinates reachable from {@code from} within {@code maxAP} (excluding the origin). */
     public static Set<HexCoordinate> reachable(GameMap map, HexCoordinate from, int maxAP) {
         Map<HexCoordinate, Integer> dist = new HashMap<>();
         PriorityQueue<HexCoordinate> queue =
@@ -76,6 +78,7 @@ public class PathFinder {
                 if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
                     dist.put(neighbor, newDist);
                     result.add(neighbor);
+                    //chera?
                     queue.remove(neighbor);
                     queue.add(neighbor);
                 }

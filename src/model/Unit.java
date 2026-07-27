@@ -25,7 +25,8 @@ public abstract class Unit {
     public void resetAP() { currentAP = maxAP; }
     public void setCurrentAP(int ap) { currentAP = Math.max(0, Math.min(ap, maxAP)); }
     public boolean spendAP(int amount) {
-        if (currentAP < amount) return false;
+        if (currentAP < amount)
+            return false;
         currentAP -= amount;
         return true;
     }
@@ -36,7 +37,6 @@ public abstract class Unit {
     public void kill() { alive = false; }
     public int getVisionRadius() { return Constants.UNIT_VISION.getOrDefault(unitType, 1); }
 
-    /** Whether the unit can reach {@code dest} this turn following a valid path within its AP. */
     public boolean canMoveTo(GameMap map, HexCoordinate dest) {
         if (dest == null || dest.equals(position)) return false;
         if (!map.containsCoordinate(dest)) return false;
@@ -44,7 +44,7 @@ public abstract class Unit {
         return path != null && path.size() > 1;
     }
 
-    /** Total terrain cost of walking the given path (excluding the starting hex). */
+    //technicly tekrari
     private int pathCost(GameMap map, java.util.List<HexCoordinate> path) {
         int cost = 0;
         for (int i = 1; i < path.size(); i++) {

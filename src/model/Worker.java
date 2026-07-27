@@ -11,7 +11,6 @@ public class Worker extends Unit {
     public Building getStationedAt() { return stationedAt; }
     public boolean isStationed() { return stationedAt != null; }
 
-    /** Stations this worker at the given building, spending the station AP cost. */
     public boolean station(Building building) {
         if (building == null) return false;
         if (building.getWorkerCount() >= building.getWorkerCap()) return false;

@@ -28,19 +28,42 @@ public class ResourceAmount {
 
     public ResourceAmount add(ResourceAmount o) {
         ResourceAmount n = copy();
-        for(ResourceType r:ResourceType.values())
+        for(ResourceType r : ResourceType.values())
             n.set(r,n.get(r)+o.get(r));
         return n;
     }
 
     public ResourceAmount subtract(ResourceAmount o) {
-        ResourceAmount n=copy();
-        for(ResourceType r:ResourceType.values())
+        ResourceAmount n = copy();
+        for(ResourceType r : ResourceType.values())
             n.values.put(r,n.get(r)-o.get(r));
         return n;
     }
-    public ResourceAmount multiply(double m){ ResourceAmount n=new ResourceAmount(); for(ResourceType r:ResourceType.values()) n.set(r,(int)Math.floor(get(r)*m)); return n; }
-    public boolean isNegative(){ for(ResourceType r:ResourceType.values()) if(get(r)<0) return true; return false; }
-    public boolean hasEnough(ResourceAmount cost){ for(ResourceType r:ResourceType.values()) if(get(r)<cost.get(r)) return false; return true; }
-    public ResourceAmount copy(){ ResourceAmount n=new ResourceAmount(); for(Map.Entry<ResourceType,Integer> e:values.entrySet()) n.values.put(e.getKey(),e.getValue()); return n; }
+
+    public ResourceAmount multiply(double m){
+        ResourceAmount n = new ResourceAmount();
+        for(ResourceType r : ResourceType.values())
+            n.set(r,(int)Math.floor(get(r)*m));
+        return n;
+    }
+
+    public boolean isNegative() {
+        for (ResourceType r : ResourceType.values())
+            if(get(r)<0)
+                return true;
+        return false;
+    }
+    public boolean hasEnough(ResourceAmount cost) {
+        for(ResourceType r : ResourceType.values())
+            if(get(r)<cost.get(r))
+                return false;
+        return true;
+    }
+
+    public ResourceAmount copy(){
+        ResourceAmount n = new ResourceAmount();
+        for(Map.Entry<ResourceType,Integer> e : values.entrySet())
+            n.values.put(e.getKey(),e.getValue());
+        return n;
+    }
 }

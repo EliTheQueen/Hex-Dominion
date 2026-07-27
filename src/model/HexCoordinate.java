@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class HexCoordinate {
+public class HexCoordinate{
 
     private static final int[][] DIRECTIONS = {
             {1, 0}, {1, -1}, {0, -1},

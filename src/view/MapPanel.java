@@ -50,7 +50,6 @@ public class MapPanel extends JPanel
     private boolean dragging = false;
     private boolean centeredOnce = false;
 
-    private static final Color PLAINS_COLOR = new Color(198, 178, 112);
     private static final Color GRASSLAND_COLOR = new Color(78, 132, 52);
     private static final Color FOREST_COLOR = new Color(36, 88, 36);
     private static final Color MOUNTAIN_COLOR = new Color(122, 107, 90);
@@ -774,12 +773,11 @@ public class MapPanel extends JPanel
 
     private Color getTerrainColor(Constants.TerrainType terrain) {
         switch (terrain) {
-            case PLAINS: return PLAINS_COLOR;
             case PLAIN: return PLAIN_COLOR;
             case GRASSLAND: return GRASSLAND_COLOR;
             case FOREST: return FOREST_COLOR;
             case MOUNTAIN: return MOUNTAIN_COLOR;
-            default: return PLAINS_COLOR;
+            default: return PLAIN_COLOR;
         }
     }
 
