@@ -2,7 +2,7 @@ package model.townhall;
 
 import model.ResourceAmount;
 
-public class UpgradeTownHallCommand extends AbstractProductionCommand {
+public abstract class UpgradeTownHallCommand extends AbstractProductionCommand {
 
     private final TownHall townHall;
     private final TownHallLevel targetLevel;
