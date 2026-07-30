@@ -39,7 +39,7 @@ public class MilitaryHex {
 
         removeDeadUnits();
 
-        MilitaryUnitType unitType = unit.getUnitType();
+        MilitaryUnitType unitType = unit.getMilitaryUnitType();
 
         if (howMany(unitType) >= getCapacity(unitType))
             {
@@ -88,7 +88,7 @@ public class MilitaryHex {
 
     private int getDamagePriority(MilitaryUnit unit) {
 
-        return switch (unit.getUnitType()) {
+        return switch (unit.getMilitaryUnitType()) {
             case SWORDSMAN -> 1;
             case ARCHER -> 2;
             case CAVALRY -> 3;

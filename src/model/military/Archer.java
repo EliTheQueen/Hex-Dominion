@@ -1,14 +1,15 @@
 package model.military;
 
+import model.Constants;
 import model.HexCoordinate;
 
 public class Archer extends MilitaryUnit{
     public Archer(HexCoordinate position) {
-        super(position, 1, 2, 6, 2);
+        super(position, Constants.UnitType.MILITARY, 1, 6, 2);
     }
 
     @Override
-    public MilitaryUnitType getUnitType() {
+    public MilitaryUnitType getMilitaryUnitType() {
         return MilitaryUnitType.ARCHER;
     }
 }

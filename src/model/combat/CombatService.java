@@ -23,6 +23,8 @@ public class CombatService {
     ) {
         validateAttack(attacker, attackerHex, defenderHex);
 
+        attacker.spendAttackAP();
+
         int attackerDiceCount = attackerHex.getAliveUnits().size();
         int defenderDiceCount = defenderHex.getAliveUnits().size();
 
@@ -39,8 +41,6 @@ public class CombatService {
         damageHandler.applyDamage(defenderHex, result.getAttackerWins());
 
         damageHandler.applyDamage(attackerHex, result.getDefenderWins());
-
-        attacker.decreaseAP(1);
 
         return result;
     }
