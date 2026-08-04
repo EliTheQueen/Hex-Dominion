@@ -112,10 +112,7 @@ public class Tribe {
             return;
         }
 
-        currentHp = Math.max(
-                0,
-                currentHp - damage
-        );
+        currentHp = Math.max(0, currentHp - damage);
 
         if (currentHp == 0) {
             defeated = true;

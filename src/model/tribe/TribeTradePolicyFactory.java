@@ -9,23 +9,16 @@ import java.util.EnumSet;
 
 public class TribeTradePolicyFactory {
 
-    public TradePolicy create(
-            TribeType type
-    ) {
+    public TradePolicy create(TribeType type) {
         if (type == null) {
-            throw new IllegalArgumentException(
-                    "type must not be null"
-            );
+            throw new IllegalArgumentException("type must not be null");
         }
 
         switch (type) {
-            case FARMER:
-            case COASTAL:
+            case FARMER, COASTAL:
                 return new RestrictedOutputTradePolicy(
                         0.75,
-                        EnumSet.of(
-                                Constants.ResourceType.FOOD
-                        )
+                        EnumSet.of(Constants.ResourceType.FOOD)
                 );
 
             case MOUNTAIN:
@@ -41,15 +34,10 @@ public class TribeTradePolicyFactory {
                 return new FixedRateTradePolicy(0.80);
 
             case WARRIOR:
-                throw new IllegalStateException(
-                        "Warrior tribe does not "
-                                + "provide resource trade"
-                );
+                throw new IllegalStateException("Warrior tribe does not provide resource trade");
 
             default:
-                throw new IllegalArgumentException(
-                        "Unsupported tribe type: " + type
-                );
+                throw new IllegalArgumentException("Unsupported tribe type: " + type);
         }
     }
 }

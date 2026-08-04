@@ -12,18 +12,12 @@ public class TribeGiftService {
             Constants.ResourceType resourceType,
             int amount
     ) {
-        if (player == null
-                || tribe == null
-                || resourceType == null) {
-            throw new IllegalArgumentException(
-                    "arguments must not be null"
-            );
+        if (player == null || tribe == null || resourceType == null) {
+            throw new IllegalArgumentException("arguments must not be null");
         }
 
         if (amount <= 0) {
-            throw new IllegalArgumentException(
-                    "amount must be greater than zero"
-            );
+            throw new IllegalArgumentException("amount must be greater than zero");
         }
 
         if (!tribe.isDiscovered()) {
@@ -38,26 +32,20 @@ public class TribeGiftService {
             return false;
         }
 
-        ResourceAmount gift =
-                toResourceAmount(
-                        resourceType,
-                        amount
-                );
+        ResourceAmount gift = toResourceAmount(resourceType, amount);
 
         if (!player.spend(gift)) {
             return false;
         }
 
-        int relationGain =
-                calculateRelationGain(
-                        resourceType,
-                        amount
-                );
+        int relationGain = calculateRelationGain(resourceType, amount);
+
+        if (relationGain == 0) {
+            return false;
+        }
 
         if (relationGain > 0) {
-            tribe.getRelation().increase(
-                    relationGain
-            );
+            tribe.getRelation().increase(relationGain);
         }
 
         return true;
@@ -79,10 +67,7 @@ public class TribeGiftService {
                 return (amount / 5) * 3;
 
             default:
-                throw new IllegalArgumentException(
-                        "Unsupported resource type: "
-                                + resourceType
-                );
+                throw new IllegalArgumentException("Unsupported resource type: " + resourceType);
         }
     }
 
@@ -124,10 +109,7 @@ public class TribeGiftService {
                 );
 
             default:
-                throw new IllegalArgumentException(
-                        "Unsupported resource type: "
-                                + resourceType
-                );
+                throw new IllegalArgumentException("Unsupported resource type: " + resourceType);
         }
     }
 }

@@ -30,14 +30,21 @@ public class SingleCommandSlot {
     }
 
     public void advanceOneTurn() {
-        if (!isBusy() || activeCommand == null) {
+        if (!isBusy()) {
             return;
         }
 
         activeCommand.advanceOneTurn();
 
-        if (activeCommand.isCompleted()) {
-            activeCommand.complete();
+        if (!activeCommand.isCompleted()) {
+            return;
+        }
+
+        ProductionCommand completedCommand = activeCommand;
+
+        completedCommand.complete();
+
+        if (activeCommand == completedCommand) {
             activeCommand = null;
         }
     }
@@ -47,8 +54,13 @@ public class SingleCommandSlot {
             return false;
         }
 
-        activeCommand.cancel();
-        activeCommand = null;
+        ProductionCommand cancelledCommand = activeCommand;
+
+        cancelledCommand.cancel();
+
+        if (activeCommand == cancelledCommand) {
+            activeCommand = null;
+        }
         return true;
     }
 }
