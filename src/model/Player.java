@@ -39,34 +39,82 @@ public class Player {
         resources.addResources(ResourceAmount.of(INITIAL_FOOD, INITIAL_WOOD, INITIAL_STONE, INITIAL_IRON));
     }
 
-    public String getName() { return name; }
-    public ResourceStorage getResources() { return resources; }
-    public List<Unit> getUnits() { return units; }
-    public List<Building> getBuildings() { return buildings; }
-    public Set<HexCoordinate> getTerritory() { return territory; }
-    public Set<TechnologyType> getResearched() { return researched; }
-    public ProductionQueue getProductionQueue() { return productionQueue; }
+    public String getName() {
+        return name;
+    }
 
-    public void addUnit(Unit u) { units.add(u); }
-    public void removeUnit(Unit u) { units.remove(u); }
-    public void addBuilding(Building b) { buildings.add(b); }
-    public void removeBuilding(Building b) { buildings.remove(b); }
+    public ResourceStorage getResources() {
+        return resources;
+    }
 
-    public void expandTerritory(HexCoordinate coord) { territory.add(coord); }
-    public boolean isInTerritory(HexCoordinate coord) { return territory.contains(coord); }
+    public List<Unit> getUnits() {
+        return units;
+    }
 
-    public boolean hasResearched(TechnologyType tech) { return researched.contains(tech); }
-    public boolean isTechQueued(TechnologyType tech) { return queuedTech.contains(tech); }
+    public List<Building> getBuildings() {
+        return buildings;
+    }
+
+    public Set<HexCoordinate> getTerritory() {
+        return territory;
+    }
+
+    public Set<TechnologyType> getResearched() {
+        return researched;
+    }
+
+    public ProductionQueue getProductionQueue() {
+        return productionQueue;
+    }
+
+    public void addUnit(Unit u) {
+        units.add(u);
+    }
+
+    public void removeUnit(Unit u) {
+        units.remove(u);
+    }
+
+    public void addBuilding(Building b) {
+        buildings.add(b);
+    }
+
+    public void removeBuilding(Building b) {
+        buildings.remove(b);
+    }
+
+    public void expandTerritory(HexCoordinate coord) {
+        territory.add(coord);
+    }
+
+    public boolean isInTerritory(HexCoordinate coord) {
+        return territory.contains(coord);
+    }
+
+    public boolean hasResearched(TechnologyType tech) {
+        return researched.contains(tech);
+    }
+
+    public boolean isTechQueued(TechnologyType tech) {
+        return queuedTech.contains(tech);
+    }
 
     public ResourceAmount getTechCost(TechnologyType tech) {
         switch (tech) {
-            case STORAGE_I:          return ResourceAmount.of(0, 20, 10, 0);
-            case STORAGE_II:         return ResourceAmount.of(0, 30, 20, 0);
-            case STONE_MINING:       return ResourceAmount.of(0, 15, 0, 0);
-            case IRON_MINING:        return ResourceAmount.of(0, 20, 15, 0);
-            case PROFESSIONAL_TOOLS: return ResourceAmount.of(0, 20, 0, 10);
-            case TOWNSHIP:           return ResourceAmount.of(0, 25, 25, 15);
-            default:                 return ResourceAmount.zero();
+            case STORAGE_I:
+                return ResourceAmount.of(0, 20, 10, 0);
+            case STORAGE_II:
+                return ResourceAmount.of(0, 30, 20, 0);
+            case STONE_MINING:
+                return ResourceAmount.of(0, 15, 0, 0);
+            case IRON_MINING:
+                return ResourceAmount.of(0, 20, 15, 0);
+            case PROFESSIONAL_TOOLS:
+                return ResourceAmount.of(0, 20, 0, 10);
+            case TOWNSHIP:
+                return ResourceAmount.of(0, 25, 25, 15);
+            default:
+                return ResourceAmount.zero();
         }
     }
 
@@ -79,10 +127,14 @@ public class Player {
     public boolean prerequisitesMet(TechnologyType tech) {
         if (researched.contains(tech) || queuedTech.contains(tech)) return false;
         switch (tech) {
-            case STORAGE_II:         return researched.contains(TechnologyType.STORAGE_I);
-            case IRON_MINING:        return researched.contains(TechnologyType.STONE_MINING);
-            case PROFESSIONAL_TOOLS: return researched.contains(TechnologyType.IRON_MINING);
-            default:                 return true;
+            case STORAGE_II:
+                return researched.contains(TechnologyType.STORAGE_I);
+            case IRON_MINING:
+                return researched.contains(TechnologyType.STONE_MINING);
+            case PROFESSIONAL_TOOLS:
+                return researched.contains(TechnologyType.IRON_MINING);
+            default:
+                return true;
         }
     }
 
@@ -111,9 +163,17 @@ public class Player {
         }
     }
 
-    public boolean canAfford(ResourceAmount cost) { return resources.canAfford(cost); }
-    public boolean spend(ResourceAmount cost) { return resources.spend(cost); }
-    public void addResources(ResourceAmount amount) { resources.addResources(amount); }
+    public boolean canAfford(ResourceAmount cost) {
+        return resources.canAfford(cost);
+    }
+
+    public boolean spend(ResourceAmount cost) {
+        return resources.spend(cost);
+    }
+
+    public void addResources(ResourceAmount amount) {
+        resources.addResources(amount);
+    }
 
     public int getUnitCount() {
         int count = 0;
@@ -121,7 +181,9 @@ public class Player {
         return count;
     }
 
-    /** Living units in the queue count toward the cap too, so the player can't over-queue. */
+    /**
+     * Living units in the queue count toward the cap too, so the player can't over-queue.
+     */
     public int getEffectiveUnitCount() {
         int queued = 0;
         for (ProductionTask t : productionQueue.getTasks()) {
@@ -142,7 +204,9 @@ public class Player {
         return Constants.INITIAL_CAP + getTownshipCount() * Constants.CAP_PER_TOWNSHIP;
     }
 
-    public boolean atUnitCap() { return getEffectiveUnitCount() >= getUnitCap(); }
+    public boolean atUnitCap() {
+        return getEffectiveUnitCount() >= getUnitCap();
+    }
 
     public Map<UnitType, Integer> countUnitsByType() {
         Map<UnitType, Integer> counts = new EnumMap<>(UnitType.class);
@@ -153,14 +217,23 @@ public class Player {
         return counts;
     }
 
-    public int getBuildingCount() { return buildings.size(); }
+    public int getBuildingCount() {
+        return buildings.size();
+    }
+
     public int getActiveBuildingCount() {
         int n = 0;
         for (Building b : buildings) if (b.isActive()) n++;
         return n;
     }
-    public int getTerritorySize() { return territory.size(); }
-    public boolean hasProfessionalTools() { return researched.contains(TechnologyType.PROFESSIONAL_TOOLS); }
+
+    public int getTerritorySize() {
+        return territory.size();
+    }
+
+    public boolean hasProfessionalTools() {
+        return researched.contains(TechnologyType.PROFESSIONAL_TOOLS);
+    }
 
     public Unit getUnitAt(HexCoordinate coord) {
         for (Unit u : units) {
@@ -178,5 +251,9 @@ public class Player {
 
     public void removeDeadUnits() {
         units.removeIf(u -> !u.isAlive());
+    }
+
+    public boolean canStore(ResourceAmount cost) {
+        return resources.canStore(cost);
     }
 }

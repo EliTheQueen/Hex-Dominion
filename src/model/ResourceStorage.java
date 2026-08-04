@@ -56,4 +56,15 @@ public class ResourceStorage {
              + " Stone:" + current.get(ResourceType.STONE) + "/" + capacity.get(ResourceType.STONE)
              + " Iron:" + current.get(ResourceType.IRON) + "/" + capacity.get(ResourceType.IRON);
     }
+
+    public boolean canStore(ResourceAmount amount) {
+        if (amount == null) throw new NullPointerException("amount == null");
+
+        for (ResourceType r : ResourceType.values()) {
+            if (current.get(r) + amount.get(r) > capacity.get(r)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
