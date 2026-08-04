@@ -1,0 +1,13 @@
+package model.tribe;
+
+public enum DiplomacyResult {
+    SUCCESS,
+    TRIBE_NOT_DISCOVERED,
+    TRIBE_DEFEATED,
+    ALREADY_ENEMY,
+    NOT_ENEMY,
+    RELATION_TOO_LOW,
+    INSUFFICIENT_RESOURCES,
+    ALLIANCE_RESTRICTED,
+    INVALID_REQUEST
+}
