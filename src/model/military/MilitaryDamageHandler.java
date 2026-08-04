@@ -11,7 +11,7 @@ public class MilitaryDamageHandler {
             throw new IllegalArgumentException("Damage count is negative");
         }
 
-        for (int i = 0; i <= damageCount; i++) {
+        for (int i = 0; i < damageCount; i++) {
             MilitaryUnit target = targetHex.getNextDamageTarget();
 
             if (target == null) {
