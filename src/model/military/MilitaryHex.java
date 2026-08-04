@@ -96,20 +96,24 @@ public class MilitaryHex {
         };
     }
 
-    public int howMany(MilitaryUnitType militaryUnitType) {
+    public int howMany(
+            MilitaryUnitType militaryUnitType
+    ) {
         if (militaryUnitType == null) {
-            throw new IllegalArgumentException("Military Unit Type cannot be null");
+            throw new IllegalArgumentException(
+                    "Military Unit Type cannot be null"
+            );
         }
 
-        int howMany = 0;
-        List<MilitaryUnit> aliveUnits = getAliveUnits();
+        int count = 0;
 
-        for (MilitaryUnit unit : aliveUnits) {
-            if (unit.getUnitType().equals(militaryUnitType)) {
-                howMany++;
+        for (MilitaryUnit unit : getAliveUnits()) {
+            if (unit.getMilitaryUnitType() == militaryUnitType) {
+                count++;
             }
         }
-        return howMany;
+
+        return count;
     }
 
     private int getCapacity(MilitaryUnitType militaryUnitType) {

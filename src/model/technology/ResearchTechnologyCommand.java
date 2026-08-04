@@ -52,4 +52,9 @@ public class ResearchTechnologyCommand extends AbstractProductionCommand {
     public void onStarted() {
         technologyRegistry.markQueued(technologyType);
     }
+
+    @Override
+    public void onCancelled() {
+        technologyRegistry.unqueue(technologyType);
+    }
 }

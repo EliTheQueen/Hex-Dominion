@@ -60,8 +60,7 @@ public final class TribeRelation {
     public boolean isFriendlyOrAllied() {
         TribeRelationStatus status = getStatus();
 
-        return status == TribeRelationStatus.FRIENDLY
-                || status == TribeRelationStatus.ALLIED;
+        return status == TribeRelationStatus.FRIENDLY || status == TribeRelationStatus.ALLIED;
     }
 
     private static void validateScore(int score) {

@@ -1,23 +1,34 @@
+//منطق زمانی مشترک، لغو و جلوگیری از اجرای چندباره‌ی اثر را نگه می‌دارد
+
 package model.townhall;
 
 import model.ResourceAmount;
 
-//منطق زمانی مشترک، لغو و جلوگیری از اجرای چندباره‌ی اثر را نگه می‌دارد
 public abstract class AbstractProductionCommand implements ProductionCommand {
 
     private final ResourceAmount cost;
     private final int totalTurns;
+
     private int remainingTurns;
     private boolean cancelled;
     private boolean effectApplied;
 
-    protected  AbstractProductionCommand(ResourceAmount cost, int totalTurns) {
+    protected AbstractProductionCommand(
+            ResourceAmount cost,
+            int totalTurns
+    ) {
         if (cost == null) {
-            throw new IllegalArgumentException("cost cannot be null");
+            throw new IllegalArgumentException(
+                    "cost must not be null"
+            );
         }
+
         if (totalTurns <= 0) {
-            throw new IllegalArgumentException("totalTurns cannot be negative");
+            throw new IllegalArgumentException(
+                    "totalTurns must be greater than zero"
+            );
         }
+
         this.cost = cost.copy();
         this.totalTurns = totalTurns;
         this.remainingTurns = totalTurns;
@@ -40,7 +51,9 @@ public abstract class AbstractProductionCommand implements ProductionCommand {
 
     @Override
     public void advanceOneTurn() {
-        if (remainingTurns > 0 && !cancelled) {
+        if (!cancelled
+                && !effectApplied
+                && remainingTurns > 0) {
             remainingTurns--;
         }
     }
@@ -61,14 +74,21 @@ public abstract class AbstractProductionCommand implements ProductionCommand {
     }
 
     @Override
-    public void cancel() {
-        if (!effectApplied) {
-            cancelled = true;
+    public final void cancel() {
+        if (cancelled || effectApplied) {
+            return;
         }
+
+        cancelled = true;
+        onCancelled();
     }
 
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    public boolean isEffectApplied() {
+        return effectApplied;
     }
 
     protected abstract void executeEffect();

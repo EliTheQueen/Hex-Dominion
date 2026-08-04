@@ -1,55 +1,91 @@
 package model.technology;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 public class TechnologyRegistry {
-    //قط وضعیت تحقیق‌های یک Empire را نگه می‌دارد.
-    private final Set<TechnologyType> completed;
-    private final Set<TechnologyType> queued;
 
-    public  TechnologyRegistry() {
-        this.completed = new  HashSet<>();
-        this.queued = new  HashSet<>();
+    private final Set<TechnologyType> completed =
+            new HashSet<>();
+
+    private final Set<TechnologyType> queued =
+            new HashSet<>();
+
+    public boolean canQueue(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
+
+        return !completed.contains(technology)
+                && !queued.contains(technology);
     }
 
-    public boolean canQueue(TechnologyType technology) {
-        if (technology == null) {
-            throw new IllegalArgumentException("Technology object cannot be null");
+    public void markQueued(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
+
+        if (!canQueue(technology)) {
+            throw new IllegalStateException(
+                    "technology cannot be queued: "
+                            + technology
+            );
         }
-        if (completed.contains(technology)) {
-            return false;
-        }
-        return !queued.contains(technology);
+
+        queued.add(technology);
     }
 
-    public void markQueued(TechnologyType technology) {
-        if (technology == null) {
-            throw new IllegalArgumentException("Technology object cannot be null");
-        }
-        if (canQueue(technology)) {
-            queued.add(technology);
-            return;
-        }
-        throw new IllegalArgumentException("Technology object cannot be queued");
-    }
-
-    public void complete(TechnologyType technology) {
-        if (technology == null) {
-            throw new IllegalArgumentException("Technology object cannot be null");
-        }
-        if (completed.contains(technology) || !queued.contains(technology)) {
-            throw new IllegalArgumentException("Technology already completed or already queued.");
-        }
+    public void unqueue(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
         queued.remove(technology);
+    }
+
+    public void complete(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
+
+        if (!queued.remove(technology)) {
+            throw new IllegalStateException(
+                    "technology is not queued: "
+                            + technology
+            );
+        }
+
         completed.add(technology);
     }
 
-    public boolean has(TechnologyType technology) {
-        if (technology == null) {
-            throw new IllegalArgumentException("Technology object cannot be null");
-        }
+    public boolean has(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
         return completed.contains(technology);
     }
 
+    public boolean isQueued(
+            TechnologyType technology
+    ) {
+        requireTechnology(technology);
+        return queued.contains(technology);
+    }
+
+    public Set<TechnologyType>
+    getCompletedTechnologies() {
+        return Collections.unmodifiableSet(
+                new HashSet<>(completed)
+        );
+    }
+
+    private void requireTechnology(
+            TechnologyType technology
+    ) {
+        if (technology == null) {
+            throw new IllegalArgumentException(
+                    "technology must not be null"
+            );
+        }
+    }
 }
