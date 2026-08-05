@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+//فقط وضعیت نگه می‌دارد.
+//هیچ تصمیمی نمی‌گیرد.
 public class TribeAllianceRegistry {
 
     private final Set<Tribe> alliedTribes = new HashSet<Tribe>();

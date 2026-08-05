@@ -1,5 +1,6 @@
 package model.tribe.behavior;
 
+//تمام اطلاعات Turn
 public class TribeTurnContext {
 
     private final int currentTurn;

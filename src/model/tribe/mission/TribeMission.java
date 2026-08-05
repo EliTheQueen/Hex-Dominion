@@ -4,6 +4,7 @@ import model.tribe.Tribe;
 
 import java.util.UUID;
 
+//این کلاس Aggregate اصلی Mission است.
 public class TribeMission {
 
     private final String id;

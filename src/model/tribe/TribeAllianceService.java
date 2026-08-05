@@ -1,5 +1,6 @@
 package model.tribe;
 
+//این Service تصمیم می‌گیرد اتحاد شکل بگیرد یا نه.
 public class TribeAllianceService {
 
     private static final int REQUIRED_RELATION = 70;

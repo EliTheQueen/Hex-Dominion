@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+//این Service کل Missionها را مدیریت می‌کند.
 public class TribeMissionService {
 
     private static final int REQUIRED_RELATION = 20;
