@@ -1,0 +1,46 @@
+package model.happiness;
+
+public class HappinessTracker {
+
+    private int score;
+
+    public HappinessTracker() {
+        this(0);
+    }
+
+    public HappinessTracker(int initialScore) {
+        this.score = initialScore;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public HappinessLevel getLevel() {
+        return HappinessLevel.fromScore(score);
+    }
+
+    public void increase(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+
+        score += amount;
+    }
+
+    public void decrease(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("amount must not be negative");
+        }
+
+        score -= amount;
+    }
+
+    public void applyChange(int amount) {
+        score += amount;
+    }
+
+    public void restore(int score) {
+        this.score = score;
+    }
+}
