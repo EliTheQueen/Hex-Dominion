@@ -36,6 +36,7 @@ public class HappinessTracker {
         score -= amount;
     }
 
+    //برای Eventهایی که خودشان مقدار signed دارند استفاده می‌شود.
     public void applyChange(int amount) {
         score += amount;
     }

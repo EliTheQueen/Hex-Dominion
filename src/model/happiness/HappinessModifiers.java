@@ -2,6 +2,7 @@ package model.happiness;
 
 public final class HappinessModifiers {
 
+    //قرار نیست از آن Object ساخته شود.
     private HappinessModifiers() {
     }
 
@@ -35,11 +36,7 @@ public final class HappinessModifiers {
         return 0;
     }
 
-    public static int applyProductionModifiers(
-            int baseProduction,
-            int workerCount,
-            HappinessLevel level
-    ) {
+    public static int applyProductionModifiers(int baseProduction, int workerCount, HappinessLevel level) {
         if (baseProduction < 0) {
             throw new IllegalArgumentException("baseProduction must not be negative");
         }
