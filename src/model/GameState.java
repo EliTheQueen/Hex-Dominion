@@ -2,6 +2,7 @@ package model;
 
 import java.util.ArrayList;
 import java.util.List;
+import model.season.SeasonCycle;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState {
@@ -12,6 +13,7 @@ public class GameState {
     private boolean gameOver;
     private String gameOverReason;
     private int finalScore;
+    private final SeasonCycle seasonCycle;
 
     private boolean starving;
     private final List<String> lastTurnEvents = new ArrayList<>();
@@ -21,6 +23,7 @@ public class GameState {
         map = gen.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");
+        this.seasonCycle = new SeasonCycle();
 
         HexCoordinate center = new HexCoordinate(mapWidth / 2, mapHeight / 2);
         this.townHallPos = center;
@@ -138,6 +141,7 @@ public class GameState {
         // 8. Advance turn. This is an open-ended sandbox: there is no turn limit and no
         // "victory". The only terminal state is losing every unit and building.
         currentTurn++;
+        seasonCycle.advanceTurn();
         if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
             gameOver = true;
             gameOverReason = "All units and buildings lost";
@@ -358,6 +362,6 @@ public class GameState {
     public String getGameOverReason() { return gameOverReason; }
     public int getFinalScore() { return finalScore; }
     public List<String> getLastTurnEvents() { return lastTurnEvents; }
-
+    public SeasonCycle getSeasonCycle() {return seasonCycle;}
     public int getCurrentScore() { return ScoreCalculator.calculate(player, map); }
 }
