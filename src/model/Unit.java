@@ -7,6 +7,8 @@ public abstract class Unit {
     protected int currentAP;
     protected Constants.UnitState state;
     protected boolean alive;
+    protected int maxHp;
+    protected int currentHp;
 
     public Unit(HexCoordinate position, Constants.UnitType unitType) {
         this.position = position;
@@ -15,6 +17,8 @@ public abstract class Unit {
         this.currentAP = maxAP;
         this.state = Constants.UnitState.IDLE;
         this.alive = true;
+        this.maxHp = 100;
+        this.currentHp = maxHp;
     }
 
     public HexCoordinate getPosition() { return position; }
@@ -36,6 +40,14 @@ public abstract class Unit {
     public boolean isAlive() { return alive; }
     public void kill() { alive = false; }
     public int getVisionRadius() { return Constants.UNIT_VISION.getOrDefault(unitType, 1); }
+
+    public int getMaxHp() {
+        return maxHp;
+    }
+
+    public int getCurrentHp() {
+        return currentHp;
+    }
 
     public boolean canMoveTo(GameMap map, HexCoordinate dest) {
         if (dest == null || dest.equals(position)) return false;
@@ -64,5 +76,17 @@ public abstract class Unit {
         position = dest;
         state = Constants.UnitState.MOVING;
         return true;
+    }
+
+    public void takeDamage(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("damage must not be negative");
+        }
+
+        currentHp = Math.max(0, currentHp - amount);
+
+        if (currentHp == 0) {
+            kill();
+        }
     }
 }
