@@ -51,4 +51,15 @@ public class GameMap{
         }
         return result;
     }
+
+    public  List<HexCoordinate> getHexCoordinatesInRadius(HexCoordinate center, int radius) {
+
+        List<HexCoordinate> result = new ArrayList<>();
+
+        for (Hex hex : getHexesInRadius(center, radius)) {
+            result.add(hex.getCoordinate());
+        }
+
+        return result;
+    }
 }
