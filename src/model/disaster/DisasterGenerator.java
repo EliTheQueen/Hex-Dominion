@@ -3,6 +3,7 @@ package model.disaster;
 import model.GameMap;
 import model.HexCoordinate;
 import model.season.Season;
+import model.disaster.area.RadiusDisasterAreaCalculator;
 
 import java.util.Random;
 
@@ -45,7 +46,7 @@ public class DisasterGenerator {
 
         switch (disasterType) {
             case EARTHQUAKE:
-                return new EarthquakeEvent(origin);
+                return new EarthquakeEvent(origin, map, new RadiusDisasterAreaCalculator(2));
 
             default:
                 throw new UnsupportedOperationException("event creation is not implemented for " + disasterType);
