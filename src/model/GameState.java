@@ -7,6 +7,7 @@ import model.disaster.DisasterGenerator;
 import model.disaster.DisasterOccurrencePolicy;
 import model.disaster.DisasterOriginSelector;
 import model.disaster.DisasterSelector;
+import model.disaster.DisasterEvent;
 
 import java.util.Random;
 
@@ -160,6 +161,20 @@ public class GameState {
         // "victory". The only terminal state is losing every unit and building.
         currentTurn++;
         seasonCycle.advanceTurn();
+
+        DisasterEvent disaster = disasterGenerator.generate(
+                seasonCycle.getCurrentSeason(),
+                false,
+                map,
+                random
+        );
+
+        if (disaster != null) {
+            disaster.start();
+
+            lastTurnEvents.add("Disaster: " + disaster.getType().name());
+        }
+
         if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
             gameOver = true;
             gameOverReason = "All units and buildings lost";
