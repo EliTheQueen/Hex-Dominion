@@ -3,6 +3,12 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 import model.season.SeasonCycle;
+import model.disaster.DisasterGenerator;
+import model.disaster.DisasterOccurrencePolicy;
+import model.disaster.DisasterOriginSelector;
+import model.disaster.DisasterSelector;
+
+import java.util.Random;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState {
@@ -18,12 +24,24 @@ public class GameState {
     private boolean starving;
     private final List<String> lastTurnEvents = new ArrayList<>();
 
+    private final Random random;
+
+    private final DisasterGenerator disasterGenerator;
+
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
         map = gen.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");
         this.seasonCycle = new SeasonCycle();
+
+        random = new Random();
+
+        disasterGenerator = new DisasterGenerator(
+                new DisasterOccurrencePolicy(),
+                new DisasterSelector(),
+                new DisasterOriginSelector()
+        );
 
         HexCoordinate center = new HexCoordinate(mapWidth / 2, mapHeight / 2);
         this.townHallPos = center;
