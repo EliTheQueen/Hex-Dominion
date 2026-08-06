@@ -4,6 +4,9 @@ import model.HexCoordinate;
 
 import java.util.UUID;
 
+//چون Disaster عمومی به‌تنهایی قابل اجرا نیست.
+//باید subclass مشخص داشته باشیم
+//pas abstract
 public abstract class DisasterEvent {
 
     private final String id;

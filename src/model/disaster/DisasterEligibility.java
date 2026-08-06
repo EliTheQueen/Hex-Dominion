@@ -2,6 +2,9 @@ package model.disaster;
 
 import model.season.Season;
 
+//دو سؤال اصلی ابتدای Turn:
+//آیا Disaster رخ دهد؟
+//کدام Disaster انتخاب شود؟
 public final class DisasterEligibility {
 
     private DisasterEligibility() {
