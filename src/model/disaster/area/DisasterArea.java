@@ -10,20 +10,20 @@ public class DisasterArea {
     private final HexCoordinate origin;
     private final Set<HexCoordinate> affectedCoordinates;
 
-    public DisasterArea(HexCoordinate origin, Set<HexCoordinate> affectCoordinates) {
+    public DisasterArea(HexCoordinate origin, Set<HexCoordinate> affectedCoordinates) {
         if (origin == null) {
             throw new IllegalArgumentException("origin cannot be null");
         }
-        if (affectCoordinates == null || affectCoordinates.contains(null)) {
-            throw new IllegalArgumentException("affectCoordinates cannot be null or cannot contain null elements");
+        if (affectedCoordinates == null || affectedCoordinates.contains(null)) {
+            throw new IllegalArgumentException("affectCoordinates cannot be null or contain null elements");
         }
 
-        if (!affectCoordinates.contains(origin)) {
+        if (!affectedCoordinates.contains(origin)) {
             throw new IllegalArgumentException("origin must be included in affected coordinates");
         }
 
         this.origin = origin;
-        Set<HexCoordinate> affectCoordinatesCopy = new HashSet<>(affectCoordinates);
+        Set<HexCoordinate> affectCoordinatesCopy = new HashSet<>(affectedCoordinates);
         this.affectedCoordinates = affectCoordinatesCopy;
     }
 
