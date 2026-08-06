@@ -22,8 +22,7 @@ public class DisasterGenerator {
         this.originSelector = originSelector;
     }
 
-    public DisasterEvent generate(Season season, boolean navalSystemEnabled, GameMap map, Random random
-    ) {
+    public DisasterEvent generate(Season season, boolean navalSystemEnabled, GameMap map, Random random) {
         if (season == null || map == null || random == null) {
             throw new IllegalArgumentException("arguments must not be null");
         }
