@@ -7,6 +7,8 @@ public class Building {
     private final HexCoordinate position;
     private final Constants.BuildingType type;
     private final List<Worker> workers;
+    private final int maxHp;
+    private int currentHp;
 
     private int unpaidTurns = 0;
     private boolean ruined = false;
@@ -15,6 +17,14 @@ public class Building {
         this.position = position;
         this.type = type;
         this.workers = new ArrayList<>();
+
+        if (type == Constants.BuildingType.TOWN_HALL) {
+            this.maxHp = 200;
+        } else {
+            this.maxHp = 100;
+        }
+
+        this.currentHp = maxHp;
     }
 
     public HexCoordinate getPosition() { return position; }
@@ -22,6 +32,14 @@ public class Building {
     public List<Worker> getWorkers() { return workers; }
     public int getWorkerCount() { return workers.size(); }
     public int getWorkerCap() { return Constants.WORKER_CAP.getOrDefault(type, 0); }
+
+    public int getMaxHp() {
+        return maxHp;
+    }
+
+    public int getCurrentHp() {
+        return currentHp;
+    }
 
     public boolean isRuined() { return ruined; }
     public boolean isActive() { return !ruined; }
@@ -57,10 +75,16 @@ public class Building {
         اصلی انجام می‌شود — امن. این یک تله‌ی کلاسیک جاواست؛ خوب در ذهن نگه‌دار.
      */
     public void ruin() {
+        if (ruined) {
+            return;
+        }
+
         ruined = true;
+
         for (Worker w : new ArrayList<>(workers)) {
             w.unstation();
         }
+
         workers.clear();
     }
 
@@ -89,5 +113,17 @@ public class Building {
         if (ruined)
             return ResourceAmount.zero();
         return Constants.UPKEEP.getOrDefault(type, ResourceAmount.zero());
+    }
+
+    public void takeDamage(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("damage must not be negative");
+        }
+
+        currentHp = Math.max(0, currentHp - amount);
+
+        if (currentHp == 0) {
+            ruin();
+        }
     }
 }
