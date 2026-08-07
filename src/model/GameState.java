@@ -166,6 +166,7 @@ public class GameState {
                 seasonCycle.getCurrentSeason(),
                 false,
                 map,
+                player,
                 random
         );
 

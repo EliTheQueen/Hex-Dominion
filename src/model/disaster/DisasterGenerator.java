@@ -2,6 +2,7 @@ package model.disaster;
 
 import model.GameMap;
 import model.HexCoordinate;
+import model.Player;
 import model.season.Season;
 import model.disaster.area.RadiusDisasterAreaCalculator;
 
@@ -23,8 +24,13 @@ public class DisasterGenerator {
         this.originSelector = originSelector;
     }
 
-    public DisasterEvent generate(Season season, boolean navalSystemEnabled, GameMap map, Random random) {
-        if (season == null || map == null || random == null) {
+    public DisasterEvent generate(Season season,
+                                  boolean navalSystemEnabled,
+                                  GameMap map,
+                                  Player player,
+                                  Random random
+    ) {
+        if (season == null || map == null || player == null || random == null) {
             throw new IllegalArgumentException("arguments must not be null");
         }
 
@@ -46,7 +52,13 @@ public class DisasterGenerator {
 
         switch (disasterType) {
             case EARTHQUAKE:
-                return new EarthquakeEvent(origin, map, new RadiusDisasterAreaCalculator(2));
+                return new EarthquakeEvent(
+                        origin,
+                        map,
+                        player,
+                        new RadiusDisasterAreaCalculator(2),
+                        new DisasterTargetCollector()
+                );
 
             default:
                 throw new UnsupportedOperationException("event creation is not implemented for " + disasterType);
