@@ -27,12 +27,31 @@ public class DisasterOriginSelector {
         return eligibleCoordinates.get(randomIndex);
     }
 
-    private List<HexCoordinate> findEligibleCoordinates(DisasterType disasterType, GameMap map) {
+    private List<HexCoordinate> findEligibleCoordinates(
+            DisasterType disasterType,
+            GameMap map
+    ) {
         switch (disasterType) {
-            case EARTHQUAKE: return findLandCoordinates(map);
+            case EARTHQUAKE:
+                return findLandCoordinates(map);
+
+            case BEAR_ATTACK:
+                return findTerrainCoordinates(map, Constants.TerrainType.FOREST);
+
+            case AVALANCHE:
+                return findTerrainCoordinates(map, Constants.TerrainType.MOUNTAIN);
+
+            case SEA_STORM:
+            case TSUNAMI:
+                return findTerrainCoordinates(map, Constants.TerrainType.SEA);
+
+            case TORNADO:
+                return findLandCoordinates(map);
 
             default:
-                throw new IllegalArgumentException("origin selection is not implemented for " + disasterType);
+                throw new IllegalArgumentException(
+                        "origin selection is not implemented for " + disasterType
+                );
         }
     }
 
@@ -50,5 +69,20 @@ public class DisasterOriginSelector {
 
     private boolean isLand(Hex hex) {
         return hex.getTerrainType() != Constants.TerrainType.SEA;
+    }
+
+    private List<HexCoordinate> findTerrainCoordinates(
+            GameMap map,
+            Constants.TerrainType terrainType
+    ) {
+        List<HexCoordinate> coordinates = new ArrayList<>();
+
+        for (Hex hex : map.getAllHexes()) {
+            if (hex.getTerrainType() == terrainType) {
+                coordinates.add(hex.getCoordinate());
+            }
+        }
+
+        return coordinates;
     }
 }
