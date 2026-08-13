@@ -1,9 +1,6 @@
 package model.disaster;
 
-import model.GameMap;
-import model.HexCoordinate;
-import model.Player;
-import model.Unit;
+import model.*;
 import model.disaster.area.DisasterArea;
 import model.disaster.area.DisasterAreaCalculator;
 
@@ -12,6 +9,7 @@ import java.util.List;
 public class EarthquakeEvent extends DisasterEvent {
 
     private static final int UNIT_DAMAGE = 10;
+    private static final int TOWN_HALL_DAMAGE = 50;
 
     private final GameMap map;
     private final Player player;
@@ -49,7 +47,27 @@ public class EarthquakeEvent extends DisasterEvent {
             unit.takeDamage(UNIT_DAMAGE);
         }
 
+        List<Building> affectedBuildings = targetCollector.collectBuildings(player, affectedArea);
+
+        for (Building building : affectedBuildings) {
+            if (building.getType() == Constants.BuildingType.TOWN_HALL) {
+                damageTownHall(building);
+            }
+        }
+
         player.removeDeadUnits();
+    }
+
+    private void damageTownHall(Building townHall) {
+        int currentHp = townHall.getCurrentHp();
+
+        if (currentHp <= 1) {
+            return;
+        }
+
+        int damage = Math.min(TOWN_HALL_DAMAGE, currentHp - 1);
+
+        townHall.takeDamage(damage);
     }
 
     public DisasterArea getAffectedArea() {
