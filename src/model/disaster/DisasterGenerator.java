@@ -60,6 +60,15 @@ public class DisasterGenerator {
                         new DisasterTargetCollector()
                 );
 
+            case BEAR_ATTACK:
+                return new BearAttackEvent(origin);
+
+            case AVALANCHE:
+                return new AvalancheEvent(origin);
+
+            case TORNADO:
+                return new TornadoEvent(origin);
+
             default:
                 throw new UnsupportedOperationException("event creation is not implemented for " + disasterType);
         }
