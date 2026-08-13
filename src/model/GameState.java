@@ -174,6 +174,8 @@ public class GameState {
             disaster.start();
 
             lastTurnEvents.add("Disaster: " + disaster.getType().name());
+
+            disaster.complete();
         }
 
         if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
