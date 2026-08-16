@@ -20,7 +20,7 @@ public final class DisasterEligibility {
                 return season == Season.AUTUMN;
 
             case SEA_STORM:
-                return navalSystemEnabled;
+                return true;
 
             case EARTHQUAKE:
             case BEAR_ATTACK:

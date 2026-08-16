@@ -299,6 +299,10 @@ public class GameState {
             case TOWNSHIP:
                 return player.hasResearched(Constants.TechnologyType.TOWNSHIP)
                         && !hex.everHadResource();
+
+            case DOCK:
+                return map.isCoastal(coord);
+
             default:
                 return false;
         }

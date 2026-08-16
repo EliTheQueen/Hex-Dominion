@@ -77,6 +77,24 @@ public class DisasterGenerator {
                         new DisasterTargetCollector()
                 );
 
+            case TSUNAMI:
+                return new TsunamiEvent(
+                        origin,
+                        map,
+                        player,
+                        new DisasterTargetCollector(),
+                        random
+                );
+
+            case SEA_STORM:
+                return new SeaStormEvent(
+                        origin,
+                        map,
+                        player,
+                        new RadiusDisasterAreaCalculator(2),
+                        new DisasterTargetCollector()
+                );
+
             default:
                 throw new UnsupportedOperationException("event creation is not implemented for " + disasterType);
         }
