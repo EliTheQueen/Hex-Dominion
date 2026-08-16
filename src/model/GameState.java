@@ -92,7 +92,8 @@ public class GameState {
 
         // 1. Production from buildings, depleting the underlying hex resource.
         for (Building b : player.getBuildings()) {
-            if (!b.isActive()) continue;
+            if (!b.isActive())
+                continue;
             if (b.getType() == Constants.BuildingType.TOWN_HALL) {
                 player.addResources(ResourceAmount.of(Constants.TOWN_HALL_FOOD, Constants.TOWN_HALL_WOOD, 0, 0));
                 continue;
@@ -102,15 +103,19 @@ public class GameState {
             player.addResources(yield);
         }
 
+        for (Building building : player.getBuildings()) {
+            building.advanceTurnStatus();
+        }
+
         // 2. Town Hall production queue advances one step (frozen during starvation).
         if (!starving) {
             ProductionTask done = player.getProductionQueue().advance();
             if (done != null) completeTask(done);
         }
 
-        // 3. Upkeep deduction and building decay.
         for (Building b : player.getBuildings()) {
-            if (!b.isActive() || b.getType() == Constants.BuildingType.TOWN_HALL) continue;
+            if (!b.isActive() || b.getType() == Constants.BuildingType.TOWN_HALL)
+                continue;
             ResourceAmount upkeep = b.getUpkeepCost();
             if (upkeep.get(Constants.ResourceType.FOOD) == 0 && upkeep.get(Constants.ResourceType.WOOD) == 0
                     && upkeep.get(Constants.ResourceType.STONE) == 0 && upkeep.get(Constants.ResourceType.IRON) == 0) {

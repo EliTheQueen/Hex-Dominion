@@ -69,6 +69,14 @@ public class DisasterGenerator {
             case TORNADO:
                 return new TornadoEvent(origin);
 
+            case FLOOD:
+                return new FloodEvent(
+                        origin,
+                        map,
+                        player,
+                        new DisasterTargetCollector()
+                );
+
             default:
                 throw new UnsupportedOperationException("event creation is not implemented for " + disasterType);
         }

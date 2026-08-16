@@ -12,6 +12,7 @@ public class Building {
 
     private int unpaidTurns = 0;
     private boolean ruined = false;
+    private int productionBlockedTurns = 0;
 
     public Building(HexCoordinate position, Constants.BuildingType type) {
         this.position = position;
@@ -89,11 +90,16 @@ public class Building {
     }
 
     public ResourceAmount produce(boolean professionalTools) {
-        if (ruined || workers.isEmpty() || type == Constants.BuildingType.TOWN_HALL) {
+        if (ruined
+                || productionBlockedTurns > 0
+                || workers.isEmpty()
+                || type == Constants.BuildingType.TOWN_HALL) {
             return ResourceAmount.zero();
         }
+
         Constants.ResourceType resType = Constants.PRODUCES.get(type);
-        if (resType == null) return ResourceAmount.zero();
+        if (resType == null)
+            return ResourceAmount.zero();
 
         int baseRate = Constants.BASE_RATE.getOrDefault(type, 0);
         int workerCount = workers.size();
@@ -124,6 +130,24 @@ public class Building {
 
         if (currentHp == 0) {
             ruin();
+        }
+    }
+
+    public void blockProductionForTurns(int turns) {
+        if (turns < 0) {
+            throw new IllegalArgumentException("turns must not be negative");
+        }
+
+        productionBlockedTurns = Math.max(productionBlockedTurns, turns);
+    }
+
+    public boolean isProductionBlocked() {
+        return productionBlockedTurns > 0;
+    }
+
+    public void advanceTurnStatus() {
+        if (productionBlockedTurns > 0) {
+            productionBlockedTurns--;
         }
     }
 }
