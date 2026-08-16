@@ -5,10 +5,27 @@ import java.util.Map;
 
 public final class Constants {
 
-    public enum TerrainType { FOREST, MOUNTAIN, PLAIN, GRASSLAND, SEA }
+    public enum TerrainType {
+        FOREST,
+        MOUNTAIN,
+        MOUNTAIN_RANGE,
+        VOLCANO,
+        PLAIN,
+        GRASSLAND,
+        SEA
+    }
     public enum ResourceType { FOOD, WOOD, STONE, IRON }
-    public enum NaturalResourceType { NONE, WOOD, STONE, IRON, WHEAT, RICE, COW, SHEEP }
-    public enum UnitType { EXPLORER, BUILDER, WORKER, BORDER_EXPANDER, MILITARY}
+    public enum NaturalResourceType {
+        NONE,
+        WOOD,
+        STONE,
+        IRON,
+        WHEAT,
+        RICE,
+        COW,
+        SHEEP,
+        FISH
+    }    public enum UnitType { EXPLORER, BUILDER, WORKER, BORDER_EXPANDER, MILITARY}
     public enum BuildingType { TOWN_HALL, LUMBER_MILL, STONE_MINE, IRON_MINE, FARM, STABLE, TOWNSHIP }
     public enum TechnologyType { STORAGE_I, STORAGE_II, STONE_MINING, IRON_MINING, PROFESSIONAL_TOOLS, TOWNSHIP }
     public enum UnitState { IDLE, MOVING, STATIONED, AUTO_EXPLORE }
@@ -52,6 +69,7 @@ public final class Constants {
         MOVE_COST.put(TerrainType.GRASSLAND,1);
         MOVE_COST.put(TerrainType.FOREST,2);
         MOVE_COST.put(TerrainType.MOUNTAIN,4);
+        MOVE_COST.put(TerrainType.VOLCANO, 4);
         UNIT_AP.put(UnitType.EXPLORER,6);
         UNIT_AP.put(UnitType.BUILDER,4);
         UNIT_AP.put(UnitType.WORKER,3);

@@ -32,21 +32,39 @@ public class DisasterOriginSelector {
             GameMap map
     ) {
         switch (disasterType) {
+
             case EARTHQUAKE:
                 return findLandCoordinates(map);
 
+            case FLOOD:
+                return findFloodCoordinates(map);
+
             case BEAR_ATTACK:
-                return findTerrainCoordinates(map, Constants.TerrainType.FOREST);
+                return findTerrainCoordinates(
+                        map,
+                        Constants.TerrainType.FOREST
+                );
 
-            case AVALANCHE:
-                return findTerrainCoordinates(map, Constants.TerrainType.MOUNTAIN);
-
-            case SEA_STORM:
             case TSUNAMI:
-                return findTerrainCoordinates(map, Constants.TerrainType.SEA);
+                return findCoastalCoordinates(map);
+
+            case VOLCANIC_ERUPTION:
+                return findTerrainCoordinates(
+                        map,
+                        Constants.TerrainType.VOLCANO
+                );
 
             case TORNADO:
-                return findLandCoordinates(map);
+                return findTornadoCoordinates(map);
+
+            case AVALANCHE:
+                return findAvalancheCoordinates(map);
+
+            case SEA_STORM:
+                return findTerrainCoordinates(
+                        map,
+                        Constants.TerrainType.SEA
+                );
 
             default:
                 throw new IllegalArgumentException(
@@ -68,7 +86,8 @@ public class DisasterOriginSelector {
     }
 
     private boolean isLand(Hex hex) {
-        return hex.getTerrainType() != Constants.TerrainType.SEA;
+        return hex.getTerrainType() != Constants.TerrainType.SEA
+                && hex.getTerrainType() != Constants.TerrainType.MOUNTAIN_RANGE;
     }
 
     private List<HexCoordinate> findTerrainCoordinates(
@@ -84,5 +103,69 @@ public class DisasterOriginSelector {
         }
 
         return coordinates;
+    }
+
+    private List<HexCoordinate> findCoastalCoordinates(GameMap map) {
+        List<HexCoordinate> result = new ArrayList<>();
+
+        for (Hex hex : map.getAllHexes()) {
+            if (map.isCoastal(hex.getCoordinate())) {
+                result.add(hex.getCoordinate());
+            }
+        }
+
+        return result;
+    }
+
+    private List<HexCoordinate> findFloodCoordinates(GameMap map) {
+        List<HexCoordinate> result = new ArrayList<>();
+
+        for (Hex hex : map.getAllHexes()) {
+
+            Constants.TerrainType terrain = hex.getTerrainType();
+
+            boolean validTerrain =
+                    terrain == Constants.TerrainType.PLAIN
+                            || terrain == Constants.TerrainType.GRASSLAND
+                            || terrain == Constants.TerrainType.FOREST;
+
+            if (!validTerrain) {
+                continue;
+            }
+
+            HexCoordinate coordinate = hex.getCoordinate();
+
+            if (map.isNextToRiver(coordinate) || map.isCoastal(coordinate)) {
+                result.add(coordinate);
+            }
+        }
+
+        return result;
+    }
+
+    private List<HexCoordinate> findTornadoCoordinates(GameMap map) {
+        List<HexCoordinate> result = new ArrayList<>();
+
+        for (Hex hex : map.getAllHexes()) {
+            if (hex.getTerrainType() == Constants.TerrainType.PLAIN
+                    || hex.getTerrainType() == Constants.TerrainType.GRASSLAND) {
+                result.add(hex.getCoordinate());
+            }
+        }
+
+        return result;
+    }
+
+    private List<HexCoordinate> findAvalancheCoordinates(GameMap map) {
+        List<HexCoordinate> result = new ArrayList<>();
+
+        for (Hex hex : map.getAllHexes()) {
+            if (hex.getTerrainType() == Constants.TerrainType.MOUNTAIN
+                    || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) {
+                result.add(hex.getCoordinate());
+            }
+        }
+
+        return result;
     }
 }
