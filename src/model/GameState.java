@@ -444,4 +444,9 @@ public class GameState {
     public DisasterEvent getLastDisasterEvent() {
         return lastDisasterEvent;
     }
+
+    /** Read-only access used by the map to render the model-owned active bear event. */
+    public BearAttackEvent getActiveBearAttack() {
+        return activeBearAttack;
+    }
 }

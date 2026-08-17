@@ -33,11 +33,12 @@ import model.HexCoordinate;
 import model.Player;
 import model.Unit;
 import model.disaster.AffectedAreaDisaster;
+import model.disaster.Bear;
+import model.disaster.BearAttackEvent;
 import model.disaster.DisasterEvent;
 import model.disaster.DisasterType;
-
-import static model.disaster.DisasterType.AVALANCHE;
-import static model.disaster.DisasterType.BEAR_ATTACK;
+import model.military.MilitaryUnit;
+import model.season.Season;
 
 /** The main hexagonal battle map. Renders terrain, fog of war, territory, buildings and units. */
 public class MapPanel extends JPanel
@@ -144,6 +145,8 @@ public class MapPanel extends JPanel
             drawHex(g2, hex, player);
         }
 
+        drawRivers(g2, map);
+
         drawTerritoryBorders(g2, player, map);
 
         for (Building b : player.getBuildings()) {
@@ -160,6 +163,8 @@ public class MapPanel extends JPanel
                 drawUnit(g2, u, animatedCenter(u));
             }
         }
+
+        drawActiveBears(g2, gs, map);
 
         drawDisasterAnimation(g2, gs, map);
 
@@ -185,6 +190,7 @@ public class MapPanel extends JPanel
                     + controller.getPendingBuildType().name(), 26, getHeight() - 23);
         }
 
+        drawSeasonEffects(g2, gs.getSeasonCycle().getCurrentSeason());
         drawMinimap(g2, gs, map, player);
 
         // Controls hint.
@@ -248,7 +254,11 @@ public class MapPanel extends JPanel
                 elapsed
                         / (float) DISASTER_ANIMATION_DURATION;
 
-        for (HexCoordinate coordinate : coordinates) {
+        List<HexCoordinate> ordered = new ArrayList<>(coordinates);
+        ordered.sort(Comparator.comparingInt(c -> c.distanceTo(disaster.getOrigin())));
+        int count = Math.max(1, ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            HexCoordinate coordinate = ordered.get(i);
 
             Hex hex = map.getHex(coordinate);
 
@@ -260,11 +270,14 @@ public class MapPanel extends JPanel
             Point2D center =
                     hexToPixel(coordinate);
 
+            float localProgress = Math.max(0f, Math.min(1f,
+                    progress * 1.45f - (i / (float) count) * 0.45f));
+            if (localProgress <= 0f) continue;
             drawDisasterEffect(
                     g2,
                     disaster.getType(),
                     center,
-                    progress
+                    localProgress
             );
         }
     }
@@ -286,13 +299,19 @@ public class MapPanel extends JPanel
                 break;
 
             case FLOOD:
-            case TSUNAMI:
-            case SEA_STORM:
                 drawWaterEffect(
                         g2,
                         center,
                         progress
                 );
+                break;
+
+            case TSUNAMI:
+                drawTsunamiEffect(g2, center, progress);
+                break;
+
+            case SEA_STORM:
+                drawSeaStormEffect(g2, center, progress);
                 break;
 
             case VOLCANIC_ERUPTION:
@@ -440,6 +459,33 @@ public class MapPanel extends JPanel
                 0,
                 180
         );
+    }
+
+    private void drawTsunamiEffect(Graphics2D g2, Point2D center, float progress) {
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        int radius = (int) (hexSize * (0.35 + progress * 0.8));
+        int alpha = Math.max(35, 220 - (int) (progress * 160));
+        g2.setColor(new Color(30, 115, 210, alpha));
+        g2.fillOval(cx - radius, cy - radius / 2, radius * 2, radius);
+        g2.setColor(new Color(235, 250, 255, alpha));
+        g2.setStroke(new BasicStroke(5f));
+        g2.drawArc(cx - radius, cy - radius / 2 - 5, radius * 2, radius, 15, 150);
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawSeaStormEffect(Graphics2D g2, Point2D center, float progress) {
+        drawWaterEffect(g2, center, progress);
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        g2.setColor(new Color(55, 62, 82, 190));
+        for (int i = 0; i < 3; i++) {
+            int dx = (int) (Math.sin(progress * 20 + i) * 10);
+            g2.fillOval(cx - 25 + i * 16 + dx, cy - 30 - (i % 2) * 5, 28, 14);
+        }
+        g2.setColor(new Color(180, 220, 255, 190));
+        g2.setStroke(new BasicStroke(2f));
+        for (int i = -2; i <= 2; i++)
+            g2.drawLine(cx + i * 10, cy - 13, cx + i * 10 - 9, cy + 14);
+        g2.setStroke(new BasicStroke(1f));
     }
 
     private void drawVolcanoEffect(
@@ -753,6 +799,99 @@ public class MapPanel extends JPanel
         }
     }
 
+    /** Rivers are model-owned edges, so both adjoining hexes must be explored before drawing one. */
+    private void drawRivers(Graphics2D g2, GameMap map) {
+        g2.setStroke(new BasicStroke(Math.max(3f, (float) hexSize * 0.10f),
+                BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        for (model.HexEdge edge : map.getRiverEdges()) {
+            Hex a = map.getHex(edge.getFirst()), b = map.getHex(edge.getSecond());
+            if (a == null || b == null || !a.getIsExplored() || !b.getIsExplored()) continue;
+            Point2D pa = hexToPixel(edge.getFirst()), pb = hexToPixel(edge.getSecond());
+            double mx = (pa.getX() + pb.getX()) / 2.0;
+            double my = (pa.getY() + pb.getY()) / 2.0;
+            double dx = pb.getX() - pa.getX(), dy = pb.getY() - pa.getY();
+            double len = Math.max(1, Math.hypot(dx, dy));
+            double half = hexSize * 0.50;
+            int x1 = (int) (mx - dx / len * half), y1 = (int) (my - dy / len * half);
+            int x2 = (int) (mx + dx / len * half), y2 = (int) (my + dy / len * half);
+            boolean visible = a.isVisible() || b.isVisible();
+            g2.setColor(visible ? new Color(55, 155, 225, 225) : new Color(45, 85, 115, 150));
+            g2.drawLine(x1, y1, x2, y2);
+            g2.setColor(new Color(185, 225, 250, visible ? 150 : 70));
+            g2.setStroke(new BasicStroke(Math.max(1f, (float) hexSize * 0.025f)));
+            g2.drawLine(x1, y1, x2, y2);
+            g2.setStroke(new BasicStroke(Math.max(3f, (float) hexSize * 0.10f), BasicStroke.CAP_ROUND,
+                    BasicStroke.JOIN_ROUND));
+        }
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawActiveBears(Graphics2D g2, GameState state, GameMap map) {
+        BearAttackEvent attack = state.getActiveBearAttack();
+        if (attack == null) return;
+        for (Bear bear : attack.getBears()) {
+            Hex hex = map.getHex(bear.getPosition());
+            if (!bear.isAlive() || hex == null || !hex.isVisible()) continue;
+            drawBearAt(g2, bear, hexToPixel(bear.getPosition()));
+        }
+    }
+
+    private void drawBearAt(Graphics2D g2, Bear bear, Point2D center) {
+        int cx = (int) center.getX(), cy = (int) center.getY() + 4;
+        int bob = (int) (Math.sin(selectionPulse * 1.8) * 2);
+        g2.setColor(new Color(45, 25, 12, 100));
+        g2.fillOval(cx - 17, cy + 9, 34, 10);
+        g2.setColor(new Color(112, 70, 38));
+        g2.fillOval(cx - 15, cy - 9 + bob, 30, 24);
+        g2.fillOval(cx - 11, cy - 18 + bob, 22, 18);
+        g2.fillOval(cx - 13, cy - 21 + bob, 8, 8);
+        g2.fillOval(cx + 5, cy - 21 + bob, 8, 8);
+        g2.setColor(Color.BLACK);
+        g2.fillOval(cx - 5, cy - 12 + bob, 3, 3);
+        g2.fillOval(cx + 3, cy - 12 + bob, 3, 3);
+        drawHealthBar(g2, cx, cy + 20, bear.getCurrentHp(), bear.getMaxHp());
+    }
+
+    private void drawSeasonEffects(Graphics2D g2, Season season) {
+        long now = System.currentTimeMillis();
+        if (season == Season.SUMMER) {
+            g2.setColor(new Color(255, 196, 70, 18));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+        } else if (season == Season.SPRING) {
+            g2.setColor(new Color(130, 245, 150, 12));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            for (int i = 0; i < 24; i++) {
+                int x = Math.floorMod(i * 137 + (int) (now / 35), Math.max(1, getWidth()));
+                int y = Math.floorMod(i * 83 + (int) (now / 70), Math.max(1, getHeight()));
+                g2.setColor(new Color(255, 180 + i % 60, 210, 110));
+                g2.fillOval(x, y, 4, 3);
+            }
+        } else if (season == Season.AUTUMN) {
+            g2.setColor(new Color(105, 75, 45, 25));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.setStroke(new BasicStroke(1.4f));
+            for (int i = 0; i < 95; i++) {
+                int x = Math.floorMod(i * 97 + (int) (now / 12), Math.max(1, getWidth() + 30)) - 15;
+                int y = Math.floorMod(i * 53 + (int) (now / 7), Math.max(1, getHeight() + 30)) - 15;
+                g2.setColor(new Color(150, 195, 220, 125));
+                g2.drawLine(x, y, x - 8, y + 15);
+            }
+        } else if (season == Season.WINTER) {
+            g2.setColor(new Color(115, 165, 220, 38));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            for (int i = 0; i < 90; i++) {
+                int speed = 12 + i % 17;
+                int y = Math.floorMod(i * 79 + (int) (now / speed), Math.max(1, getHeight() + 20)) - 10;
+                int x = Math.floorMod(i * 131 + (int) (Math.sin(now / 600.0 + i) * 18),
+                        Math.max(1, getWidth() + 20)) - 10;
+                int s = 2 + i % 4;
+                g2.setColor(new Color(245, 250, 255, 145 + i % 90));
+                g2.fillOval(x, y, s, s);
+            }
+        }
+        g2.setStroke(new BasicStroke(1f));
+    }
+
     // ---- Hex drawing -------------------------------------------------------
 
     private void drawHex(Graphics2D g2, Hex hex, Player player) {
@@ -819,6 +958,22 @@ public class MapPanel extends JPanel
         } else if (hex.isVisible() && hex.isDepleted()) {
             drawDepletedMarker(g2, hex, center);
         }
+
+        if (hex.isVisible() && hex.isBlocked()) drawBlockedOverlay(g2, hex, center);
+    }
+
+    private void drawBlockedOverlay(Graphics2D g2, Hex hex, Point2D center) {
+        Polygon p = createHexPolygon(center);
+        g2.setColor(new Color(50, 45, 42, 115));
+        g2.fillPolygon(p);
+        g2.setColor(new Color(220, 215, 205, 190));
+        g2.setStroke(new BasicStroke(3f));
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        for (int i = -1; i <= 1; i++)
+            g2.drawLine(cx - 20, cy + i * 9 - 7, cx + 20, cy + i * 9 + 7);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
+        g2.drawString("BLOCKED " + hex.getBlockedTurns(), cx - 25, cy + 29);
+        g2.setStroke(new BasicStroke(1f));
     }
 
     /** Distinct rendering for a hex whose resource has been exhausted (empty forest/mine/farm). */
@@ -863,9 +1018,37 @@ public class MapPanel extends JPanel
         switch (hex.getTerrainType()) {
             case FOREST: drawForestDetails(g2, cx, cy); break;
             case MOUNTAIN: drawMountainDetails(g2, cx, cy); break;
+            case MOUNTAIN_RANGE: drawMountainRangeDetails(g2, cx, cy); break;
+            case VOLCANO: drawVolcanoTerrain(g2, cx, cy); break;
+            case SEA: drawSeaDetails(g2, cx, cy); break;
             case GRASSLAND: drawGrassDetails(g2, cx, cy); break;
             default: break;
         }
+    }
+
+    private void drawMountainRangeDetails(Graphics2D g2, int cx, int cy) {
+        for (int i = -1; i <= 1; i++) {
+            int x = cx + i * 15, top = cy - 25 + Math.abs(i) * 7;
+            g2.setColor(new Color(72, 68, 70));
+            g2.fillPolygon(new int[]{x, x - 18, x + 18}, new int[]{top, cy + 17, cy + 17}, 3);
+            g2.setColor(new Color(235, 240, 245));
+            g2.fillPolygon(new int[]{x, x - 6, x + 7}, new int[]{top, top + 12, top + 11}, 3);
+        }
+    }
+
+    private void drawVolcanoTerrain(Graphics2D g2, int cx, int cy) {
+        g2.setColor(new Color(70, 58, 54));
+        g2.fillPolygon(new int[]{cx, cx - 25, cx + 25}, new int[]{cy - 19, cy + 18, cy + 18}, 3);
+        g2.setColor(new Color(35, 28, 27));
+        g2.fillOval(cx - 10, cy - 22, 20, 9);
+        g2.setColor(new Color(245, 76, 20));
+        g2.fillOval(cx - 7, cy - 20, 14, 5);
+        g2.drawLine(cx, cy - 16, cx + 9, cy + 14);
+    }
+
+    private void drawSeaDetails(Graphics2D g2, int cx, int cy) {
+        g2.setColor(new Color(185, 225, 245, 145));
+        for (int i = -1; i <= 1; i++) g2.drawArc(cx - 21 + i * 8, cy - 7 + i * 7, 25, 10, 10, 155);
     }
 
     private void drawForestDetails(Graphics2D g2, int cx, int cy) {
@@ -974,6 +1157,7 @@ public class MapPanel extends JPanel
             case IRON_MINE: drawIronMine(g2, cx, cy, visible); break;
             case STABLE: drawStable(g2, cx, cy, visible); break;
             case TOWNSHIP: drawTownship(g2, cx, cy, visible); break;
+            case DOCK: drawDock(g2, cx, cy, visible); break;
             default: break;
         }
         if (visible) {
@@ -984,7 +1168,42 @@ public class MapPanel extends JPanel
                 g2.setColor(Color.WHITE);
                 g2.drawOval(cx - 15 + i * 8, cy + 18, 6, 6);
             }
+            drawHealthBar(g2, cx, cy + 27, b.getCurrentHp(), b.getMaxHp());
+            if (b.isRuined()) drawRuinedOverlay(g2, cx, cy);
         }
+    }
+
+    private void drawDock(Graphics2D g2, int cx, int cy, boolean vis) {
+        g2.setColor(vis ? new Color(155, 104, 55) : new Color(92, 70, 48));
+        g2.setStroke(new BasicStroke(4f));
+        for (int i = -1; i <= 1; i++) g2.drawLine(cx - 16, cy + i * 6, cx + 17, cy + i * 6);
+        g2.setColor(vis ? new Color(220, 190, 125) : new Color(125, 110, 85));
+        g2.setStroke(new BasicStroke(2f));
+        g2.drawLine(cx - 16, cy - 10, cx - 16, cy + 14);
+        g2.drawLine(cx + 17, cy - 10, cx + 17, cy + 14);
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawRuinedOverlay(Graphics2D g2, int cx, int cy) {
+        g2.setColor(new Color(30, 25, 24, 145));
+        g2.fillOval(cx - 19, cy - 18, 38, 36);
+        g2.setColor(new Color(230, 95, 70, 220));
+        g2.setStroke(new BasicStroke(3f));
+        g2.drawLine(cx - 14, cy - 13, cx + 14, cy + 13);
+        g2.drawLine(cx + 14, cy - 13, cx - 14, cy + 13);
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawHealthBar(Graphics2D g2, int cx, int y, int hp, int maxHp) {
+        int w = 34, h = 5;
+        float pct = maxHp > 0 ? Math.max(0f, Math.min(1f, hp / (float) maxHp)) : 0f;
+        g2.setColor(new Color(25, 22, 25, 210));
+        g2.fillRect(cx - w / 2, y, w, h);
+        g2.setColor(pct > .55f ? new Color(70, 205, 85) : pct > .25f
+                ? new Color(235, 175, 45) : new Color(225, 65, 60));
+        g2.fillRect(cx - w / 2, y, (int) (w * pct), h);
+        g2.setColor(new Color(245, 245, 245, 150));
+        g2.drawRect(cx - w / 2, y, w, h);
     }
 
     private void drawTownHall(Graphics2D g2, int cx, int cy, boolean vis) {
@@ -1117,6 +1336,11 @@ public class MapPanel extends JPanel
         g2.setColor(apColor);
         g2.fillRect(cx - barW / 2, cy + r + 2, (int) (barW * apPct), barH);
 
+        if (u instanceof MilitaryUnit) {
+            MilitaryUnit military = (MilitaryUnit) u;
+            drawHealthBar(g2, cx, cy + r + 9, military.getCurrentHp(), military.getMaxHp());
+        }
+
         if (u == controller.getSelectedUnit()) {
             g2.setFont(new Font("SansSerif", Font.BOLD, 10));
             g2.setColor(GOLD);
@@ -1132,6 +1356,8 @@ public class MapPanel extends JPanel
             case BUILDER: return new Color(220, 140, 20);
             case WORKER: return new Color(150, 50, 205);
             case BORDER_EXPANDER: return new Color(40, 110, 225);
+            case MILITARY: return new Color(185, 55, 50);
+            case BEAR: return new Color(105, 65, 35);
             default: return Color.GRAY;
         }
     }
@@ -1142,6 +1368,8 @@ public class MapPanel extends JPanel
             case BUILDER: return "B";
             case WORKER: return "W";
             case BORDER_EXPANDER: return "X";
+            case MILITARY: return "⚔";
+            case BEAR: return "BR";
             default: return "?";
         }
     }
@@ -1236,6 +1464,9 @@ public class MapPanel extends JPanel
             case GRASSLAND: return GRASSLAND_COLOR;
             case FOREST: return FOREST_COLOR;
             case MOUNTAIN: return MOUNTAIN_COLOR;
+            case MOUNTAIN_RANGE: return new Color(76, 72, 78);
+            case VOLCANO: return new Color(92, 57, 46);
+            case SEA: return new Color(40, 112, 166);
             default: return PLAIN_COLOR;
         }
     }

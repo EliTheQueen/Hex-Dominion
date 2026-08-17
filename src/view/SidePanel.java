@@ -24,10 +24,12 @@ import javax.swing.JPanel;
 import controller.GameController;
 import model.BorderExpander;
 import model.Builder;
+import model.Building;
 import model.Constants;
 import model.Explorer;
 import model.Unit;
 import model.Worker;
+import model.military.MilitaryUnit;
 
 /** Right-hand panel: shows the selected unit and contextual action buttons. */
 public class SidePanel extends JPanel {
@@ -85,9 +87,14 @@ public class SidePanel extends JPanel {
             buildUnitInfo(sel);
             buildActionButtons(sel);
         } else {
-            JLabel lbl = makeLabel("Click a unit to select it", TEXT_COLOR, Font.ITALIC, 12);
-            lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
-            unitInfoPanel.add(lbl);
+            Building selectedBuilding = controller.getGameState() == null || controller.getSelectedHex() == null
+                    ? null : controller.getGameState().getPlayer().getBuildingAt(controller.getSelectedHex());
+            if (selectedBuilding != null) buildBuildingInfo(selectedBuilding);
+            else {
+                JLabel lbl = makeLabel("Click a unit or building", TEXT_COLOR, Font.ITALIC, 12);
+                lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+                unitInfoPanel.add(lbl);
+            }
         }
         buildStats();
 
@@ -156,6 +163,16 @@ public class SidePanel extends JPanel {
         unitInfoPanel.add(Box.createVerticalStrut(6));
         unitInfoPanel.add(makeCentered(makeLabel("State: " + u.getState().name(), TEXT_COLOR, Font.PLAIN, 11)));
 
+        if (u instanceof MilitaryUnit) {
+            MilitaryUnit military = (MilitaryUnit) u;
+            unitInfoPanel.add(Box.createVerticalStrut(5));
+            unitInfoPanel.add(makeCentered(makeLabel("Type: " + military.getMilitaryUnitType().name(), GOLD,
+                    Font.BOLD, 12)));
+            unitInfoPanel.add(makeCentered(makeLabel("HP: " + military.getCurrentHp() + "/" + military.getMaxHp(),
+                    TEXT_COLOR, Font.PLAIN, 11)));
+            unitInfoPanel.add(makeCentered(makeLabel("Range: " + military.getRange(), TEXT_COLOR, Font.PLAIN, 11)));
+        }
+
         if (u instanceof Builder) {
             Builder b = (Builder) u;
             unitInfoPanel.add(Box.createVerticalStrut(4));
@@ -185,6 +202,20 @@ public class SidePanel extends JPanel {
                 }
             }
         }
+    }
+
+    private void buildBuildingInfo(Building b) {
+        unitInfoPanel.add(makeCentered(makeLabel(b.getType().name().replace('_', ' '), GOLD, Font.BOLD, 16)));
+        unitInfoPanel.add(Box.createVerticalStrut(7));
+        unitInfoPanel.add(makeCentered(makeLabel("HP: " + b.getCurrentHp() + " / " + b.getMaxHp(),
+                b.isRuined() ? new Color(230, 85, 75) : TEXT_COLOR, Font.BOLD, 12)));
+        unitInfoPanel.add(makeCentered(makeLabel(b.isRuined() ? "RUINED" : "ACTIVE",
+                b.isRuined() ? new Color(230, 85, 75) : new Color(90, 205, 105), Font.BOLD, 11)));
+        if (b.getWorkerCap() > 0)
+            unitInfoPanel.add(makeCentered(makeLabel("Workers: " + b.getWorkerCount() + "/" + b.getWorkerCap(),
+                    TEXT_COLOR, Font.PLAIN, 11)));
+        if (b.isProductionBlocked())
+            unitInfoPanel.add(makeCentered(makeLabel("Production blocked", new Color(235, 175, 65), Font.BOLD, 11)));
     }
 
     private void buildActionButtons(Unit u) {

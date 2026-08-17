@@ -25,6 +25,8 @@ import model.GameState;
 import model.Player;
 import model.ProductionTask;
 import model.ResourceStorage;
+import model.season.Season;
+import model.season.SeasonCycle;
 
 /** Top heads-up display: resources with net rates, unit cap, turn, queue, warnings and actions. */
 public class HudPanel extends JPanel {
@@ -45,7 +47,7 @@ public class HudPanel extends JPanel {
     public HudPanel(GameController controller, GamePanel gamePanel) {
         this.controller = controller;
         this.gamePanel = gamePanel;
-        setPreferredSize(new Dimension(0, 92));
+        setPreferredSize(new Dimension(0, 108));
         setBackground(BG);
         setLayout(null);
         setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
@@ -160,6 +162,23 @@ public class HudPanel extends JPanel {
         g2.setColor(GOLD);
         g2.drawString(turnText, centerX, 32);
 
+        SeasonCycle cycle = gs.getSeasonCycle();
+        Season season = cycle.getCurrentSeason();
+        String seasonText = season.name() + "  " + cycle.getTurnInsideSeason()
+                + "/" + SeasonCycle.TURNS_PER_SEASON;
+        g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+        Color seasonColor;
+        switch (season) {
+            case SPRING: seasonColor = new Color(120, 225, 135); break;
+            case SUMMER: seasonColor = new Color(255, 195, 70); break;
+            case AUTUMN: seasonColor = new Color(225, 135, 65); break;
+            case WINTER: seasonColor = new Color(160, 215, 255); break;
+            default: seasonColor = GOLD;
+        }
+        g2.setColor(seasonColor);
+        int sw = g2.getFontMetrics().stringWidth(seasonText);
+        g2.drawString(seasonText, centerX + (tw - sw) / 2, 64);
+
         int score = gs.getCurrentScore();
         g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
         g2.setColor(new Color(170, 155, 110));
@@ -173,14 +192,14 @@ public class HudPanel extends JPanel {
             g2.setColor(new Color(150, 200, 240));
             String q = "Producing: " + front.getLabel()
                     + (p.getProductionQueue().size() > 1 ? "  (+" + (p.getProductionQueue().size() - 1) + " queued)" : "");
-            g2.drawString(q, areaStart, 70);
+            g2.drawString(q, areaStart, 80);
         } else {
             g2.setColor(new Color(120, 120, 140));
-            g2.drawString("Production queue empty", areaStart, 70);
+            g2.drawString("Production queue empty", areaStart, 80);
         }
 
         // Warnings (starvation, idle units) on the bottom row, prominent.
-        int wy = 86;
+        int wy = 102;
         int wx = areaStart;
         if (gs.isStarving()) {
             wx = drawBadge(g2, wx, wy, "⚠ STARVATION", RED);
@@ -188,6 +207,11 @@ public class HudPanel extends JPanel {
         int idle = gs.getIdleUnitsWithAP().size();
         if (idle > 0) {
             wx = drawBadge(g2, wx, wy, idle + " unit" + (idle == 1 ? "" : "s") + " still have AP", YELLOW);
+        }
+
+        if (!gs.getLastTurnEvents().isEmpty()) {
+            String event = gs.getLastTurnEvents().get(gs.getLastTurnEvents().size() - 1);
+            drawBadge(g2, wx, wy, event.replace('_', ' '), new Color(110, 185, 235));
         }
 
         // Status message near the buttons.
