@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-public class TsunamiEvent extends DisasterEvent {
+public class TsunamiEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int UNIT_DAMAGE = 30;
 

@@ -16,12 +16,8 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.geom.Point2D;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -36,6 +32,12 @@ import model.Hex;
 import model.HexCoordinate;
 import model.Player;
 import model.Unit;
+import model.disaster.AffectedAreaDisaster;
+import model.disaster.DisasterEvent;
+import model.disaster.DisasterType;
+
+import static model.disaster.DisasterType.AVALANCHE;
+import static model.disaster.DisasterType.BEAR_ATTACK;
 
 /** The main hexagonal battle map. Renders terrain, fog of war, territory, buildings and units. */
 public class MapPanel extends JPanel
@@ -64,6 +66,10 @@ public class MapPanel extends JPanel
     private HexCoordinate hoverHex = null;
     private final Set<HexCoordinate> reachableHexes = new HashSet<>();
     private float selectionPulse = 0f;
+    private String animatedDisasterId = null;
+    private long disasterAnimationStartedAt = 0;
+
+    private static final long DISASTER_ANIMATION_DURATION = 3000;
     private final Timer pulseTimer;
 
     // Smooth movement animation: each unit's displayed position eases toward its hex (no teleport).
@@ -155,6 +161,8 @@ public class MapPanel extends JPanel
             }
         }
 
+        drawDisasterAnimation(g2, gs, map);
+
         if (controller.getSelectedUnit() != null) {
             drawSelectionGlow(g2, animatedCenter(controller.getSelectedUnit()));
         } else if (controller.getSelectedHex() != null) {
@@ -186,6 +194,457 @@ public class MapPanel extends JPanel
                 16, getHeight() - 6);
 
         g2.dispose();
+    }
+
+    private void drawDisasterAnimation(
+            Graphics2D g2,
+            GameState gameState,
+            GameMap map
+    ) {
+        DisasterEvent disaster =
+                gameState.getLastDisasterEvent();
+
+        if (disaster == null) {
+            return;
+        }
+
+        if (!disaster.getId().equals(animatedDisasterId)) {
+            animatedDisasterId = disaster.getId();
+            disasterAnimationStartedAt =
+                    System.currentTimeMillis();
+        }
+
+        long elapsed =
+                System.currentTimeMillis()
+                        - disasterAnimationStartedAt;
+
+        if (elapsed > DISASTER_ANIMATION_DURATION) {
+            return;
+        }
+
+        Set<HexCoordinate> coordinates;
+
+        if (disaster instanceof AffectedAreaDisaster) {
+            AffectedAreaDisaster areaDisaster =
+                    (AffectedAreaDisaster) disaster;
+
+            if (areaDisaster.getAffectedArea() == null) {
+                return;
+            }
+
+            coordinates =
+                    areaDisaster
+                            .getAffectedArea()
+                            .getAffectedCoordinates();
+
+        } else {
+            coordinates =
+                    Collections.singleton(
+                            disaster.getOrigin()
+                    );
+        }
+
+        float progress =
+                elapsed
+                        / (float) DISASTER_ANIMATION_DURATION;
+
+        for (HexCoordinate coordinate : coordinates) {
+
+            Hex hex = map.getHex(coordinate);
+
+            // Disaster outside fog only gives HUD notification.
+            if (hex == null || !hex.isVisible()) {
+                continue;
+            }
+
+            Point2D center =
+                    hexToPixel(coordinate);
+
+            drawDisasterEffect(
+                    g2,
+                    disaster.getType(),
+                    center,
+                    progress
+            );
+        }
+    }
+
+    private void drawDisasterEffect(
+            Graphics2D g2,
+            DisasterType type,
+            Point2D center,
+            float progress
+    ) {
+        switch (type) {
+
+            case EARTHQUAKE:
+                drawEarthquakeEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            case FLOOD:
+            case TSUNAMI:
+            case SEA_STORM:
+                drawWaterEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            case VOLCANIC_ERUPTION:
+                drawVolcanoEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            case TORNADO:
+                drawTornadoEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            case AVALANCHE:
+                drawAvalancheEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            case BEAR_ATTACK:
+                drawBearEffect(
+                        g2,
+                        center,
+                        progress
+                );
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private void drawEarthquakeEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        int pulse =
+                8 + (int) (
+                        Math.abs(
+                                Math.sin(progress * 25)
+                        ) * 18
+                );
+
+        g2.setColor(
+                new Color(90, 55, 35, 180)
+        );
+
+        g2.setStroke(
+                new BasicStroke(3f)
+        );
+
+        g2.drawLine(
+                cx - pulse,
+                cy - 15,
+                cx - 3,
+                cy
+        );
+
+        g2.drawLine(
+                cx - 3,
+                cy,
+                cx + pulse,
+                cy + 12
+        );
+
+        g2.drawLine(
+                cx,
+                cy,
+                cx + 8,
+                cy - 15
+        );
+    }
+
+    private void drawWaterEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        int radius =
+                (int) (
+                        hexSize
+                                * (0.4 + progress * 0.5)
+                );
+
+        int alpha =
+                Math.max(
+                        40,
+                        180 - (int) (progress * 130)
+                );
+
+        g2.setColor(
+                new Color(
+                        60,
+                        150,
+                        230,
+                        alpha
+                )
+        );
+
+        g2.fillOval(
+                cx - radius,
+                cy - radius / 2,
+                radius * 2,
+                radius
+        );
+
+        g2.setColor(
+                new Color(
+                        180,
+                        230,
+                        255,
+                        alpha
+                )
+        );
+
+        g2.setStroke(
+                new BasicStroke(2f)
+        );
+
+        int wave =
+                (int) (
+                        Math.sin(progress * 20)
+                                * 7
+                );
+
+        g2.drawArc(
+                cx - radius,
+                cy - 8 + wave,
+                radius * 2,
+                18,
+                0,
+                180
+        );
+    }
+
+    private void drawVolcanoEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        int radius =
+                10 + (int) (
+                        Math.sin(progress * 18) * 6
+                );
+
+        g2.setColor(
+                new Color(255, 85, 20, 210)
+        );
+
+        g2.fillOval(
+                cx - radius,
+                cy - radius,
+                radius * 2,
+                radius * 2
+        );
+
+        for (int i = 0; i < 4; i++) {
+
+            int rise =
+                    (int) (
+                            (progress * 80 + i * 13)
+                                    % 55
+                    );
+
+            g2.setColor(
+                    new Color(
+                            255,
+                            180,
+                            30,
+                            190
+                    )
+            );
+
+            g2.fillOval(
+                    cx - 12 + i * 8,
+                    cy - rise,
+                    6,
+                    6
+            );
+        }
+    }
+
+    private void drawTornadoEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        g2.setStroke(
+                new BasicStroke(3f)
+        );
+
+        for (int i = 0; i < 4; i++) {
+
+            int width =
+                    12 + i * 9;
+
+            int y =
+                    cy - 25 + i * 12;
+
+            int offset =
+                    (int) (
+                            Math.sin(
+                                    progress * 25 + i
+                            ) * 8
+                    );
+
+            g2.setColor(
+                    new Color(
+                            210,
+                            210,
+                            220,
+                            180 - i * 25
+                    )
+            );
+
+            g2.drawOval(
+                    cx - width / 2 + offset,
+                    y,
+                    width,
+                    9
+            );
+        }
+    }
+
+    private void drawAvalancheEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        int size =
+                15 + (int) (
+                        progress * 35
+                );
+
+        g2.setColor(
+                new Color(
+                        245,
+                        245,
+                        255,
+                        190
+                )
+        );
+
+        g2.fillOval(
+                cx - size,
+                cy - size / 2,
+                size * 2,
+                size
+        );
+
+        g2.setColor(
+                new Color(
+                        150,
+                        150,
+                        160,
+                        170
+                )
+        );
+
+        for (int i = 0; i < 4; i++) {
+            g2.fillOval(
+                    cx - 20 + i * 12,
+                    cy + (i % 2) * 8,
+                    7,
+                    7
+            );
+        }
+    }
+
+    private void drawBearEffect(
+            Graphics2D g2,
+            Point2D center,
+            float progress
+    ) {
+        int cx = (int) center.getX();
+        int cy = (int) center.getY();
+
+        int bounce =
+                (int) (
+                        Math.sin(progress * 18) * 5
+                );
+
+        g2.setColor(
+                new Color(105, 65, 35)
+        );
+
+        g2.fillOval(
+                cx - 13,
+                cy - 10 + bounce,
+                26,
+                22
+        );
+
+        g2.fillOval(
+                cx - 10,
+                cy - 18 + bounce,
+                20,
+                17
+        );
+
+        g2.fillOval(
+                cx - 11,
+                cy - 21 + bounce,
+                7,
+                7
+        );
+
+        g2.fillOval(
+                cx + 4,
+                cy - 21 + bounce,
+                7,
+                7
+        );
+
+        g2.setColor(Color.BLACK);
+
+        g2.fillOval(
+                cx - 5,
+                cy - 13 + bounce,
+                3,
+                3
+        );
+
+        g2.fillOval(
+                cx + 3,
+                cy - 13 + bounce,
+                3,
+                3
+        );
     }
 
     // ---- Minimap -----------------------------------------------------------

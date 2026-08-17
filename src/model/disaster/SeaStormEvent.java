@@ -11,7 +11,7 @@ import model.disaster.area.DisasterAreaCalculator;
 
 import java.util.List;
 
-public class SeaStormEvent extends DisasterEvent {
+public class SeaStormEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int COASTAL_UNIT_DAMAGE = 20;
     private static final int DOCK_DAMAGE = 30;

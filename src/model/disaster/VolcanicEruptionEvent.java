@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-public class VolcanicEruptionEvent extends DisasterEvent {
+public class VolcanicEruptionEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int LAVA_DAMAGE = 60;
     private static final int NEIGHBOUR_DAMAGE = 30;

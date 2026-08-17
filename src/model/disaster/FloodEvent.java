@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class FloodEvent extends DisasterEvent {
+public class FloodEvent extends DisasterEvent implements AffectedAreaDisaster{
 
     private static final int UNIT_DAMAGE = 20;
     private static final int BUILDING_DAMAGE = 30;

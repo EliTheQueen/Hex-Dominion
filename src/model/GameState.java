@@ -25,6 +25,7 @@ public class GameState {
     private final Random random;
 
     private final DisasterGenerator disasterGenerator;
+    private DisasterEvent lastDisasterEvent;
 
     private BearAttackEvent activeBearAttack;
     private int bearAttackCooldown = 0;
@@ -201,6 +202,7 @@ public class GameState {
 
             if (disaster != null) {
                 disaster.start();
+                lastDisasterEvent = disaster;
 
                 lastTurnEvents.add("Disaster: " + disaster.getType().name());
 
@@ -439,4 +441,7 @@ public class GameState {
     public List<String> getLastTurnEvents() { return lastTurnEvents; }
     public SeasonCycle getSeasonCycle() {return seasonCycle;}
     public int getCurrentScore() { return ScoreCalculator.calculate(player, map); }
+    public DisasterEvent getLastDisasterEvent() {
+        return lastDisasterEvent;
+    }
 }

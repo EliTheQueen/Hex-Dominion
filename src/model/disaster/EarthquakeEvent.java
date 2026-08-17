@@ -6,7 +6,7 @@ import model.disaster.area.DisasterAreaCalculator;
 
 import java.util.List;
 
-public class EarthquakeEvent extends DisasterEvent {
+public class EarthquakeEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int UNIT_DAMAGE = 10;
     private static final int TOWN_HALL_DAMAGE = 50;

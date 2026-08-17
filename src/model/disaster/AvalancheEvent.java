@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-public class AvalancheEvent extends DisasterEvent {
+public class AvalancheEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int UNIT_DAMAGE = 40;
     private static final int BUILDING_DAMAGE = 50;

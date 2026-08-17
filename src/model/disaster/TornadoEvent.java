@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
-public class TornadoEvent extends DisasterEvent {
+public class TornadoEvent extends DisasterEvent implements AffectedAreaDisaster {
 
     private static final int UNIT_DAMAGE = 30;
     private static final int BUILDING_DAMAGE = 40;
