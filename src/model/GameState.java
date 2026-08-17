@@ -30,12 +30,16 @@ public class GameState {
     private BearAttackEvent activeBearAttack;
     private int bearAttackCooldown = 0;
 
+    private final InfrastructureService infrastructureService;
+
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
         map = gen.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");
         this.seasonCycle = new SeasonCycle();
+
+        this.infrastructureService = new InfrastructureService(map, player);
 
         random = new Random();
 

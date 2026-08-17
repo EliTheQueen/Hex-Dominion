@@ -1,0 +1,175 @@
+package model;
+
+public class InfrastructureService {
+
+    private static final int ACTION_AP_COST = 1;
+
+    private final GameMap map;
+    private final Player player;
+
+    public InfrastructureService(GameMap map, Player player) {
+        if (map == null || player == null) {
+            throw new IllegalArgumentException("map and player must not be null");
+        }
+
+        this.map = map;
+        this.player = player;
+    }
+
+    public boolean buildRoad(Builder builder, HexCoordinate coordinate) {
+        if (!canUseBuilder(builder) || !canReach(builder, coordinate)) {
+            return false;
+        }
+
+        Hex hex = map.getHex(coordinate);
+
+        if (hex == null || !hex.getIsExplored() || !player.isInTerritory(coordinate)) {
+            return false;
+        }
+
+        if (hex.hasRoad()) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.buildRoad(coordinate);
+        return true;
+    }
+
+    public boolean demolishRoad(Builder builder, HexCoordinate coordinate) {
+        if (!canUseBuilder(builder) || !canReach(builder, coordinate)) {
+            return false;
+        }
+
+        if (!map.hasRoad(coordinate)) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.removeRoad(coordinate);
+        return true;
+    }
+
+    public boolean buildWall(Builder builder, HexCoordinate first, HexCoordinate second) {
+        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
+            return false;
+        }
+
+        if (!builderTouchesEdge(builder, first, second)) {
+            return false;
+        }
+
+        if (!player.isInTerritory(first) && !player.isInTerritory(second)) {
+            return false;
+        }
+
+        if (map.hasWallBetween(first, second)) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.buildWall(first, second);
+        return true;
+    }
+
+    public boolean demolishWall(Builder builder, HexCoordinate first, HexCoordinate second) {
+        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
+            return false;
+        }
+
+        if (!builderTouchesEdge(builder, first, second)) {
+            return false;
+        }
+
+        if (!map.hasWallBetween(first, second)) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.removeWall(first, second);
+        return true;
+    }
+
+    public boolean buildBridge(Builder builder, HexCoordinate first, HexCoordinate second) {
+        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
+            return false;
+        }
+
+        if (!builderTouchesEdge(builder, first, second)) {
+            return false;
+        }
+
+        if (!map.hasRiverBetween(first, second) || map.hasBridgeBetween(first, second)) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.buildBridge(first, second);
+        return true;
+    }
+
+    public boolean demolishBridge(Builder builder, HexCoordinate first, HexCoordinate second) {
+        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
+            return false;
+        }
+
+        if (!builderTouchesEdge(builder, first, second)) {
+            return false;
+        }
+
+        if (!map.hasBridgeBetween(first, second)) {
+            return false;
+        }
+
+        if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+
+        map.removeBridge(first, second);
+        return true;
+    }
+
+    private boolean canUseBuilder(Builder builder) {
+        return builder != null && builder.isAlive() && builder.getCurrentAP() >= ACTION_AP_COST;
+    }
+
+    private boolean canReach(Builder builder, HexCoordinate coordinate) {
+        if (coordinate == null) {
+            return false;
+        }
+
+        return builder.getPosition().equals(coordinate)
+                || builder.getPosition().distanceTo(coordinate) == 1;
+    }
+
+    private boolean isValidEdge(HexCoordinate first, HexCoordinate second) {
+        if (first == null || second == null) {
+            return false;
+        }
+
+        if (!map.containsCoordinate(first) || !map.containsCoordinate(second)) {
+            return false;
+        }
+
+        return first.findNeighbours().contains(second);
+    }
+
+    private boolean builderTouchesEdge(Builder builder, HexCoordinate first, HexCoordinate second) {
+        return builder.getPosition().equals(first) || builder.getPosition().equals(second);
+    }
+}
