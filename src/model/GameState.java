@@ -162,6 +162,8 @@ public class GameState {
         // 7. Reveal hexes around units/buildings.
         updateVisibility();
 
+        map.advanceBlockedHexes();
+
         // 8. Advance turn. This is an open-ended sandbox: there is no turn limit and no
         // "victory". The only terminal state is losing every unit and building.
         currentTurn++;

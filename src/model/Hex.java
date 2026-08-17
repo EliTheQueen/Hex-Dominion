@@ -14,6 +14,8 @@ public class Hex {
     private boolean hasBuilding = false;
     private boolean everHadResource = false;
 
+    private int blockedTurns = 0;
+
 
     public Hex(HexCoordinate coordinate, Constants.TerrainType terrainType) {
         this.coordinate = coordinate;
@@ -93,4 +95,25 @@ public class Hex {
        return true;
     }
 
+    public boolean isBlocked() {
+        return blockedTurns > 0;
+    }
+
+    public int getBlockedTurns() {
+        return blockedTurns;
+    }
+
+    public void blockForTurns(int turns) {
+        if (turns < 0) {
+            throw new IllegalArgumentException("turns must not be negative");
+        }
+
+        blockedTurns = Math.max(blockedTurns, turns);
+    }
+
+    public void advanceBlockedTurn() {
+        if (blockedTurns > 0) {
+            blockedTurns--;
+        }
+    }
 }

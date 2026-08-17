@@ -116,4 +116,10 @@ public class GameMap{
     public Set<HexEdge> getRiverEdges() {
         return new HashSet<>(riverEdges);
     }
+
+    public void advanceBlockedHexes() {
+        for (Hex hex : getAllHexes()) {
+            hex.advanceBlockedTurn();
+        }
+    }
 }

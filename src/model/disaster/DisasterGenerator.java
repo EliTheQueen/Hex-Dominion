@@ -63,11 +63,35 @@ public class DisasterGenerator {
             case BEAR_ATTACK:
                 return new BearAttackEvent(origin);
 
-            case AVALANCHE:
-                return new AvalancheEvent(origin);
-
             case TORNADO:
-                return new TornadoEvent(origin);
+                return new TornadoEvent(
+                        origin,
+                        map,
+                        player,
+                        random,
+                        new DisasterPathBuilder(),
+                        new DisasterTargetCollector()
+                );
+
+            case AVALANCHE:
+                return new AvalancheEvent(
+                        origin,
+                        map,
+                        player,
+                        random,
+                        new DisasterPathBuilder(),
+                        new DisasterTargetCollector()
+                );
+
+            case VOLCANIC_ERUPTION:
+                return new VolcanicEruptionEvent(
+                        origin,
+                        map,
+                        player,
+                        random,
+                        new DisasterPathBuilder(),
+                        new DisasterTargetCollector()
+                );
 
             case FLOOD:
                 return new FloodEvent(
