@@ -13,6 +13,7 @@ public class Hex {
     private boolean isExpanded = false;
     private boolean hasBuilding = false;
     private boolean everHadResource = false;
+    private boolean hasRoad = false;
 
     private int blockedTurns = 0;
 
@@ -115,5 +116,17 @@ public class Hex {
         if (blockedTurns > 0) {
             blockedTurns--;
         }
+    }
+
+    public boolean hasRoad() {
+        return hasRoad;
+    }
+
+    public void buildRoad() {
+        hasRoad = true;
+    }
+
+    public void removeRoad() {
+        hasRoad = false;
     }
 }

@@ -36,8 +36,17 @@ public class PathFinder {
                 Hex hex = map.getHex(neighbor);
                 if (hex == null)
                     continue;
-                int cost = Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
-                int newDist = currDist + cost;
+                int moveCost;
+
+                if (hex.hasRoad()) {
+                    moveCost = 1;
+                } else {
+                    moveCost = Constants.MOVE_COST.getOrDefault(
+                            hex.getTerrainType(),
+                            1
+                    );
+                }
+                int newDist = currDist + moveCost;
                 if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
                     dist.put(neighbor, newDist);
                     prev.put(neighbor, curr);
@@ -73,8 +82,17 @@ public class PathFinder {
                 if (!map.containsCoordinate(neighbor)) continue;
                 Hex hex = map.getHex(neighbor);
                 if (hex == null) continue;
-                int cost = Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
-                int newDist = currDist + cost;
+                int moveCost;
+
+                if (hex.hasRoad()) {
+                    moveCost = 1;
+                } else {
+                    moveCost = Constants.MOVE_COST.getOrDefault(
+                            hex.getTerrainType(),
+                            1
+                    );
+                }
+                int newDist = currDist + moveCost;
                 if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
                     dist.put(neighbor, newDist);
                     result.add(neighbor);
@@ -93,7 +111,17 @@ public class PathFinder {
         int cost = 0;
         for (int i = 1; i < path.size(); i++) {
             Hex hex = map.getHex(path.get(i));
-            cost += Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
+            int moveCost;
+
+            if (hex.hasRoad()) {
+                moveCost = 1;
+            } else {
+                moveCost = Constants.MOVE_COST.getOrDefault(
+                        hex.getTerrainType(),
+                        1
+                );
+            }
+            cost += moveCost;
         }
         return cost;
     }

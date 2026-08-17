@@ -10,11 +10,13 @@ public class GameMap{
 
     private Map<HexCoordinate, Hex> hexes;
     private final Set<HexEdge> riverEdges;
+    private final Set<HexEdge> wallEdges;
 
     public GameMap(Map<HexCoordinate, Hex> hexes) {
 
         this.hexes = hexes;
         this.riverEdges = new HashSet<>();
+        this.wallEdges = new HashSet<>();
 
     }
 
@@ -121,5 +123,97 @@ public class GameMap{
         for (Hex hex : getAllHexes()) {
             hex.advanceBlockedTurn();
         }
+    }
+
+    public void buildRoad(HexCoordinate coordinate) {
+        Hex hex = getHex(coordinate);
+
+        if (hex == null) {
+            throw new IllegalArgumentException("coordinate is not in map");
+        }
+
+        hex.buildRoad();
+    }
+
+    public void removeRoad(HexCoordinate coordinate) {
+        Hex hex = getHex(coordinate);
+
+        if (hex == null) {
+            throw new IllegalArgumentException("coordinate is not in map");
+        }
+
+        hex.removeRoad();
+    }
+
+    public boolean hasRoad(HexCoordinate coordinate) {
+        Hex hex = getHex(coordinate);
+        return hex != null && hex.hasRoad();
+    }
+
+    public void buildWall(
+            HexCoordinate first,
+            HexCoordinate second
+    ) {
+        if (!containsCoordinate(first) || !containsCoordinate(second)) {
+            throw new IllegalArgumentException("wall coordinates must be inside map");
+        }
+
+        HexEdge edge = findWallEdge(first, second);
+
+        if (edge == null) {
+            edge = new HexEdge(first, second);
+            wallEdges.add(edge);
+        }
+
+        edge.buildWall(100);
+    }
+
+    public boolean hasWallBetween(
+            HexCoordinate first,
+            HexCoordinate second
+    ) {
+        HexEdge edge = findWallEdge(first, second);
+        return edge != null && edge.hasWall();
+    }
+
+    public Wall getWallBetween(
+            HexCoordinate first,
+            HexCoordinate second
+    ) {
+        HexEdge edge = findWallEdge(first, second);
+
+        if (edge == null) {
+            return null;
+        }
+
+        return edge.getWall();
+    }
+
+    public void removeWall(
+            HexCoordinate first,
+            HexCoordinate second
+    ) {
+        HexEdge edge = findWallEdge(first, second);
+
+        if (edge != null) {
+            edge.removeWall();
+        }
+    }
+
+    private HexEdge findWallEdge(
+            HexCoordinate first,
+            HexCoordinate second
+    ) {
+        for (HexEdge edge : wallEdges) {
+            if (edge.connects(first, second)) {
+                return edge;
+            }
+        }
+
+        return null;
+    }
+
+    public Set<HexEdge> getWallEdges() {
+        return new HashSet<>(wallEdges);
     }
 }

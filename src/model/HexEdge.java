@@ -6,6 +6,7 @@ public class HexEdge {
 
     private final HexCoordinate first;
     private final HexCoordinate second;
+    private Wall wall;
 
     public HexEdge(HexCoordinate first, HexCoordinate second) {
         if (first == null || second == null) {
@@ -47,5 +48,25 @@ public class HexEdge {
     @Override
     public int hashCode() {
         return Objects.hashCode(first) + Objects.hashCode(second);
+    }
+
+    public boolean hasWall() {
+        return wall != null && !wall.isDestroyed();
+    }
+
+    public Wall getWall() {
+        return wall;
+    }
+
+    public void buildWall(int maxHp) {
+        if (hasWall()) {
+            throw new IllegalStateException("wall already exists");
+        }
+
+        wall = new Wall(maxHp);
+    }
+
+    public void removeWall() {
+        wall = null;
     }
 }
