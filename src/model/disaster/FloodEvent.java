@@ -47,8 +47,17 @@ public class FloodEvent extends DisasterEvent implements AffectedAreaDisaster{
 
         damageUnits();
         damageBuildings();
+        destroyRoads();
 
         player.removeDeadUnits();
+    }
+
+    private void destroyRoads() {
+        for (HexCoordinate coordinate : affectedArea.getAffectedCoordinates()) {
+            if (map.hasRoad(coordinate)) {
+                map.removeRoad(coordinate);
+            }
+        }
     }
 
     private DisasterArea calculateAffectedArea() {
