@@ -10,14 +10,30 @@ public abstract class Unit {
     protected int maxHp;
     protected int currentHp;
 
-    public Unit(HexCoordinate position, Constants.UnitType unitType) {
+    public Unit(
+            HexCoordinate position,
+            Constants.UnitType unitType
+    ) {
+        this(position, unitType, 100);
+    }
+
+    protected Unit(
+            HexCoordinate position,
+            Constants.UnitType unitType,
+            int maxHp
+    ) {
         this.position = position;
         this.unitType = unitType;
         this.maxAP = Constants.UNIT_AP.get(unitType);
         this.currentAP = maxAP;
         this.state = Constants.UnitState.IDLE;
         this.alive = true;
-        this.maxHp = 100;
+
+        if (maxHp <= 0) {
+            throw new IllegalArgumentException("maxHp must be positive");
+        }
+
+        this.maxHp = maxHp;
         this.currentHp = maxHp;
     }
 

@@ -25,7 +25,15 @@ public final class Constants {
         COW,
         SHEEP,
         FISH
-    }    public enum UnitType { EXPLORER, BUILDER, WORKER, BORDER_EXPANDER, MILITARY}
+    }
+    public enum UnitType {
+        EXPLORER,
+        BUILDER,
+        WORKER,
+        BORDER_EXPANDER,
+        MILITARY,
+        BEAR
+    }
     public enum BuildingType { TOWN_HALL, LUMBER_MILL, STONE_MINE, IRON_MINE, FARM, STABLE, TOWNSHIP, DOCK }
     public enum TechnologyType { STORAGE_I, STORAGE_II, STONE_MINING, IRON_MINING, PROFESSIONAL_TOOLS, TOWNSHIP }
     public enum UnitState { IDLE, MOVING, STATIONED, AUTO_EXPLORE }
@@ -74,10 +82,12 @@ public final class Constants {
         UNIT_AP.put(UnitType.BUILDER,4);
         UNIT_AP.put(UnitType.WORKER,3);
         UNIT_AP.put(UnitType.BORDER_EXPANDER,3);
+        UNIT_AP.put(UnitType.BEAR, 2);
         UNIT_VISION.put(UnitType.EXPLORER,3);
         UNIT_VISION.put(UnitType.BUILDER,2);
         UNIT_VISION.put(UnitType.WORKER,1);
         UNIT_VISION.put(UnitType.BORDER_EXPANDER,2);
+        UNIT_VISION.put(UnitType.BEAR, 3);
         for (BuildingType b: BuildingType.values()) {
             BUILD_AP.put(b,1);
             WORKER_CAP.put(b,0);

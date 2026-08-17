@@ -2,12 +2,9 @@ package model;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import model.disaster.*;
 import model.season.SeasonCycle;
-import model.disaster.DisasterGenerator;
-import model.disaster.DisasterOccurrencePolicy;
-import model.disaster.DisasterOriginSelector;
-import model.disaster.DisasterSelector;
-import model.disaster.DisasterEvent;
 
 import java.util.Random;
 
@@ -28,6 +25,8 @@ public class GameState {
     private final Random random;
 
     private final DisasterGenerator disasterGenerator;
+
+    private BearAttackEvent activeBearAttack;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
@@ -169,20 +168,40 @@ public class GameState {
         currentTurn++;
         seasonCycle.advanceTurn();
 
-        DisasterEvent disaster = disasterGenerator.generate(
-                seasonCycle.getCurrentSeason(),
-                false,
-                map,
-                player,
-                random
-        );
+        if (activeBearAttack != null) {
 
-        if (disaster != null) {
-            disaster.start();
+            activeBearAttack.processTurn();
 
-            lastTurnEvents.add("Disaster: " + disaster.getType().name());
+            if (activeBearAttack.shouldEnd()) {
 
-            disaster.complete();
+                activeBearAttack.complete();
+
+                lastTurnEvents.add("Bear attack ended");
+
+                activeBearAttack = null;
+            }
+        }
+
+        if (activeBearAttack == null) {
+            DisasterEvent disaster = disasterGenerator.generate(
+                    seasonCycle.getCurrentSeason(),
+                    false,
+                    map,
+                    player,
+                    random
+            );
+
+            if (disaster != null) {
+                disaster.start();
+
+                lastTurnEvents.add("Disaster: " + disaster.getType().name());
+
+                if (disaster instanceof BearAttackEvent) {
+                    activeBearAttack = (BearAttackEvent) disaster;
+                } else {
+                    disaster.complete();
+                }
+            }
         }
 
         if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {

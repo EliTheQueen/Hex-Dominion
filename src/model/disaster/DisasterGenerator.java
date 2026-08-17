@@ -61,7 +61,11 @@ public class DisasterGenerator {
                 );
 
             case BEAR_ATTACK:
-                return new BearAttackEvent(origin);
+                return new BearAttackEvent(
+                        origin,
+                        map,
+                        player
+                );
 
             case TORNADO:
                 return new TornadoEvent(
