@@ -27,6 +27,7 @@ public class GameState {
     private final DisasterGenerator disasterGenerator;
 
     private BearAttackEvent activeBearAttack;
+    private int bearAttackCooldown = 0;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
@@ -87,6 +88,11 @@ public class GameState {
     public void endTurn() {
         if (gameOver) return;
         lastTurnEvents.clear();
+
+        if (bearAttackCooldown > 0) {
+            bearAttackCooldown--;
+        }
+
         boolean profTools = player.hasProfessionalTools();
 
         // 1. Production from buildings, depleting the underlying hex resource.
@@ -183,13 +189,15 @@ public class GameState {
         }
 
         if (activeBearAttack == null) {
-            DisasterEvent disaster = disasterGenerator.generate(
-                    seasonCycle.getCurrentSeason(),
-                    false,
-                    map,
-                    player,
-                    random
-            );
+            DisasterEvent disaster =
+                    disasterGenerator.generate(
+                            seasonCycle.getCurrentSeason(),
+                            false,
+                            bearAttackCooldown == 0,
+                            map,
+                            player,
+                            random
+                    );
 
             if (disaster != null) {
                 disaster.start();
@@ -198,6 +206,7 @@ public class GameState {
 
                 if (disaster instanceof BearAttackEvent) {
                     activeBearAttack = (BearAttackEvent) disaster;
+                    bearAttackCooldown = 5;
                 } else {
                     disaster.complete();
                 }

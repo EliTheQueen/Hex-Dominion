@@ -8,7 +8,12 @@ import java.util.Random;
 
 public class DisasterSelector {
 
-    public DisasterType select(Season season, boolean navalSystemEnabled, Random random) {
+    public DisasterType select(
+            Season season,
+            boolean navalSystemEnabled,
+            boolean bearAttackAllowed,
+            Random random
+    ) {
         if (season == null || random == null) {
             throw new IllegalArgumentException("arguments must not be null");
         }
@@ -17,7 +22,16 @@ public class DisasterSelector {
 
         for (DisasterType type : DisasterType.values()) {
 
-            if (DisasterEligibility.isEligible(type, season, navalSystemEnabled)) {
+            if (type == DisasterType.BEAR_ATTACK
+                    && !bearAttackAllowed) {
+                continue;
+            }
+
+            if (DisasterEligibility.isEligible(
+                    type,
+                    season,
+                    navalSystemEnabled
+            )) {
                 eligible.add(type);
             }
         }
