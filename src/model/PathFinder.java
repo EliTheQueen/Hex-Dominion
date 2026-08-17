@@ -12,117 +12,230 @@ import java.util.Set;
 
 public class PathFinder {
 
-    public static List<HexCoordinate> findPath(GameMap map, HexCoordinate from, HexCoordinate to, int maxAP) {
-        if (from.equals(to))
-            //یک لیست تغییرناپذیرِ یک‌عضوی می‌سازد
+    public static List<HexCoordinate> findPath(
+            GameMap map,
+            HexCoordinate from,
+            HexCoordinate to,
+            int maxAP
+    ) {
+        if (from.equals(to)) {
             return Collections.singletonList(from);
+        }
 
         Map<HexCoordinate, Integer> dist = new HashMap<>();
         Map<HexCoordinate, HexCoordinate> prev = new HashMap<>();
+
         PriorityQueue<HexCoordinate> queue =
-                new PriorityQueue<>(Comparator.comparingInt(c -> dist.getOrDefault(c, Integer.MAX_VALUE)));
+                new PriorityQueue<>(
+                        Comparator.comparingInt(
+                                c -> dist.getOrDefault(
+                                        c,
+                                        Integer.MAX_VALUE
+                                )
+                        )
+                );
 
         dist.put(from, 0);
         queue.add(from);
 
         while (!queue.isEmpty()) {
+
             HexCoordinate curr = queue.poll();
-            int currDist = dist.getOrDefault(curr, Integer.MAX_VALUE);
-            if (curr.equals(to)) break;
+
+            int currDist =
+                    dist.getOrDefault(
+                            curr,
+                            Integer.MAX_VALUE
+                    );
+
+            if (curr.equals(to)) {
+                break;
+            }
 
             for (HexCoordinate neighbor : curr.findNeighbours()) {
-                if (!map.containsCoordinate(neighbor))
-                    continue;
-                Hex hex = map.getHex(neighbor);
-                if (hex == null)
-                    continue;
-                int moveCost;
 
-                if (hex.hasRoad()) {
-                    moveCost = 1;
-                } else {
-                    moveCost = Constants.MOVE_COST.getOrDefault(
-                            hex.getTerrainType(),
-                            1
-                    );
+                if (!map.containsCoordinate(neighbor)) {
+                    continue;
                 }
+
+                Hex hex = map.getHex(neighbor);
+
+                if (!canEnter(hex)) {
+                    continue;
+                }
+
+                int moveCost = getMoveCost(hex);
+
                 int newDist = currDist + moveCost;
+
                 if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
-                    dist.put(neighbor, newDist);
-                    prev.put(neighbor, curr);
+
+                    dist.put(
+                            neighbor,
+                            newDist
+                    );
+
+                    prev.put(
+                            neighbor,
+                            curr
+                    );
+
                     queue.remove(neighbor);
                     queue.add(neighbor);
                 }
             }
         }
-        //kheyli nafahmidam bazam bekhoonesh
-        if (!dist.containsKey(to)) return null;
 
-        List<HexCoordinate> path = new ArrayList<>();
+        if (!dist.containsKey(to)) {
+            return null;
+        }
+
+        List<HexCoordinate> path =
+                new ArrayList<>();
+
         HexCoordinate curr = to;
+
         while (curr != null) {
             path.add(0, curr);
             curr = prev.get(curr);
         }
+
         return path;
     }
 
-    public static Set<HexCoordinate> reachable(GameMap map, HexCoordinate from, int maxAP) {
-        Map<HexCoordinate, Integer> dist = new HashMap<>();
+    public static Set<HexCoordinate> reachable(
+            GameMap map,
+            HexCoordinate from,
+            int maxAP
+    ) {
+        Map<HexCoordinate, Integer> dist =
+                new HashMap<>();
+
         PriorityQueue<HexCoordinate> queue =
-                new PriorityQueue<>(Comparator.comparingInt(c -> dist.getOrDefault(c, Integer.MAX_VALUE)));
+                new PriorityQueue<>(
+                        Comparator.comparingInt(
+                                c -> dist.getOrDefault(
+                                        c,
+                                        Integer.MAX_VALUE
+                                )
+                        )
+                );
+
         dist.put(from, 0);
         queue.add(from);
-        Set<HexCoordinate> result = new HashSet<>();
+
+        Set<HexCoordinate> result =
+                new HashSet<>();
 
         while (!queue.isEmpty()) {
-            HexCoordinate curr = queue.poll();
-            int currDist = dist.getOrDefault(curr, Integer.MAX_VALUE);
-            for (HexCoordinate neighbor : curr.findNeighbours()) {
-                if (!map.containsCoordinate(neighbor)) continue;
-                Hex hex = map.getHex(neighbor);
-                if (hex == null) continue;
-                int moveCost;
 
-                if (hex.hasRoad()) {
-                    moveCost = 1;
-                } else {
-                    moveCost = Constants.MOVE_COST.getOrDefault(
-                            hex.getTerrainType(),
-                            1
+            HexCoordinate curr =
+                    queue.poll();
+
+            int currDist =
+                    dist.getOrDefault(
+                            curr,
+                            Integer.MAX_VALUE
                     );
+
+            for (HexCoordinate neighbor :
+                    curr.findNeighbours()) {
+
+                if (!map.containsCoordinate(neighbor)) {
+                    continue;
                 }
-                int newDist = currDist + moveCost;
-                if (newDist <= maxAP && newDist < dist.getOrDefault(neighbor, Integer.MAX_VALUE)) {
-                    dist.put(neighbor, newDist);
+
+                Hex hex =
+                        map.getHex(neighbor);
+
+                if (!canEnter(hex)) {
+                    continue;
+                }
+
+                int moveCost =
+                        getMoveCost(hex);
+
+                int newDist =
+                        currDist + moveCost;
+
+                if (newDist <= maxAP
+                        && newDist < dist.getOrDefault(
+                        neighbor,
+                        Integer.MAX_VALUE
+                )) {
+
+                    dist.put(
+                            neighbor,
+                            newDist
+                    );
+
                     result.add(neighbor);
-                    //chera?
+
                     queue.remove(neighbor);
                     queue.add(neighbor);
                 }
             }
         }
+
         return result;
     }
 
-    public static int pathCost(GameMap map, HexCoordinate from, HexCoordinate to, int maxAP) {
-        List<HexCoordinate> path = findPath(map, from, to, maxAP);
-        if (path == null) return -1;
-        int cost = 0;
-        for (int i = 1; i < path.size(); i++) {
-            Hex hex = map.getHex(path.get(i));
-            int moveCost;
-
-            if (hex.hasRoad()) {
-                moveCost = 1;
-            } else {
-                moveCost = Constants.MOVE_COST.getOrDefault(
-                        hex.getTerrainType(),
-                        1
+    public static int pathCost(
+            GameMap map,
+            HexCoordinate from,
+            HexCoordinate to,
+            int maxAP
+    ) {
+        List<HexCoordinate> path =
+                findPath(
+                        map,
+                        from,
+                        to,
+                        maxAP
                 );
-            }
-            cost += moveCost;
+
+        if (path == null) {
+            return -1;
         }
+
+        int cost = 0;
+
+        for (int i = 1; i < path.size(); i++) {
+
+            Hex hex =
+                    map.getHex(
+                            path.get(i)
+                    );
+
+            cost += getMoveCost(hex);
+        }
+
         return cost;
+    }
+
+    private static boolean canEnter(Hex hex) {
+
+        if (hex == null) {
+            return false;
+        }
+
+        if (hex.isBlocked()) {
+            return false;
+        }
+
+        return hex.getTerrainType()
+                != Constants.TerrainType.MOUNTAIN_RANGE;
+    }
+
+    private static int getMoveCost(Hex hex) {
+
+        if (hex.hasRoad()) {
+            return 1;
+        }
+
+        return Constants.MOVE_COST.getOrDefault(
+                hex.getTerrainType(),
+                1
+        );
     }
 }
