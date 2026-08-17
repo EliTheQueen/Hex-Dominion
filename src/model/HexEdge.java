@@ -7,6 +7,7 @@ public class HexEdge {
     private final HexCoordinate first;
     private final HexCoordinate second;
     private Wall wall;
+    private boolean bridge;
 
     public HexEdge(HexCoordinate first, HexCoordinate second) {
         if (first == null || second == null) {
@@ -19,6 +20,7 @@ public class HexEdge {
 
         this.first = first;
         this.second = second;
+        this.bridge = false;
     }
 
     public HexCoordinate getFirst() {
@@ -68,5 +70,17 @@ public class HexEdge {
 
     public void removeWall() {
         wall = null;
+    }
+
+    public boolean hasBridge() {
+        return bridge;
+    }
+
+    public void buildBridge() {
+        bridge = true;
+    }
+
+    public void removeBridge() {
+        bridge = false;
     }
 }

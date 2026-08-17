@@ -64,7 +64,7 @@ public class PathFinder {
                     continue;
                 }
 
-                int moveCost = getMoveCost(hex);
+                int moveCost = getMoveCost(map, curr, neighbor, hex);
 
                 int newDist = currDist + moveCost;
 
@@ -152,8 +152,7 @@ public class PathFinder {
                     continue;
                 }
 
-                int moveCost =
-                        getMoveCost(hex);
+                int moveCost = getMoveCost(map, curr, neighbor, hex);
 
                 int newDist =
                         currDist + moveCost;
@@ -201,13 +200,11 @@ public class PathFinder {
         int cost = 0;
 
         for (int i = 1; i < path.size(); i++) {
+            HexCoordinate fromm = path.get(i - 1);
+            HexCoordinate tto = path.get(i);
+            Hex hex = map.getHex(to);
 
-            Hex hex =
-                    map.getHex(
-                            path.get(i)
-                    );
-
-            cost += getMoveCost(hex);
+            cost += getMoveCost(map, fromm, tto, hex);
         }
 
         return cost;
@@ -223,19 +220,27 @@ public class PathFinder {
             return false;
         }
 
+        if (hex.getTerrainType() == Constants.TerrainType.SEA) {
+            return false;
+        }
+
         return hex.getTerrainType()
                 != Constants.TerrainType.MOUNTAIN_RANGE;
     }
 
-    private static int getMoveCost(Hex hex) {
+    private static int getMoveCost(GameMap map, HexCoordinate from, HexCoordinate to, Hex hex) {
+        int moveCost;
 
         if (hex.hasRoad()) {
-            return 1;
+            moveCost = 1;
+        } else {
+            moveCost = Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
         }
 
-        return Constants.MOVE_COST.getOrDefault(
-                hex.getTerrainType(),
-                1
-        );
+        if (map.hasRiverBetween(from, to) && !map.hasBridgeBetween(from, to)) {
+            moveCost++;
+        }
+
+        return moveCost;
     }
 }

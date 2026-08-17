@@ -80,13 +80,7 @@ public class GameMap{
     }
 
     public boolean hasRiverBetween(HexCoordinate first, HexCoordinate second) {
-        for (HexEdge edge : riverEdges) {
-            if (edge.connects(first, second)) {
-                return true;
-            }
-        }
-
-        return false;
+        return findRiverEdge(first, second) != null;
     }
 
     public boolean isNextToRiver(HexCoordinate coordinate) {
@@ -216,4 +210,38 @@ public class GameMap{
     public Set<HexEdge> getWallEdges() {
         return new HashSet<>(wallEdges);
     }
+
+    private HexEdge findRiverEdge(HexCoordinate first, HexCoordinate second) {
+        for (HexEdge edge : riverEdges) {
+            if (edge.connects(first, second)) {
+                return edge;
+            }
+        }
+
+        return null;
+    }
+
+    public void buildBridge(HexCoordinate first, HexCoordinate second) {
+        HexEdge edge = findRiverEdge(first, second);
+
+        if (edge == null) {
+            throw new IllegalArgumentException("bridge can only be built on a river");
+        }
+
+        edge.buildBridge();
+    }
+
+    public boolean hasBridgeBetween(HexCoordinate first, HexCoordinate second) {
+        HexEdge edge = findRiverEdge(first, second);
+        return edge != null && edge.hasBridge();
+    }
+
+    public void removeBridge(HexCoordinate first, HexCoordinate second) {
+        HexEdge edge = findRiverEdge(first, second);
+
+        if (edge != null) {
+            edge.removeBridge();
+        }
+    }
+
 }
