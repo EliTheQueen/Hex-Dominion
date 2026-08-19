@@ -1,5 +1,7 @@
 package model;
 
+import model.trade.BazaarTradeLevel;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +16,8 @@ public class Building {
     private boolean ruined = false;
     private int productionBlockedTurns = 0;
 
+    private BazaarTradeLevel bazaarTradeLevel;
+
     public Building(HexCoordinate position, Constants.BuildingType type) {
         this.position = position;
         this.type = type;
@@ -26,6 +30,10 @@ public class Building {
         }
 
         this.currentHp = maxHp;
+
+        if (type == Constants.BuildingType.BAZAAR) {
+            bazaarTradeLevel = BazaarTradeLevel.LEVEL_ONE;
+        }
     }
 
     public HexCoordinate getPosition() { return position; }
@@ -149,5 +157,27 @@ public class Building {
         if (productionBlockedTurns > 0) {
             productionBlockedTurns--;
         }
+    }
+
+    public BazaarTradeLevel getBazaarTradeLevel() {
+        return bazaarTradeLevel;
+    }
+
+    public boolean upgradeBazaar() {
+        if (type != Constants.BuildingType.BAZAAR) {
+            return false;
+        }
+
+        if (bazaarTradeLevel == BazaarTradeLevel.LEVEL_ONE) {
+            bazaarTradeLevel = BazaarTradeLevel.LEVEL_TWO;
+            return true;
+        }
+
+        if (bazaarTradeLevel == BazaarTradeLevel.LEVEL_TWO) {
+            bazaarTradeLevel = BazaarTradeLevel.LEVEL_THREE;
+            return true;
+        }
+
+        return false;
     }
 }

@@ -451,17 +451,18 @@ public class GameState {
         }
     }
 
-    public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy,
-                                 int quantitySold, BazaarTradeLevel level) {
+    public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy, int quantitySold) {
         if (!canTradeThisTurn()) {
             return false;
         }
 
-        if (!player.hasBuildingType(Constants.BuildingType.BAZAAR)) {
+        Building bazaar = getBazaar();
+
+        if (bazaar == null) {
             return false;
         }
 
-        BazaarTradePolicy policy = new BazaarTradePolicy(level);
+        BazaarTradePolicy policy = new BazaarTradePolicy(bazaar.getBazaarTradeLevel());
         boolean successful = tradeService.complete(player, policy, sell, buy, quantitySold);
 
         if (successful) {
@@ -469,6 +470,26 @@ public class GameState {
         }
 
         return successful;
+    }
+
+    private Building getBazaar() {
+        for (Building building : player.getBuildings()) {
+            if (building.getType() == Constants.BuildingType.BAZAAR && building.isActive()) {
+                return building;
+            }
+        }
+
+        return null;
+    }
+
+    public boolean upgradeBazaar() {
+        Building bazaar = getBazaar();
+
+        if (bazaar == null) {
+            return false;
+        }
+
+        return bazaar.upgradeBazaar();
     }
 
     public boolean tradeAtTradingPost(Constants.ResourceType sell, Constants.ResourceType buy, int quantitySold) {
