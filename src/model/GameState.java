@@ -64,6 +64,7 @@ public class GameState implements java.io.Serializable {
     private final HappinessTracker happinessTracker;
     private final HappinessService happinessService;
     private boolean militaryCapPenaltyApplied;
+    private final java.util.Set<MilitaryUnit> rewardedTownHallGarrisons = new java.util.HashSet<>();
 
     private final MilitaryRecruitmentService militaryRecruitmentService;
 
@@ -197,6 +198,7 @@ public class GameState implements java.io.Serializable {
         boolean professionalTools = player.hasProfessionalTools() || hasSteelTools();
 
         applyRecurringHappiness();
+        applyTownHallGarrisonHappiness();
 
         HappinessLevel happinessLevel = happinessService.getCurrentLevel();
 
@@ -360,6 +362,8 @@ public class GameState implements java.io.Serializable {
         }
 
         player.removeDeadUnits();
+        rewardedTownHallGarrisons.removeIf(unit -> !unit.isAlive());
+        if (getMilitaryUnitCount() < getMilitaryUnitCap(townHall.getLevel())) militaryCapPenaltyApplied = false;
 
         // 7. Visibility.
         updateVisibility();
@@ -445,6 +449,14 @@ public class GameState implements java.io.Serializable {
                         HappinessEventType.MONUMENT_ACTIVATED
                 );
             }
+        }
+    }
+
+    private void applyTownHallGarrisonHappiness() {
+        for (Unit unit : player.getUnits()) {
+            if (unit instanceof MilitaryUnit && unit.isAlive() && unit.getPosition().equals(townHallPos)
+                    && rewardedTownHallGarrisons.add((MilitaryUnit) unit))
+                happinessService.applyEvent(HappinessEventType.TOWN_HALL_GARRISONED);
         }
     }
 
