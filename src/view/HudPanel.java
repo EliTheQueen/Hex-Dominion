@@ -48,11 +48,20 @@ public class HudPanel extends JPanel {
     private static final Color GREEN = new Color(90, 210, 90);
     private static final Color RED = new Color(225, 85, 85);
     private static final Color YELLOW = new Color(230, 200, 60);
+    private static final Color CARD_BG = new Color(27, 31, 55);
+    private static final Color CARD_EDGE = new Color(74, 79, 108);
+    private static final int HUD_HEIGHT = 138;
+    private static final int PAD = 12;
+    private static final int GAP = 8;
+    private static final int TOP_Y = 10;
+    private static final int TOP_H = 48;
+    private static final int LOWER_Y = 68;
+    private static final int LOWER_H = 56;
 
     public HudPanel(GameController controller, GamePanel gamePanel) {
         this.controller = controller;
         this.gamePanel = gamePanel;
-        setPreferredSize(new Dimension(0, 108));
+        setPreferredSize(new Dimension(0, HUD_HEIGHT));
         setBackground(BG);
         setLayout(null);
         setBorder(BorderFactory.createMatteBorder(0, 0, 2, 0, BORDER_COLOR));
@@ -104,13 +113,15 @@ public class HudPanel extends JPanel {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 Color c = hovered ? hover : normal;
-                g2.setColor(c);
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(GOLD);
-                g2.setStroke(new BasicStroke(1.5f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                g2.setColor(new Color(0, 0, 0, 75));
+                g2.fillRoundRect(1, 3, getWidth() - 2, getHeight() - 3, 10, 10);
+                g2.setPaint(new GradientPaint(0, 0, c.brighter(), 0, getHeight(), c.darker()));
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 2, 10, 10);
+                g2.setColor(hovered ? GOLD.brighter() : new Color(170, 145, 63));
+                g2.setStroke(new BasicStroke(hovered ? 1.6f : 1f));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 2, 10, 10);
                 g2.setColor(Color.WHITE);
-                g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+                g2.setFont(new Font("SansSerif", Font.BOLD, getText().length() > 8 ? 10 : 11));
                 FontMetrics fm = g2.getFontMetrics();
                 g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2,
                         (getHeight() + fm.getAscent() - fm.getDescent()) / 2);
@@ -129,13 +140,21 @@ public class HudPanel extends JPanel {
     @Override
     public void doLayout() {
         super.doLayout();
-        endTurnBtn.setBounds(getWidth() - 130, 14, 115, 40);
-        techBtn.setBounds(getWidth() - 255, 14, 115, 40);
-        recruitBtn.setBounds(getWidth() - 380, 14, 115, 40);
-        settingsBtn.setBounds(getWidth() - 428, 14, 40, 40);
-        saveBtn.setBounds(getWidth() - 548, 14, 112, 40);
-        tradeBtn.setBounds(getWidth() - 660, 14, 104, 40);
-        tribesBtn.setBounds(getWidth() - 772, 14, 104, 40);
+        int right = getWidth() - PAD;
+        endTurnBtn.setBounds(right - 112, 14, 112, 40);
+        right -= 112 + GAP;
+        techBtn.setBounds(right - 106, 14, 106, 40);
+        right -= 106 + GAP;
+        recruitBtn.setBounds(right - 100, 14, 100, 40);
+
+        right = getWidth() - PAD;
+        settingsBtn.setBounds(right - 40, 76, 40, 38);
+        right -= 40 + GAP;
+        saveBtn.setBounds(right - 104, 76, 104, 38);
+        right -= 104 + GAP;
+        tradeBtn.setBounds(right - 88, 76, 88, 38);
+        right -= 88 + GAP;
+        tribesBtn.setBounds(right - 88, 76, 88, 38);
     }
 
     public void update() { repaint(); }
@@ -157,7 +176,7 @@ public class HudPanel extends JPanel {
         g2.setPaint(bgGrad);
         g2.fillRect(0, 0, getWidth(), getHeight());
 
-        int x = 12;
+        int x = PAD;
         x = drawResource(g2, x, "FOOD", rs.get(Constants.ResourceType.FOOD), rs.getCap(Constants.ResourceType.FOOD),
                 net[Constants.ResourceType.FOOD.ordinal()], new Color(120, 220, 100));
         x = drawResource(g2, x, "WOOD", rs.get(Constants.ResourceType.WOOD), rs.getCap(Constants.ResourceType.WOOD),
@@ -167,173 +186,172 @@ public class HudPanel extends JPanel {
         x = drawResource(g2, x, "IRON", rs.get(Constants.ResourceType.IRON), rs.getCap(Constants.ResourceType.IRON),
                 net[Constants.ResourceType.IRON.ordinal()], new Color(225, 115, 115));
 
-        // Units x/cap box.
         x = drawUnitBox(g2, x, p);
 
-        // Turn + score block.
-        int turn = gs.getCurrentTurn();
-        String turnText = "TURN  " + turn;
-        g2.setFont(new Font("Georgia", Font.BOLD, 20));
-        FontMetrics fm = g2.getFontMetrics();
-        int tw = fm.stringWidth(turnText);
-
-        int areaStart = x + 10;
-        int areaEnd = getWidth() - 443;
-        int centerX = areaStart + Math.max(0, (areaEnd - areaStart - tw) / 2);
-
-        g2.setColor(new Color(80, 70, 30, 110));
-        g2.fillRoundRect(centerX - 12, 10, tw + 24, 28, 8, 8);
-        g2.setColor(GOLD);
-        g2.drawString(turnText, centerX, 32);
-
+        int primaryStart = getWidth() - PAD - 112 - GAP - 106 - GAP - 100;
+        int turnX = x + 2;
+        int turnW = Math.max(116, primaryStart - GAP - turnX);
         SeasonCycle cycle = gs.getSeasonCycle();
         Season season = cycle.getCurrentSeason();
-        String seasonText = season.name() + "  " + cycle.getTurnInsideSeason()
-                + "/" + SeasonCycle.TURNS_PER_SEASON;
-        g2.setFont(new Font("SansSerif", Font.BOLD, 11));
-        Color seasonColor;
-        switch (season) {
-            case SPRING: seasonColor = new Color(120, 225, 135); break;
-            case SUMMER: seasonColor = new Color(255, 195, 70); break;
-            case AUTUMN: seasonColor = new Color(225, 135, 65); break;
-            case WINTER: seasonColor = new Color(160, 215, 255); break;
-            default: seasonColor = GOLD;
-        }
-        g2.setColor(seasonColor);
-        int sw = g2.getFontMetrics().stringWidth(seasonText);
-        g2.drawString(seasonText, centerX + (tw - sw) / 2, 64);
+        drawTurnCard(g2, turnX, TOP_Y, turnW, TOP_H, gs.getCurrentTurn(), season,
+                cycle.getTurnInsideSeason(), gs.getCurrentScore());
 
-        int score = gs.getCurrentScore();
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        g2.setColor(new Color(170, 155, 110));
-        String scoreStr = "Score: " + score;
-        g2.drawString(scoreStr, centerX + (tw - g2.getFontMetrics().stringWidth(scoreStr)) / 2, 50);
-
-        // Production queue (front task) under the turn block.
-        ProductionTask front = p.getProductionQueue().getFront();
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        if (front != null) {
-            g2.setColor(new Color(150, 200, 240));
-            String q = "Producing: " + front.getLabel()
-                    + (p.getProductionQueue().size() > 1 ? "  (+" + (p.getProductionQueue().size() - 1) + " queued)" : "");
-            g2.drawString(q, areaStart, 80);
-        } else {
-            g2.setColor(new Color(120, 120, 140));
-            g2.drawString("Production queue empty", areaStart, 80);
-        }
-
-        // Warnings (starvation, idle units) on the bottom row, prominent.
-        int wy = 102;
-        int wx = areaStart;
-        if (gs.isStarving()) {
-            wx = drawBadge(g2, wx, wy, "⚠ STARVATION", RED);
-        }
-        int idle = gs.getIdleUnitsWithAP().size();
-        if (idle > 0) {
-            wx = drawBadge(g2, wx, wy, idle + " unit" + (idle == 1 ? "" : "s") + " still have AP", YELLOW);
-        }
-
-        if (!gs.getLastTurnEvents().isEmpty()) {
-            String event = gs.getLastTurnEvents().get(gs.getLastTurnEvents().size() - 1);
-            drawBadge(g2, wx, wy, event.replace('_', ' '), new Color(110, 185, 235));
-        }
+        int utilityStart = getWidth() - PAD - 40 - GAP - 104 - GAP - 88 - GAP - 88;
+        int infoRight = utilityStart - GAP;
+        int happinessW = 160;
+        int hallW = Math.min(260, Math.max(220, (infoRight - PAD) / 3));
+        int commandX = PAD + happinessW + GAP + hallW + GAP;
+        int commandW = Math.max(150, infoRight - commandX);
 
         HappinessLevel happiness = gs.getHappinessLevel();
         Color happinessColor = happiness == HappinessLevel.GOLDEN_AGE ? GOLD
-                : happiness == HappinessLevel.NORMAL ? new Color(150, 185, 170)
+                : happiness == HappinessLevel.NORMAL ? new Color(147, 205, 174)
                 : happiness == HappinessLevel.UNHAPPY ? new Color(125, 155, 195) : RED;
-        drawBadge(g2, 12, 84, "HAPPINESS " + (gs.getHappinessScore() >= 0 ? "+" : "")
-                + gs.getHappinessScore() + "  " + happiness.name().replace('_', ' '), happinessColor);
+        drawInfoCard(g2, PAD, LOWER_Y, happinessW, LOWER_H, "HAPPINESS",
+                (gs.getHappinessScore() >= 0 ? "+" : "") + gs.getHappinessScore()
+                        + "  " + happiness.name().replace('_', ' '), happinessColor);
 
         ProductionCommand hallCommand = gs.getTownHall().getCommandSlot().getActiveCommand();
-        String hallText = "TOWN HALL " + gs.getTownHall().getLevel().getLevelNumber()
-                + "  " + gs.getTownHall().getCurrentHp() + "/" + gs.getTownHall().getMaxHp() + " HP";
-        if (hallCommand != null) hallText += "  •  " + hallCommand.getRemainingTurns() + " turns";
-        drawBadge(g2, 220, 84, hallText, new Color(125, 175, 220));
+        String hallValue = "Level " + gs.getTownHall().getLevel().getLevelNumber() + "  •  "
+                + gs.getTownHall().getCurrentHp() + "/" + gs.getTownHall().getMaxHp() + " HP";
+        drawInfoCard(g2, PAD + happinessW + GAP, LOWER_Y, hallW, LOWER_H,
+                "TOWN HALL", hallValue, new Color(125, 185, 230));
 
-        drawBadge(g2, 515, 84, "MILITARY " + gs.getMilitaryUnitCount() + "/"
-                + gs.getMilitaryUnitCap(gs.getTownHall().getLevel()), new Color(200, 145, 105));
-
-        // Status message near the buttons.
+        ProductionTask front = p.getProductionQueue().getFront();
+        String commandTitle = hallCommand == null ? "COMMAND" : "COMMAND • " + hallCommand.getRemainingTurns() + " TURNS";
+        String commandValue = hallCommand != null ? commandName(hallCommand)
+                : front != null ? front.getLabel() : "Town Hall ready";
+        int idle = gs.getIdleUnitsWithAP().size();
         String status = controller.getStatusMessage();
-        if (status != null && !status.isEmpty()) {
-            g2.setFont(new Font("SansSerif", Font.ITALIC, 11));
-            g2.setColor(new Color(210, 190, 130));
-            FontMetrics sfm = g2.getFontMetrics();
-            g2.drawString(status, getWidth() - 130 - sfm.stringWidth(status) - 12, 70);
-        }
+        String alert = gs.isStarving() ? "STARVATION"
+                : status != null && !status.isEmpty() ? status
+                : idle > 0 ? idle + " unit" + (idle == 1 ? "" : "s") + " ready"
+                : !gs.getLastTurnEvents().isEmpty() ? gs.getLastTurnEvents().get(gs.getLastTurnEvents().size() - 1).replace('_', ' ')
+                : "All systems normal";
+        drawCommandCard(g2, commandX, LOWER_Y, commandW, LOWER_H, commandTitle,
+                commandValue, alert, gs.isStarving() ? RED : idle > 0 ? YELLOW : new Color(150, 200, 240));
 
         g2.dispose();
     }
 
-    private int drawBadge(Graphics2D g2, int x, int y, String text, Color color) {
-        g2.setFont(new Font("SansSerif", Font.BOLD, 12));
-        FontMetrics fm = g2.getFontMetrics();
-        int w = fm.stringWidth(text) + 16;
-        g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 45));
-        g2.fillRoundRect(x, y - 14, w, 19, 8, 8);
-        g2.setColor(color);
-        g2.setStroke(new BasicStroke(1f));
-        g2.drawRoundRect(x, y - 14, w, 19, 8, 8);
-        g2.drawString(text, x + 8, y);
-        return x + w + 10;
-    }
-
     private int drawResource(Graphics2D g2, int x, String name, int val, int cap, int rate, Color bright) {
-        int boxW = 118, boxH = 50, y = 10;
-        g2.setColor(new Color(30, 35, 60));
-        g2.fillRoundRect(x, y, boxW, boxH, 6, 6);
-        g2.setColor(bright.darker().darker());
-        g2.setStroke(new BasicStroke(1f));
-        g2.drawRoundRect(x, y, boxW, boxH, 6, 6);
-
+        int boxW = 100, boxH = TOP_H, y = TOP_Y;
+        drawCard(g2, x, y, boxW, boxH, bright.darker().darker());
         g2.setColor(bright);
-        g2.fillOval(x + 8, y + 6, 10, 10);
-
-        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2.fillOval(x + 8, y + 7, 8, 8);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
         g2.setColor(bright.brighter());
-        g2.drawString(name, x + 24, y + 15);
+        g2.drawString(name, x + 21, y + 15);
 
-        // Net rate, coloured by sign.
         String rateStr = (rate >= 0 ? "+" : "") + rate;
-        g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
         g2.setColor(rate < 0 ? RED : (rate == 0 ? new Color(150, 150, 165) : GREEN));
         FontMetrics rfm = g2.getFontMetrics();
-        g2.drawString(rateStr, x + boxW - rfm.stringWidth(rateStr) - 8, y + 15);
+        g2.drawString(rateStr, x + boxW - rfm.stringWidth(rateStr) - 7, y + 15);
 
         String valStr = val + " / " + cap;
-        g2.setFont(new Font("SansSerif", Font.BOLD, 14));
+        g2.setFont(new Font("SansSerif", Font.BOLD, 13));
         Color valColor = val < cap * 0.15 ? RED : (val < cap * 0.4 ? YELLOW : GREEN);
         g2.setColor(valColor);
-        g2.drawString(valStr, x + 8, y + 35);
+        g2.drawString(valStr, x + 8, y + 33);
 
-        g2.setColor(new Color(40, 40, 60));
-        g2.fillRect(x + 8, y + 41, boxW - 16, 5);
+        g2.setColor(new Color(11, 13, 27, 190));
+        g2.fillRoundRect(x + 8, y + 39, boxW - 16, 4, 4, 4);
         float pct = cap > 0 ? Math.min(1f, (float) val / cap) : 0f;
         g2.setColor(bright);
-        g2.fillRect(x + 8, y + 41, (int) ((boxW - 16) * pct), 5);
-
-        return x + boxW + 7;
+        g2.fillRoundRect(x + 8, y + 39, (int) ((boxW - 16) * pct), 4, 4, 4);
+        return x + boxW + GAP;
     }
 
     private int drawUnitBox(Graphics2D g2, int x, Player p) {
-        int boxW = 96, boxH = 50, y = 10;
-        boolean atCap = p.atUnitCap();
-        g2.setColor(new Color(30, 35, 60));
-        g2.fillRoundRect(x, y, boxW, boxH, 6, 6);
-        g2.setColor(atCap ? RED.darker() : new Color(70, 70, 100));
-        g2.setStroke(new BasicStroke(1f));
-        g2.drawRoundRect(x, y, boxW, boxH, 6, 6);
-
-        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        int boxW = 76;
+        drawCard(g2, x, TOP_Y, boxW, TOP_H, p.atUnitCap() ? RED.darker() : CARD_EDGE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
         g2.setColor(new Color(180, 180, 200));
-        g2.drawString("UNITS", x + 8, y + 15);
+        g2.drawString("UNITS", x + 8, TOP_Y + 15);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 15));
+        g2.setColor(p.atUnitCap() ? RED : GOLD);
+        g2.drawString(p.getUnitCount() + " / " + p.getUnitCap(), x + 8, TOP_Y + 35);
+        return x + boxW + GAP;
+    }
 
-        String v = p.getUnitCount() + " / " + p.getUnitCap();
-        g2.setFont(new Font("SansSerif", Font.BOLD, 16));
-        g2.setColor(atCap ? RED : GOLD);
-        g2.drawString(v, x + 8, y + 36);
-        return x + boxW + 10;
+    private void drawTurnCard(Graphics2D g2, int x, int y, int w, int h, int turn,
+                              Season season, int turnInsideSeason, int score) {
+        drawCard(g2, x, y, w, h, seasonColor(season).darker());
+        String turnText = "TURN " + turn;
+        g2.setFont(new Font("Georgia", Font.BOLD, w < 170 ? 15 : 18));
+        g2.setColor(GOLD);
+        g2.drawString(turnText, x + 12, y + 21);
+
+        String seasonText = season.name() + "  " + turnInsideSeason + "/" + SeasonCycle.TURNS_PER_SEASON;
+        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2.setColor(seasonColor(season));
+        g2.drawString(clipText(g2, seasonText, Math.max(60, w - 24)), x + 12, y + 39);
+
+        if (w >= 190) {
+            String scoreText = "SCORE " + score;
+            g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+            g2.setColor(new Color(185, 175, 140));
+            g2.drawString(scoreText, x + w - g2.getFontMetrics().stringWidth(scoreText) - 12, y + 21);
+        }
+    }
+
+    private void drawInfoCard(Graphics2D g2, int x, int y, int w, int h,
+                              String title, String value, Color accent) {
+        drawCard(g2, x, y, w, h, accent.darker());
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
+        g2.setColor(new Color(155, 160, 185));
+        g2.drawString(title, x + 12, y + 17);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 12));
+        g2.setColor(accent);
+        g2.drawString(clipText(g2, value, w - 24), x + 12, y + 39);
+    }
+
+    private void drawCommandCard(Graphics2D g2, int x, int y, int w, int h,
+                                 String title, String command, String alert, Color accent) {
+        drawCard(g2, x, y, w, h, accent.darker());
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
+        g2.setColor(new Color(155, 160, 185));
+        g2.drawString(clipText(g2, title, w - 24), x + 12, y + 16);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+        g2.setColor(new Color(220, 222, 232));
+        g2.drawString(clipText(g2, command, w - 24), x + 12, y + 33);
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 9));
+        g2.setColor(accent);
+        g2.drawString(clipText(g2, alert, w - 24), x + 12, y + 48);
+    }
+
+    private void drawCard(Graphics2D g2, int x, int y, int w, int h, Color edge) {
+        g2.setColor(new Color(0, 0, 0, 55));
+        g2.fillRoundRect(x + 1, y + 2, w, h, 10, 10);
+        g2.setPaint(new GradientPaint(x, y, CARD_BG.brighter(), x, y + h, CARD_BG.darker()));
+        g2.fillRoundRect(x, y, w, h, 10, 10);
+        g2.setColor(new Color(edge.getRed(), edge.getGreen(), edge.getBlue(), 175));
+        g2.setStroke(new BasicStroke(1f));
+        g2.drawRoundRect(x, y, w, h, 10, 10);
+    }
+
+    private Color seasonColor(Season season) {
+        switch (season) {
+            case SPRING: return new Color(124, 220, 146);
+            case SUMMER: return new Color(250, 193, 76);
+            case AUTUMN: return new Color(224, 133, 66);
+            case WINTER: return new Color(150, 207, 245);
+            default: return GOLD;
+        }
+    }
+
+    private String commandName(ProductionCommand command) {
+        String name = command.getClass().getSimpleName().replace("Command", "");
+        return name.replaceAll("([a-z])([A-Z])", "$1 $2").toUpperCase();
+    }
+
+    private String clipText(Graphics2D g2, String text, int maxWidth) {
+        if (text == null || text.isEmpty() || g2.getFontMetrics().stringWidth(text) <= maxWidth) return text;
+        String ellipsis = "…";
+        int end = text.length();
+        while (end > 0 && g2.getFontMetrics().stringWidth(text.substring(0, end) + ellipsis) > maxWidth) end--;
+        return end == 0 ? ellipsis : text.substring(0, end) + ellipsis;
     }
 
     private void showTechDialog() {

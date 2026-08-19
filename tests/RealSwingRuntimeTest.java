@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Window;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.JButton;
+import javax.imageio.ImageIO;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
@@ -74,8 +76,10 @@ public final class RealSwingRuntimeTest {
             GameState state = controller.getGameState();
             stateRef.set(state);
             verifyInitialState(state);
+            verifyHudLayout(gamePanel);
             render(gamePanel);
             render(gamePanel.getMapPanel());
+            writeSnapshot(gamePanel, new File("/tmp/hex-dominion-real-swing.png"));
 
             Movement movement = findMovement(state);
             require(movement != null, "no starting unit has a valid movement destination");
@@ -101,6 +105,7 @@ public final class RealSwingRuntimeTest {
             require(stateRef.get().getCurrentTurn() == turnBefore + 1, "end turn did not advance the turn");
             render(gamePanelRef.get());
             render(gamePanelRef.get().getMapPanel());
+            writeSnapshot(gamePanelRef.get(), new File("/tmp/hex-dominion-real-swing-after-turn.png"));
         });
 
         // Let animation, repaint, audio, and Swing Timer callbacks execute after the interactions.
@@ -266,6 +271,37 @@ public final class RealSwingRuntimeTest {
         Graphics2D graphics = image.createGraphics();
         component.paint(graphics);
         graphics.dispose();
+    }
+
+    private static void writeSnapshot(Component component, File destination) throws Exception {
+        BufferedImage image = new BufferedImage(component.getWidth(), component.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = image.createGraphics();
+        component.paint(graphics);
+        graphics.dispose();
+        ImageIO.write(image, "png", destination);
+    }
+
+    private static void verifyHudLayout(GamePanel gamePanel) {
+        List<JButton> buttons = new ArrayList<>();
+        collectButtons(gamePanel.getHudPanel(), buttons);
+        for (int i = 0; i < buttons.size(); i++) {
+            JButton button = buttons.get(i);
+            require(button.getX() >= 0 && button.getY() >= 0
+                            && button.getX() + button.getWidth() <= gamePanel.getHudPanel().getWidth()
+                            && button.getY() + button.getHeight() <= gamePanel.getHudPanel().getHeight(),
+                    "HUD button is clipped: " + button.getText());
+            for (int j = i + 1; j < buttons.size(); j++) {
+                require(!button.getBounds().intersects(buttons.get(j).getBounds()),
+                        "HUD buttons overlap: " + button.getText() + " / " + buttons.get(j).getText());
+            }
+        }
+    }
+
+    private static void collectButtons(Container root, List<JButton> buttons) {
+        for (Component component : root.getComponents()) {
+            if (component instanceof JButton) buttons.add((JButton) component);
+            if (component instanceof Container) collectButtons((Container) component, buttons);
+        }
     }
 
     private static void onEdt(CheckedRunnable action) throws Exception {
