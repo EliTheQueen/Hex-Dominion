@@ -29,7 +29,7 @@ public class DefaultTribeBehaviorStrategy implements TribeBehaviorStrategy {
                 return TribeTurnAction.PRODUCE_GUARD;
             }
 
-            return TribeTurnAction.NONE;
+            return TribeTurnAction.HOSTILE_ATTACK;
         }
 
         if (status == TribeRelationStatus.FRIENDLY || status == TribeRelationStatus.ALLIED) {

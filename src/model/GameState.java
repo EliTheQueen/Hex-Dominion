@@ -1209,6 +1209,7 @@ public class GameState implements java.io.Serializable {
                 || !attacker.canAttack() || attacker.getPosition().distanceTo(tribe.getCampCoordinate()) > attacker.getRange())
             return null;
         attacker.spendAttackAP();
+        tribe.setCampUnderAttack(true);
         TribeRelationStatus before = tribe.getRelation().getStatus();
         if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
         else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
@@ -1330,7 +1331,39 @@ public class GameState implements java.io.Serializable {
             TribeTurnAction action = tribeTurnService.processTurn(tribe, new TribeTurnContext(currentTurn,
                     tribe.isCampUnderAttack(), tribe.getGuardCount(), tribeMissionService.getActiveMission(tribe) != null));
             if (action == TribeTurnAction.PRODUCE_GUARD) tribe.addGuard();
+            else if (action == TribeTurnAction.DEFEND_CAMP) tribe.addGuard();
+            else if (action == TribeTurnAction.HOSTILE_ATTACK) performTribeAttack(tribe);
             tribe.setCampUnderAttack(false);
+        }
+    }
+
+    private void performTribeAttack(Tribe tribe) {
+        Unit target = null; int bestPriority = Integer.MAX_VALUE, bestDistance = Integer.MAX_VALUE;
+        for (Unit unit : player.getUnits()) {
+            if (!unit.isAlive()) continue;
+            int distance = unit.getPosition().distanceTo(tribe.getCampCoordinate());
+            if (distance > 3) continue;
+            int priority = distance == 1 ? 0 : unit instanceof MilitaryUnit ? 10
+                    : unit instanceof Worker || unit instanceof Builder ? 20 : 25;
+            if (priority < bestPriority || priority == bestPriority && distance < bestDistance) {
+                target = unit; bestPriority = priority; bestDistance = distance;
+            }
+        }
+        if (target != null) {
+            target.takeDamage(target instanceof MilitaryUnit ? 1 : 25);
+            player.removeDeadUnits();
+            lastTurnEvents.add(tribe.getName() + " attacked " + target.getUnitType().name());
+            return;
+        }
+        Building borderTarget = null; int farthest = -1;
+        for (Building building : player.getBuildings()) {
+            if (!building.isActive() || building.getType() == Constants.BuildingType.TOWN_HALL) continue;
+            int distance = building.getPosition().distanceTo(tribe.getCampCoordinate());
+            if (distance <= 3 && distance > farthest) { borderTarget = building; farthest = distance; }
+        }
+        if (borderTarget != null) {
+            borderTarget.takeDamage(10);
+            lastTurnEvents.add(tribe.getName() + " raided " + borderTarget.getType().name());
         }
     }
 
