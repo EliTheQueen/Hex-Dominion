@@ -11,6 +11,11 @@ import model.military.MilitaryUnit;
 import model.military.MilitaryUnitType;
 import model.season.SeasonCycle;
 import model.townhall.TownHallLevel;
+import model.townhall.TownHall;
+import model.townhall.TownHallCommandService;
+import model.townhall.UpgradeTownHallCommand;
+import model.townhall.CommandStartResult;
+import model.technology.*;
 import model.trade.BazaarTradePolicy;
 import model.trade.TradeService;
 import model.trade.TradingPostPolicy;
@@ -57,6 +62,12 @@ public class GameState {
 
     private final MilitaryRecruitmentService militaryRecruitmentService;
 
+    private final TownHall townHall;
+    private final TownHallCommandService townHallCommandService;
+    private final TechnologyRegistry phaseTwoTechnologies;
+    private final TechnologyResearchService technologyResearchService;
+    private final PhaseTwoTechnologyTarget phaseTwoTechnologyTarget;
+
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator generator = new MapGenerator();
         map = generator.generateMap(mapWidth, mapHeight);
@@ -78,8 +89,8 @@ public class GameState {
         HexCoordinate center = new HexCoordinate(mapWidth / 2, mapHeight / 2);
         townHallPos = center;
 
-        Building townHall = new Building(center, Constants.BuildingType.TOWN_HALL);
-        player.addBuilding(townHall);
+        Building townHallBuilding = new Building(center, Constants.BuildingType.TOWN_HALL);
+        player.addBuilding(townHallBuilding);
 
         Hex centerHex = map.getHex(center);
 
@@ -113,6 +124,17 @@ public class GameState {
         militaryCapPenaltyApplied = false;
 
         militaryRecruitmentService = new MilitaryRecruitmentService(player, map);
+
+        townHall = new TownHall();
+        townHallCommandService = new TownHallCommandService(townHall, player.getResources());
+        phaseTwoTechnologies = new TechnologyRegistry();
+        phaseTwoTechnologyTarget = new PhaseTwoTechnologyTarget();
+        TechnologyEffectService effects = new TechnologyEffectService(
+                java.util.Arrays.asList(new SailingEffect(), new SteelToolsEffect(),
+                        new DefensiveArchitectureEffect()));
+        technologyResearchService = new TechnologyResearchService(
+                townHall, phaseTwoTechnologies, effects, phaseTwoTechnologyTarget,
+                townHallCommandService);
     }
 
     /** Doc start: 1 Explorer, 2 Builders, 2 Workers placed around the Town Hall. */
@@ -140,6 +162,8 @@ public class GameState {
         }
 
         lastTurnEvents.clear();
+
+        townHallCommandService.advanceOneTurn();
 
         if (bearAttackCooldown > 0) {
             bearAttackCooldown--;
@@ -1196,5 +1220,55 @@ public class GameState {
 
     public HappinessService getHappinessService() {
         return happinessService;
+    }
+
+    public TownHall getTownHall() { return townHall; }
+
+    public CommandStartResult startTownHallUpgrade() {
+        TownHallLevel target = townHall.getLevel().next();
+        if (target == null) return CommandStartResult.INVALID_COMMAND;
+        ResourceAmount cost;
+        int turns;
+        if (target == TownHallLevel.SETTLEMENT) {
+            cost = ResourceAmount.of(0, 50, 50, 0);
+            turns = 3;
+        } else {
+            cost = ResourceAmount.of(0, 0, 100, 50);
+            turns = 5;
+        }
+        return townHallCommandService.startCommand(
+                new UpgradeTownHallCommand(townHall, cost, turns));
+    }
+
+    public ResearchStartResult startPhaseTwoResearch(TechnologyType technology) {
+        return technologyResearchService.startResearch(technology);
+    }
+
+    public boolean cancelTownHallCommand() {
+        return townHallCommandService.cancelActiveCommand();
+    }
+
+    public TechnologyRegistry getPhaseTwoTechnologies() { return phaseTwoTechnologies; }
+    public boolean hasSailing() { return phaseTwoTechnologyTarget.isSailingEnabled(); }
+    public boolean hasSteelTools() { return phaseTwoTechnologyTarget.isSteelToolsEnabled(); }
+    public boolean hasDefensiveArchitecture() { return phaseTwoTechnologyTarget.isDefensiveArchitectureEnabled(); }
+
+    private final class PhaseTwoTechnologyTarget implements TechnologyEffectTarget {
+        private boolean sailing;
+        private boolean steelTools;
+        private boolean defensiveArchitecture;
+        public void enableSailing() { sailing = true; }
+        public boolean isSailingEnabled() { return sailing; }
+        public void enableSteelTools() { steelTools = true; }
+        public boolean isSteelToolsEnabled() { return steelTools; }
+        public void enableDefensiveArchitecture() {
+            defensiveArchitecture = true;
+            for (HexCoordinate neighbour : townHallPos.findNeighbours()) {
+                if (map.containsCoordinate(neighbour)) {
+                    infrastructureService.buildAutomaticWall(townHallPos, neighbour);
+                }
+            }
+        }
+        public boolean isDefensiveArchitectureEnabled() { return defensiveArchitecture; }
     }
 }

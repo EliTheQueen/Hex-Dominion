@@ -24,6 +24,8 @@ import static model.Constants.TechnologyType;
 import static model.Constants.UnitType;
 import static model.Constants.BUILD_COST;
 import static model.Constants.UNIT_COST;
+import model.townhall.CommandStartResult;
+import model.technology.ResearchStartResult;
 
 /** Mediates between the Swing views and the game model. */
 public class GameController {
@@ -210,6 +212,24 @@ public class GameController {
         } else {
             statusMessage = "Cannot research " + tech.name() + " (prereqs/resources)";
         }
+    }
+
+    public CommandStartResult onTownHallUpgrade() {
+        CommandStartResult result = gameState.startTownHallUpgrade();
+        statusMessage = "Town Hall upgrade: " + result.name().replace('_', ' ');
+        return result;
+    }
+
+    public ResearchStartResult onPhaseTwoResearch(model.technology.TechnologyType tech) {
+        ResearchStartResult result = gameState.startPhaseTwoResearch(tech);
+        statusMessage = "Research " + tech.name() + ": " + result.name().replace('_', ' ');
+        return result;
+    }
+
+    public boolean onCancelTownHallCommand() {
+        boolean cancelled = gameState.cancelTownHallCommand();
+        statusMessage = cancelled ? "Town Hall command cancelled (no refund)" : "No active command";
+        return cancelled;
     }
 
     /** Whether the selected builder could place this building on some adjacent valid hex now. */

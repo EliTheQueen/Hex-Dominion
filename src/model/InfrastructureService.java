@@ -81,6 +81,14 @@ public class InfrastructureService {
         return true;
     }
 
+    /** Builds a free wall for a completed technology effect, without consuming a builder action. */
+    public boolean buildAutomaticWall(HexCoordinate first, HexCoordinate second) {
+        if (!isValidEdge(first, second) || map.hasWallBetween(first, second)) return false;
+        if (!player.isInTerritory(first) && !player.isInTerritory(second)) return false;
+        map.buildWall(first, second);
+        return true;
+    }
+
     public boolean demolishWall(Builder builder, HexCoordinate first, HexCoordinate second) {
         if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
             return false;

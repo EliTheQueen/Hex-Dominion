@@ -92,4 +92,9 @@ public abstract class AbstractProductionCommand implements ProductionCommand {
     }
 
     protected abstract void executeEffect();
+
+    @Override
+    public void onStarted() {
+        // Most commands need no start hook. Research overrides this to mark itself queued.
+    }
 }

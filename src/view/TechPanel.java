@@ -25,6 +25,8 @@ import controller.GameController;
 import model.Constants;
 import model.Player;
 import model.ResourceAmount;
+import model.townhall.ProductionCommand;
+import model.technology.TechnologyType;
 
 /** Modal technology tree. Lets the player spend resources to research upgrades. */
 public class TechPanel extends JDialog {
@@ -41,7 +43,7 @@ public class TechPanel extends JDialog {
     public TechPanel(GameController controller, JFrame parent) {
         super(parent, "Technology Research", true);
         this.controller = controller;
-        setSize(620, 500);
+        setSize(780, 680);
         setLocationRelativeTo(parent);
         getContentPane().setBackground(BG);
         setLayout(new BorderLayout());
@@ -52,7 +54,7 @@ public class TechPanel extends JDialog {
         title.setBorder(BorderFactory.createEmptyBorder(15, 0, 8, 0));
         add(title, BorderLayout.NORTH);
 
-        JPanel techGrid = new JPanel(new GridLayout(3, 2, 14, 14));
+        JPanel techGrid = new JPanel(new GridLayout(3, 3, 14, 14));
         techGrid.setBackground(BG);
         techGrid.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
@@ -60,14 +62,85 @@ public class TechPanel extends JDialog {
         for (Constants.TechnologyType tech : Constants.TechnologyType.values()) {
             techGrid.add(buildTechCard(tech, player));
         }
+        for (TechnologyType tech : TechnologyType.values()) {
+            techGrid.add(buildPhaseTwoTechCard(tech));
+        }
         add(techGrid, BorderLayout.CENTER);
 
-        JButton closeBtn = makeButton("CLOSE", new Color(70, 35, 35));
-        closeBtn.addActionListener(e -> dispose());
         JPanel south = new JPanel();
         south.setBackground(BG);
+        ProductionCommand active = controller.getGameState().getTownHall().getCommandSlot().getActiveCommand();
+        JLabel hall = new JLabel("Town Hall: " + controller.getGameState().getTownHall().getLevel().name().replace('_', ' ')
+                + (active == null ? "  •  command slot ready" : "  •  " + active.getClass().getSimpleName()
+                + " (" + active.getRemainingTurns() + " turns)"));
+        hall.setForeground(TEXT);
+        south.add(hall);
+        JButton upgradeBtn = makeButton("UPGRADE TOWN HALL", new Color(48, 78, 100));
+        upgradeBtn.setEnabled(controller.getGameState().getTownHall().canUpgrade() && active == null);
+        upgradeBtn.setToolTipText(upgradeBtn.isEnabled() ? "Start the next Town Hall upgrade" : "Maximum level or command slot occupied");
+        upgradeBtn.addActionListener(e -> { controller.onTownHallUpgrade(); dispose(); });
+        south.add(upgradeBtn);
+        if (active != null) {
+            JButton cancelBtn = makeButton("CANCEL (NO REFUND)", new Color(110, 48, 42));
+            cancelBtn.addActionListener(e -> { controller.onCancelTownHallCommand(); dispose(); });
+            south.add(cancelBtn);
+        }
+        JButton closeBtn = makeButton("CLOSE", new Color(70, 35, 35));
+        closeBtn.addActionListener(e -> dispose());
         south.add(closeBtn);
         add(south, BorderLayout.SOUTH);
+    }
+
+    private JPanel buildPhaseTwoTechCard(TechnologyType tech) {
+        boolean researched = controller.getGameState().getPhaseTwoTechnologies().has(tech);
+        boolean queued = controller.getGameState().getPhaseTwoTechnologies().isQueued(tech);
+        boolean levelOk = tech.isUnlockedAt(controller.getGameState().getTownHall().getLevel());
+        JPanel card = new JPanel();
+        card.setBackground(PANEL_BG);
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(researched ? RESEARCHED : levelOk ? AVAILABLE : LOCKED, 2, true),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+        JLabel name = new JLabel(tech.name().replace('_', ' '));
+        name.setForeground(researched ? RESEARCHED : Color.WHITE);
+        name.setFont(new Font("Georgia", Font.BOLD, 13));
+        name.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(name);
+        JLabel detail = new JLabel("<html><center>" + phaseTwoDescription(tech) + "<br>Cost: "
+                + buildCostStr(tech.getCost()) + " • " + tech.getResearchTurns() + " turns</center></html>");
+        detail.setForeground(TEXT);
+        detail.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        detail.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(Box.createVerticalStrut(6));
+        card.add(detail);
+        if (!researched && !queued) {
+            JButton button = makeButton("RESEARCH", new Color(30, 80, 140));
+            boolean available = levelOk && !controller.getGameState().getTownHall().getCommandSlot().isBusy()
+                    && controller.getGameState().getPlayer().canAfford(tech.getCost());
+            button.setEnabled(available);
+            button.setToolTipText(available ? "Start research" : !levelOk ? "Town Hall level too low"
+                    : controller.getGameState().getTownHall().getCommandSlot().isBusy() ? "Town Hall command slot occupied"
+                    : "Insufficient resources");
+            button.setAlignmentX(Component.CENTER_ALIGNMENT);
+            button.addActionListener(e -> { controller.onPhaseTwoResearch(tech); dispose(); });
+            card.add(Box.createVerticalStrut(8));
+            card.add(button);
+        } else {
+            JLabel status = new JLabel(researched ? "RESEARCHED" : "IN PROGRESS");
+            status.setForeground(researched ? RESEARCHED : AVAILABLE);
+            status.setAlignmentX(Component.CENTER_ALIGNMENT);
+            card.add(status);
+        }
+        return card;
+    }
+
+    private String phaseTwoDescription(TechnologyType tech) {
+        switch (tech) {
+            case SAILING: return "Land units may enter sea";
+            case STEEL_TOOLS: return "+50% stone and iron production";
+            case DEFENSIVE_ARCHITECTURE: return "Fortify Town Hall and add walls";
+            default: return "";
+        }
     }
 
     private JPanel buildTechCard(Constants.TechnologyType tech, Player player) {
