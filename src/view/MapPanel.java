@@ -868,41 +868,86 @@ public class MapPanel extends JPanel
     private void drawSeasonEffects(Graphics2D g2, Season season) {
         long now = System.currentTimeMillis();
         if (season == Season.SUMMER) {
-            g2.setColor(new Color(255, 196, 70, 18));
+            g2.setPaint(new java.awt.RadialGradientPaint(getWidth() * .72f, getHeight() * .15f,
+                    Math.max(getWidth(), getHeight()) * .8f,
+                    new float[]{0f, .45f, 1f}, new Color[]{new Color(255, 218, 112, 38),
+                    new Color(255, 183, 65, 15), new Color(80, 45, 20, 8)}));
             g2.fillRect(0, 0, getWidth(), getHeight());
         } else if (season == Season.SPRING) {
             g2.setColor(new Color(130, 245, 150, 12));
             g2.fillRect(0, 0, getWidth(), getHeight());
-            for (int i = 0; i < 24; i++) {
-                int x = Math.floorMod(i * 137 + (int) (now / 35), Math.max(1, getWidth()));
-                int y = Math.floorMod(i * 83 + (int) (now / 70), Math.max(1, getHeight()));
-                g2.setColor(new Color(255, 180 + i % 60, 210, 110));
-                g2.fillOval(x, y, 4, 3);
+            // A quiet flowering branch anchors the ambience instead of visual noise.
+            g2.setColor(new Color(88, 60, 42, 125)); g2.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawLine(-10, 70, 145, 8); g2.setStroke(new BasicStroke(2f));
+            g2.drawLine(55, 42, 83, 2); g2.drawLine(98, 25, 135, 48);
+            for (int i = 0; i < 11; i++) drawBlossom(g2, 13 + i * 12, 60 - i * 5 + (i % 3) * 4,
+                    .7 + (i % 4) * .1, i * .55, 175);
+            for (int i = 0; i < 34; i++) {
+                double speed = 52.0 + (i % 7) * 8;
+                double x = Math.floorMod(i * 149 + (int) (now / speed), Math.max(1, getWidth() + 50)) - 25;
+                double y = Math.floorMod(i * 91 + (int) (now / (speed * .72)), Math.max(1, getHeight() + 45)) - 22;
+                x += Math.sin(now / 900.0 + i * 1.7) * (8 + i % 9);
+                drawBlossom(g2, x, y, .42 + (i % 5) * .09, now / 1100.0 + i, 75 + (i % 4) * 20);
             }
         } else if (season == Season.AUTUMN) {
-            g2.setColor(new Color(105, 75, 45, 25));
+            g2.setColor(new Color(135, 78, 30, 28));
             g2.fillRect(0, 0, getWidth(), getHeight());
-            g2.setStroke(new BasicStroke(1.4f));
-            for (int i = 0; i < 95; i++) {
-                int x = Math.floorMod(i * 97 + (int) (now / 12), Math.max(1, getWidth() + 30)) - 15;
-                int y = Math.floorMod(i * 53 + (int) (now / 7), Math.max(1, getHeight() + 30)) - 15;
-                g2.setColor(new Color(150, 195, 220, 125));
-                g2.drawLine(x, y, x - 8, y + 15);
+            for (int i = 0; i < 45; i++) {
+                double speed = 34 + (i % 8) * 7;
+                double x = Math.floorMod(i * 113 + (int) (now / speed), Math.max(1, getWidth() + 50)) - 25;
+                double y = Math.floorMod(i * 67 + (int) (now / (speed * .42)), Math.max(1, getHeight() + 50)) - 25;
+                x += Math.sin(now / 680.0 + i) * 18;
+                Color leaf = i % 3 == 0 ? new Color(190, 73, 35) : i % 3 == 1
+                        ? new Color(220, 137, 39) : new Color(139, 91, 39);
+                drawLeaf(g2, x, y, .65 + (i % 5) * .13, now / 620.0 + i * .9, leaf, 105 + i % 4 * 22);
             }
         } else if (season == Season.WINTER) {
             g2.setColor(new Color(115, 165, 220, 38));
             g2.fillRect(0, 0, getWidth(), getHeight());
-            for (int i = 0; i < 90; i++) {
-                int speed = 12 + i % 17;
-                int y = Math.floorMod(i * 79 + (int) (now / speed), Math.max(1, getHeight() + 20)) - 10;
-                int x = Math.floorMod(i * 131 + (int) (Math.sin(now / 600.0 + i) * 18),
-                        Math.max(1, getWidth() + 20)) - 10;
-                int s = 2 + i % 4;
-                g2.setColor(new Color(245, 250, 255, 145 + i % 90));
-                g2.fillOval(x, y, s, s);
+            for (int i = 0; i < 62; i++) {
+                int speed = 19 + i % 14;
+                double y = Math.floorMod(i * 79 + (int) (now / speed), Math.max(1, getHeight() + 30)) - 15;
+                double x = Math.floorMod(i * 131 + (int) (Math.sin(now / 760.0 + i) * 22),
+                        Math.max(1, getWidth() + 30)) - 15;
+                drawSnowflake(g2, x, y, 1.8 + i % 4, 105 + i % 5 * 24);
             }
         }
         g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawBlossom(Graphics2D g2, double x, double y, double scale, double rotation, int alpha) {
+        java.awt.geom.AffineTransform old = g2.getTransform();
+        g2.translate(x, y); g2.rotate(rotation); g2.scale(scale, scale);
+        for (int p = 0; p < 5; p++) {
+            double angle = p * Math.PI * 2 / 5;
+            g2.setColor(new Color(255, p % 2 == 0 ? 189 : 210, 220, alpha));
+            java.awt.geom.Ellipse2D petal = new java.awt.geom.Ellipse2D.Double(-3, -11, 6, 11);
+            java.awt.geom.AffineTransform turn = java.awt.geom.AffineTransform.getRotateInstance(angle);
+            g2.fill(turn.createTransformedShape(petal));
+        }
+        g2.setColor(new Color(246, 202, 74, Math.min(255, alpha + 35))); g2.fillOval(-2, -2, 4, 4);
+        g2.setTransform(old);
+    }
+
+    private void drawLeaf(Graphics2D g2, double x, double y, double scale, double rotation, Color color, int alpha) {
+        java.awt.geom.AffineTransform old = g2.getTransform();
+        g2.translate(x, y); g2.rotate(rotation); g2.scale(scale, scale);
+        java.awt.geom.Path2D leaf = new java.awt.geom.Path2D.Double();
+        leaf.moveTo(-1, 9); leaf.curveTo(-11, 2, -9, -8, 0, -12);
+        leaf.curveTo(10, -7, 11, 2, -1, 9); leaf.closePath();
+        g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha)); g2.fill(leaf);
+        g2.setColor(new Color(92, 54, 25, alpha)); g2.setStroke(new BasicStroke(1.1f));
+        g2.drawLine(0, -9, -1, 12); g2.setTransform(old);
+    }
+
+    private void drawSnowflake(Graphics2D g2, double x, double y, double radius, int alpha) {
+        g2.setColor(new Color(246, 251, 255, alpha));
+        g2.setStroke(new BasicStroke(radius > 3 ? 1.2f : .8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        for (int arm = 0; arm < 3; arm++) {
+            double angle = arm * Math.PI / 3;
+            int dx = (int) Math.round(Math.cos(angle) * radius), dy = (int) Math.round(Math.sin(angle) * radius);
+            g2.drawLine((int)x - dx, (int)y - dy, (int)x + dx, (int)y + dy);
+        }
     }
 
     // ---- Hex drawing -------------------------------------------------------
@@ -1061,7 +1106,8 @@ public class MapPanel extends JPanel
 
     private void drawSeaDetails(Graphics2D g2, int cx, int cy) {
         g2.setColor(new Color(185, 225, 245, 145));
-        for (int i = -1; i <= 1; i++) g2.drawArc(cx - 21 + i * 8, cy - 7 + i * 7, 25, 10, 10, 155);
+        int drift = (int) (Math.sin(selectionPulse + cx * .02) * 3);
+        for (int i = -1; i <= 1; i++) g2.drawArc(cx - 21 + i * 8 + drift, cy - 7 + i * 7, 25, 10, 10, 155);
     }
 
     private void drawForestDetails(Graphics2D g2, int cx, int cy) {

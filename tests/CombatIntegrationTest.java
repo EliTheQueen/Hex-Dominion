@@ -17,7 +17,7 @@ public final class CombatIntegrationTest {
         Swordsman sword = new Swordsman(attackFrom); state.getPlayer().addUnit(sword);
         int campHp = tribe.getCurrentHp();
         CombatReport guardFight = state.attackTribeCamp(sword, tribe);
-        require(guardFight != null && sword.getCurrentAP() == 1, "attack consumes one AP");
+        require(guardFight != null && guardFight.getApConsumed() == 1, "attack consumes one AP");
         require(tribe.getCurrentHp() == campHp, "guards block camp targeting");
 
         tribe.removeGuards(99);
