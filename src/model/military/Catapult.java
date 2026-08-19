@@ -1,11 +1,17 @@
 package model.military;
 
-import model.Constants;
 import model.HexCoordinate;
 
 public class Catapult extends MilitaryUnit {
+
     public Catapult(HexCoordinate position) {
-        super(position, Constants.UnitType.MILITARY, 50, 20, 2);
+        super(
+                position,
+                50,
+                20,
+                2,
+                2
+        );
     }
 
     @Override

@@ -20,6 +20,7 @@ public class Bear extends Unit {
         super(
                 position,
                 Constants.UnitType.BEAR,
+                Constants.UNIT_AP.getOrDefault(Constants.UnitType.BEAR, 1),
                 MAX_HP
         );
 
@@ -106,5 +107,9 @@ public class Bear extends Unit {
             default:
                 return !hex.isBlocked();
         }
+    }
+
+    public int getMaxHp() {
+        return MAX_HP;
     }
 }

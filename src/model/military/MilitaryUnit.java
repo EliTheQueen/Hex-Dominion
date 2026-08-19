@@ -5,38 +5,38 @@ import model.HexCoordinate;
 import model.Unit;
 
 public abstract class MilitaryUnit extends Unit {
-    private int currentHp;
-    private final int maxHp;
+
     private final int structureDamage;
     private final int range;
 
-    public MilitaryUnit(HexCoordinate position,
-                        Constants.UnitType unitType,
-                        int maxHp,
-                        int structureDamage,
-                        int range
+    public MilitaryUnit(
+            HexCoordinate position,
+            int maxHp,
+            int structureDamage,
+            int range,
+            int maxAP
     ) {
-        super(position, unitType);
+        super(
+                position,
+                Constants.UnitType.MILITARY,
+                maxAP,
+                maxHp
+        );
 
-        if (maxHp <= 0) {
-            throw new IllegalArgumentException("maxHp <= 0");
-        }
-        if (structureDamage <= 0 || range <= 0) {
-            throw new IllegalArgumentException("attack pewer <= 0 || range <= 0");
+        if (structureDamage <= 0) {
+            throw new IllegalArgumentException(
+                    "structureDamage must be positive"
+            );
         }
 
-        this.maxHp = maxHp;
-        this.currentHp = maxHp;
+        if (range <= 0) {
+            throw new IllegalArgumentException(
+                    "range must be positive"
+            );
+        }
+
         this.structureDamage = structureDamage;
         this.range = range;
-    }
-
-    public int getCurrentHp() {
-        return currentHp;
-    }
-
-    public int getMaxHp() {
-        return maxHp;
     }
 
     public int getStructureDamage() {
@@ -48,19 +48,11 @@ public abstract class MilitaryUnit extends Unit {
     }
 
     public boolean isDead() {
-        return currentHp <= 0;
+        return !isAlive();
     }
 
     public void decreaseHp(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("amount cannot be negative");
-        }
-
-        currentHp = Math.max(0, currentHp - amount);
-
-        if (currentHp == 0) {
-            kill();
-        }
+        takeDamage(amount);
     }
 
     public boolean canAttack() {
@@ -69,10 +61,15 @@ public abstract class MilitaryUnit extends Unit {
 
     public void spendAttackAP() {
         if (!spendAP(1)) {
-            throw new IllegalStateException("Not enough AP");
+            throw new IllegalStateException(
+                    "Not enough AP to attack"
+            );
         }
     }
 
-    public abstract MilitaryUnitType getMilitaryUnitType();
+    public boolean contributesCombatDie() {
+        return getMilitaryUnitType() != MilitaryUnitType.CATAPULT;
+    }
 
+    public abstract MilitaryUnitType getMilitaryUnitType();
 }

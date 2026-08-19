@@ -5,12 +5,25 @@ import model.military.MilitaryHex;
 import model.military.MilitaryUnit;
 
 public class CombatService {
+
     private final DiceRoller diceRoller;
     private final MilitaryDamageHandler damageHandler;
 
-    public CombatService(DiceRoller diceRoller, MilitaryDamageHandler damageHandler) {
-        if (diceRoller == null) throw new IllegalArgumentException("DiceRoller cannot be null");
-        if (damageHandler == null) throw new IllegalArgumentException("MilitaryDamageHandler cannot be null");
+    public CombatService(
+            DiceRoller diceRoller,
+            MilitaryDamageHandler damageHandler
+    ) {
+        if (diceRoller == null) {
+            throw new IllegalArgumentException(
+                    "DiceRoller cannot be null"
+            );
+        }
+
+        if (damageHandler == null) {
+            throw new IllegalArgumentException(
+                    "MilitaryDamageHandler cannot be null"
+            );
+        }
 
         this.diceRoller = diceRoller;
         this.damageHandler = damageHandler;
@@ -21,28 +34,60 @@ public class CombatService {
             MilitaryHex attackerHex,
             MilitaryHex defenderHex
     ) {
-        validateAttack(attacker, attackerHex, defenderHex);
+        validateAttack(
+                attacker,
+                attackerHex,
+                defenderHex
+        );
 
         attacker.spendAttackAP();
 
-        int attackerDiceCount = attackerHex.getAliveUnits().size();
-        int defenderDiceCount = defenderHex.getAliveUnits().size();
+        int attackerDiceCount =
+                countCombatDice(attackerHex);
 
-        DiceResult attackerRolls = diceRoller.rollD6(attackerDiceCount);
-        DiceResult defenderRolls = diceRoller.rollD6(defenderDiceCount);
+        int defenderDiceCount =
+                countCombatDice(defenderHex);
 
-        CombatResolver resolver = new CombatResolver(
-                attackerRolls,
-                defenderRolls
+        DiceResult attackerRolls =
+                diceRoller.rollD6(attackerDiceCount);
+
+        DiceResult defenderRolls =
+                diceRoller.rollD6(defenderDiceCount);
+
+        CombatResolver resolver =
+                new CombatResolver(
+                        attackerRolls,
+                        defenderRolls
+                );
+
+        CombatResult result =
+                resolver.resolve();
+
+        damageHandler.applyDamage(
+                defenderHex,
+                result.getAttackerWins()
         );
 
-        CombatResult result = resolver.resolve();
-
-        damageHandler.applyDamage(defenderHex, result.getAttackerWins());
-
-        damageHandler.applyDamage(attackerHex, result.getDefenderWins());
+        damageHandler.applyDamage(
+                attackerHex,
+                result.getDefenderWins()
+        );
 
         return result;
+    }
+
+    private int countCombatDice(MilitaryHex militaryHex) {
+        int count = 0;
+
+        for (MilitaryUnit unit :
+                militaryHex.getAliveUnits()) {
+
+            if (unit.contributesCombatDie()) {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private void validateAttack(
@@ -50,31 +95,58 @@ public class CombatService {
             MilitaryHex attackerHex,
             MilitaryHex defenderHex
     ) {
-        if (attacker == null) throw new IllegalArgumentException("attacker cannot be null");
-        if (attackerHex == null) throw new IllegalArgumentException("attackerHex cannot be null");
-        if (defenderHex == null) throw new IllegalArgumentException("defenderHex cannot be null");
+        if (attacker == null) {
+            throw new IllegalArgumentException(
+                    "attacker cannot be null"
+            );
+        }
+
+        if (attackerHex == null) {
+            throw new IllegalArgumentException(
+                    "attackerHex cannot be null"
+            );
+        }
+
+        if (defenderHex == null) {
+            throw new IllegalArgumentException(
+                    "defenderHex cannot be null"
+            );
+        }
 
         if (attackerHex == defenderHex) {
-            throw new IllegalArgumentException("attackerHex and defenderHex cannot be the same");
+            throw new IllegalArgumentException(
+                    "attackerHex and defenderHex cannot be the same"
+            );
         }
 
         if (!attackerHex.getUnits().contains(attacker)) {
-            throw new IllegalArgumentException("attacker not in attackerHex");
+            throw new IllegalArgumentException(
+                    "attacker is not in attackerHex"
+            );
         }
 
         if (!attacker.canAttack()) {
-            throw new IllegalArgumentException("attacker can not attack");
+            throw new IllegalArgumentException(
+                    "attacker cannot attack"
+            );
         }
 
         if (defenderHex.getAliveUnits().isEmpty()) {
-            throw new IllegalArgumentException("defenderHex has no alive units");
+            throw new IllegalArgumentException(
+                    "defenderHex has no alive units"
+            );
         }
 
-        int distance = attacker.getPosition().distanceTo(defenderHex.getCoordinate());
+        int distance =
+                attacker.getPosition()
+                        .distanceTo(
+                                defenderHex.getCoordinate()
+                        );
 
         if (distance > attacker.getRange()) {
-            throw new IllegalArgumentException("Target hex is not in range");
+            throw new IllegalArgumentException(
+                    "Target hex is not in range"
+            );
         }
     }
-
 }
