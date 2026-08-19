@@ -3,6 +3,7 @@ package model.combat;
 import model.military.MilitaryDamageHandler;
 import model.military.MilitaryHex;
 import model.military.MilitaryUnit;
+import model.Wall;
 
 public class CombatService {
 
@@ -34,6 +35,11 @@ public class CombatService {
             MilitaryHex attackerHex,
             MilitaryHex defenderHex
     ) {
+        return attack(attacker, attackerHex, defenderHex, null);
+    }
+
+    public CombatResult attack(MilitaryUnit attacker, MilitaryHex attackerHex,
+                               MilitaryHex defenderHex, Wall defendingWall) {
         validateAttack(
                 attacker,
                 attackerHex,
@@ -45,8 +51,8 @@ public class CombatService {
         int attackerDiceCount =
                 countCombatDice(attackerHex);
 
-        int defenderDiceCount =
-                countCombatDice(defenderHex);
+        int defenderDiceCount = Math.min(6, countCombatDice(defenderHex)
+                + (defendingWall != null && !defendingWall.isDestroyed() ? 2 : 0));
 
         DiceResult attackerRolls =
                 diceRoller.rollD6(attackerDiceCount);

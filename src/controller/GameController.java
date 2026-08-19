@@ -32,6 +32,7 @@ import model.tribe.*;
 import model.tribe.mission.MissionActionResult;
 import model.combat.CombatReport;
 import model.military.MilitaryUnit;
+import model.disaster.Bear;
 
 /** Mediates between the Swing views and the game model. */
 public class GameController {
@@ -73,6 +74,15 @@ public class GameController {
         Player player = gameState.getPlayer();
 
         if (selectedUnit instanceof MilitaryUnit) {
+            Bear bear = gameState.getBearAt(coord);
+            if (bear != null) {
+                CombatReport report = gameState.attackBear((MilitaryUnit) selectedUnit, bear);
+                if (report != null) {
+                    statusMessage = report.getCasualty();
+                    if (mainWindow != null) mainWindow.showCombatReport(report);
+                    return;
+                }
+            }
             Tribe targetTribe = gameState.getTribeAt(coord);
             if (targetTribe != null) {
                 CombatReport report = gameState.attackTribeCamp((MilitaryUnit) selectedUnit, targetTribe);

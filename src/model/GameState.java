@@ -1116,16 +1116,6 @@ public class GameState implements java.io.Serializable {
         return null;
     }
 
-    public boolean upgradeBazaar() {
-        Building bazaar = getBazaar();
-
-        if (bazaar == null) {
-            return false;
-        }
-
-        return bazaar.upgradeBazaar();
-    }
-
     public boolean tradeAtTradingPost(HexCoordinate tradingPost,
             Constants.ResourceType sell,
             Constants.ResourceType buy,
@@ -1223,6 +1213,7 @@ public class GameState implements java.io.Serializable {
         if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
         else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
         tribeAllianceService.breakAlliance(tribe);
+        if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
         tribe.getRelation().becomeEnemy();
 
         if (tribe.getGuardCount() == 0) {
@@ -1250,6 +1241,38 @@ public class GameState implements java.io.Serializable {
         if (defenseWins > 0) casualty += ", " + defenseWins + " attacker damage";
         return new CombatReport(attacker.getMilitaryUnitType().name(), tribe.getName() + " GUARDS",
                 attackRolls, defenseRolls, attackWins, defenseWins, casualty, 0);
+    }
+
+    public Bear getBearAt(HexCoordinate coordinate) {
+        if (activeBearAttack == null) return null;
+        for (Bear bear : activeBearAttack.getBears())
+            if (bear.isAlive() && bear.getPosition().equals(coordinate)) return bear;
+        return null;
+    }
+
+    public CombatReport attackBear(MilitaryUnit attacker, Bear bear) {
+        if (attacker == null || bear == null || !bear.isAlive() || !attacker.canAttack()
+                || attacker.getPosition().distanceTo(bear.getPosition()) > attacker.getRange()) return null;
+        attacker.spendAttackAP();
+        List<Integer> attackRolls = attacker.contributesCombatDie() ? rollDice(1) : new ArrayList<>();
+        List<Integer> bearRolls = rollDice(1); int attackWins = 0, defenseWins = 0;
+        if (!attackRolls.isEmpty()) {
+            if (attackRolls.get(0) > bearRolls.get(0)) { attackWins = 1; bear.takeDamage(40); }
+            else { defenseWins = 1; attacker.takeDamage(1); }
+        }
+        player.removeDeadUnits();
+        if (!bear.isAlive()) recordMissionKillNear(bear.getPosition());
+        return new CombatReport(attacker.getMilitaryUnitType().name(), "BEAR", attackRolls, bearRolls,
+                attackWins, defenseWins, !bear.isAlive() ? "Bear defeated" : defenseWins > 0 ? "Attacker wounded" : "No effective hit", 0);
+    }
+
+    private void recordMissionKillNear(HexCoordinate coordinate) {
+        for (TribeMission mission : tribeMissionService.getActiveMissions().values()) {
+            if (mission.getObjective() instanceof KillCountObjective
+                    && mission.getTribe().getCampCoordinate().distanceTo(coordinate) <= 3) {
+                ((KillCountObjective) mission.getObjective()).recordKill(); mission.refreshCompletionState();
+            }
+        }
     }
 
     private MilitaryHex militaryHexAt(HexCoordinate coordinate) {
