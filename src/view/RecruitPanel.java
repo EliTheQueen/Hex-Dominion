@@ -25,6 +25,7 @@ import javax.swing.SwingConstants;
 import controller.GameController;
 import model.Constants;
 import model.ResourceAmount;
+import model.military.MilitaryUnitType;
 
 /** Modal dialog for recruiting new units near the Town Hall. */
 public class RecruitPanel extends JDialog {
@@ -36,7 +37,7 @@ public class RecruitPanel extends JDialog {
     public RecruitPanel(GameController controller, JFrame parent) {
         super(parent, "Recruit Unit", true);
         this.controller = controller;
-        setSize(520, 380);
+        setSize(760, 560);
         setLocationRelativeTo(parent);
         getContentPane().setBackground(BG);
         setLayout(new BorderLayout());
@@ -47,11 +48,14 @@ public class RecruitPanel extends JDialog {
         title.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0));
         add(title, BorderLayout.NORTH);
 
-        JPanel grid = new JPanel(new GridLayout(2, 2, 12, 12));
+        JPanel grid = new JPanel(new GridLayout(2, 4, 12, 12));
         grid.setBackground(BG);
         grid.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         for (Constants.UnitType type : Constants.UnitType.values()) {
-            grid.add(buildUnitCard(type));
+            if (Constants.UNIT_COST.containsKey(type)) grid.add(buildUnitCard(type));
+        }
+        for (MilitaryUnitType type : MilitaryUnitType.values()) {
+            grid.add(buildMilitaryCard(type));
         }
         add(grid, BorderLayout.CENTER);
 
@@ -61,6 +65,40 @@ public class RecruitPanel extends JDialog {
         south.setBackground(BG);
         south.add(close);
         add(south, BorderLayout.SOUTH);
+    }
+
+    private JPanel buildMilitaryCard(MilitaryUnitType type) {
+        boolean unlocked = controller.getGameState().canRecruitMilitaryUnit(
+                type, controller.getGameState().getTownHallPos(), controller.getGameState().getTownHall().getLevel());
+        boolean affordable = controller.getGameState().getPlayer().canAfford(type.getCost());
+        boolean slotFree = !controller.getGameState().getTownHall().getCommandSlot().isBusy();
+        boolean enabled = unlocked && affordable && slotFree;
+        JPanel card = new JPanel(); card.setBackground(enabled ? new Color(28, 34, 58) : new Color(20, 20, 30));
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(enabled ? GOLD : new Color(65, 65, 80), 1),
+                BorderFactory.createEmptyBorder(10, 8, 10, 8)));
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        JLabel name = new JLabel(type.name()); name.setForeground(enabled ? Color.WHITE : new Color(110, 110, 130));
+        name.setFont(new Font("Georgia", Font.BOLD, 13)); name.setAlignmentX(Component.CENTER_ALIGNMENT); card.add(name);
+        model.military.MilitaryUnit sample = new model.military.UnitFactory().createUnit(type,
+                controller.getGameState().getTownHallPos());
+        JLabel stats = new JLabel("HP " + sample.getMaxHp() + " • AP " + sample.getMaxAP()
+                + " • RNG " + sample.getRange());
+        stats.setForeground(TEXT); stats.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        stats.setAlignmentX(Component.CENTER_ALIGNMENT); card.add(Box.createVerticalStrut(5)); card.add(stats);
+        JLabel cost = new JLabel("Cost: " + costText(type.getCost()) + " • " + type.getTrainingTurns() + " turns");
+        cost.setForeground(TEXT); cost.setFont(new Font("SansSerif", Font.PLAIN, 10)); cost.setAlignmentX(Component.CENTER_ALIGNMENT);
+        card.add(Box.createVerticalStrut(5)); card.add(cost);
+        JButton train = styledButton("TRAIN", new Color(65, 72, 112)); train.setEnabled(enabled);
+        train.setToolTipText(enabled ? "Use the Town Hall command slot" : !unlocked ? "Level, Stable, cap, or stack requirement not met"
+                : !affordable ? "Insufficient resources" : "Town Hall command slot occupied");
+        train.setAlignmentX(Component.CENTER_ALIGNMENT); train.addActionListener(e -> { controller.onRecruitMilitary(type); dispose(); });
+        card.add(Box.createVerticalStrut(8)); card.add(train); return card;
+    }
+
+    private String costText(ResourceAmount cost) {
+        return cost.get(Constants.ResourceType.FOOD) + "F " + cost.get(Constants.ResourceType.WOOD) + "W "
+                + cost.get(Constants.ResourceType.STONE) + "S " + cost.get(Constants.ResourceType.IRON) + "I";
     }
 
     private JPanel buildUnitCard(Constants.UnitType type) {

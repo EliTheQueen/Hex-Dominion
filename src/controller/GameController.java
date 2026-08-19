@@ -187,25 +187,23 @@ public class GameController {
         if (gameState == null) return false;
         Player player = gameState.getPlayer();
         ResourceAmount cost = UNIT_COST.get(type);
-        return cost != null && player.canAfford(cost) && !player.atUnitCap();
+        return cost != null && player.canAfford(cost) && !player.atUnitCap()
+                && !gameState.getTownHall().getCommandSlot().isBusy();
     }
 
     /** Recruiting enqueues the unit in the Town Hall production queue (not instant). */
     public void onRecruitUnit(UnitType type) {
         if (gameState == null) return;
-        Player player = gameState.getPlayer();
-        ResourceAmount cost = UNIT_COST.get(type);
-        if (cost == null || !player.canAfford(cost)) {
-            statusMessage = "Not enough resources to recruit " + type.name();
-            return;
-        }
-        if (player.atUnitCap()) {
-            statusMessage = "Unit cap reached (build a Township to raise it)";
-            return;
-        }
-        player.spend(cost);
-        player.getProductionQueue().enqueue(model.ProductionTask.forUnit(type));
-        statusMessage = "Queued " + type.name() + " for production";
+        CommandStartResult result = gameState.startCivilianTraining(type);
+        statusMessage = result == CommandStartResult.STARTED ? "Training " + type.name()
+                : "Cannot train " + type.name() + ": " + result.name().replace('_', ' ');
+    }
+
+    public CommandStartResult onRecruitMilitary(model.military.MilitaryUnitType type) {
+        CommandStartResult result = gameState.startMilitaryTraining(type);
+        statusMessage = result == CommandStartResult.STARTED ? "Training " + type.name()
+                : "Cannot train " + type.name() + ": " + result.name().replace('_', ' ');
+        return result;
     }
 
     /** Research is queued in the Town Hall and applies when the queue completes it. */

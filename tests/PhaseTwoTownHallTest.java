@@ -4,6 +4,7 @@ import model.townhall.CommandStartResult;
 import model.townhall.TownHallLevel;
 import model.technology.ResearchStartResult;
 import model.technology.TechnologyType;
+import model.military.MilitaryUnitType;
 
 /** Lightweight assertions runnable without third-party test libraries. */
 public final class PhaseTwoTownHallTest {
@@ -11,7 +12,17 @@ public final class PhaseTwoTownHallTest {
         upgradeUsesSingleSlotAndTakesThreeTurns();
         cancellationDoesNotRefund();
         researchUsesTheSameSlot();
+        militaryTrainingUsesTheSameSlot();
         System.out.println("PhaseTwoTownHallTest passed");
+    }
+
+    private static void militaryTrainingUsesTheSameSlot() {
+        GameState state = fundedState();
+        require(state.startMilitaryTraining(MilitaryUnitType.SWORDSMAN) == CommandStartResult.STARTED,
+                "military training starts");
+        require(state.startTownHallUpgrade() == CommandStartResult.TOWN_HALL_BUSY, "training owns slot");
+        state.endTurn(); state.endTurn();
+        require(state.getMilitaryUnitCount() == 1, "military unit created on completion");
     }
 
     private static void upgradeUsesSingleSlotAndTakesThreeTurns() {

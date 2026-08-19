@@ -1147,6 +1147,24 @@ public class GameState implements java.io.Serializable {
         return unit;
     }
 
+    public CommandStartResult startMilitaryTraining(MilitaryUnitType type) {
+        if (type == null) return CommandStartResult.INVALID_COMMAND;
+        HexCoordinate position = townHallPos;
+        if (!militaryRecruitmentService.canRecruit(type, position, townHall.getLevel()))
+            return CommandStartResult.INVALID_COMMAND;
+        return townHallCommandService.startCommand(new TrainingCommand(type));
+    }
+
+    public CommandStartResult startCivilianTraining(Constants.UnitType type) {
+        if (type == null || type == Constants.UnitType.MILITARY || type == Constants.UnitType.BEAR)
+            return CommandStartResult.INVALID_COMMAND;
+        if (player.atUnitCap()) return CommandStartResult.INVALID_COMMAND;
+        ResourceAmount cost = Constants.UNIT_COST.get(type);
+        Integer turns = Constants.UNIT_BUILD_TURNS.get(type);
+        if (cost == null || turns == null) return CommandStartResult.INVALID_COMMAND;
+        return townHallCommandService.startCommand(new TrainingCommand(type, cost, turns));
+    }
+
     public int getMilitaryUnitCount() {
         return militaryRecruitmentService
                 .getMilitaryUnitCount();
@@ -1282,5 +1300,36 @@ public class GameState implements java.io.Serializable {
             }
         }
         public boolean isDefensiveArchitectureEnabled() { return defensiveArchitecture; }
+    }
+
+    private final class TrainingCommand extends model.townhall.AbstractProductionCommand {
+        private final Constants.UnitType civilianType;
+        private final MilitaryUnitType militaryType;
+        private TrainingCommand(MilitaryUnitType type) {
+            super(type.getCost(), type.getTrainingTurns());
+            this.militaryType = type; this.civilianType = null;
+        }
+        private TrainingCommand(Constants.UnitType type, ResourceAmount cost, int turns) {
+            super(cost, turns);
+            this.civilianType = type; this.militaryType = null;
+        }
+        @Override protected void executeEffect() {
+            if (militaryType != null) {
+                recruitMilitaryUnit(militaryType, townHallPos, townHall.getLevel());
+                return;
+            }
+            HexCoordinate position = findFreeHexNearTownHall();
+            if (position == null) return;
+            Unit unit;
+            switch (civilianType) {
+                case EXPLORER: unit = new Explorer(position); break;
+                case BUILDER: unit = new Builder(position); break;
+                case WORKER: unit = new Worker(position); break;
+                case BORDER_EXPANDER: unit = new BorderExpander(position); break;
+                default: return;
+            }
+            player.addUnit(unit);
+            lastTurnEvents.add("Trained " + civilianType.name());
+        }
     }
 }
