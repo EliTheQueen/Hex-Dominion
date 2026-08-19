@@ -17,10 +17,18 @@ public class AdjacencyBonusService implements java.io.Serializable {
 
             case FARM:
                 return farmPairBonus(building, player, map);
+            case DOCK:
+                return dockFishBonus(building, map);
 
             default:
                 return 0;
         }
+    }
+
+    private int dockFishBonus(Building building, GameMap map) {
+        for (Hex neighbour : map.getNeighboursOf(building.getPosition()))
+            if (neighbour.hasResource(Constants.NaturalResourceType.FISH)) return 2;
+        return 0;
     }
 
     private int deepMineBonus(Building building, GameMap map) {

@@ -496,7 +496,7 @@ public class GameState implements java.io.Serializable {
             return yield;
         }
 
-        Hex hex = map.getHex(building.getPosition());
+        Hex hex = findHarvestHex(building, naturalResource);
 
         if (hex == null) {
             return yield;
@@ -581,11 +581,26 @@ public class GameState implements java.io.Serializable {
                     return Constants.NaturalResourceType.COW;
                 }
 
-                return Constants.NaturalResourceType.SHEEP;
+                if (hex != null && hex.getNaturalResourceAmount(Constants.NaturalResourceType.SHEEP) > 0)
+                    return Constants.NaturalResourceType.SHEEP;
+                return Constants.NaturalResourceType.NONE;
+
+            case DOCK:
+                return Constants.NaturalResourceType.FISH;
 
             default:
                 return Constants.NaturalResourceType.NONE;
         }
+    }
+
+    private Hex findHarvestHex(Building building, Constants.NaturalResourceType resource) {
+        Hex own = map.getHex(building.getPosition());
+        if (own != null && own.getNaturalResourceAmount(resource) > 0) return own;
+        if (building.getType() == Constants.BuildingType.DOCK) {
+            for (Hex neighbour : map.getNeighboursOf(building.getPosition()))
+                if (neighbour.getNaturalResourceAmount(resource) > 0) return neighbour;
+        }
+        return own;
     }
 
     private void completeTask(ProductionTask task) {
@@ -834,8 +849,7 @@ public class GameState implements java.io.Serializable {
             Constants.NaturalResourceType naturalResource =
                     harvestResource(building);
 
-            Hex hex =
-                    map.getHex(building.getPosition());
+            Hex hex = findHarvestHex(building, naturalResource);
 
             if (producedResource != null) {
                 int produced =

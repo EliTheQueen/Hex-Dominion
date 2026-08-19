@@ -121,11 +121,13 @@ public final class Constants {
         PRODUCES.put(BuildingType.IRON_MINE, ResourceType.IRON);
         PRODUCES.put(BuildingType.FARM, ResourceType.FOOD);
         PRODUCES.put(BuildingType.STABLE, ResourceType.FOOD);
+        PRODUCES.put(BuildingType.DOCK, ResourceType.FOOD);
         BASE_RATE.put(BuildingType.LUMBER_MILL,5);
         BASE_RATE.put(BuildingType.STONE_MINE,4);
         BASE_RATE.put(BuildingType.IRON_MINE,3);
         BASE_RATE.put(BuildingType.FARM,6);
         BASE_RATE.put(BuildingType.STABLE,5);
+        BASE_RATE.put(BuildingType.DOCK,2);
         BUILD_COST.put(BuildingType.LUMBER_MILL, ResourceAmount.of(0,8,0,0));
         BUILD_COST.put(BuildingType.FARM, ResourceAmount.of(0,6,0,0));
         BUILD_COST.put(BuildingType.STABLE, ResourceAmount.of(0,10,0,0));
