@@ -22,6 +22,8 @@ import controller.GameController;
 import model.Building;
 import model.Builder;
 import model.Constants;
+import model.combat.CombatReport;
+import model.combat.CombatTargetType;
 import model.GameState;
 import model.Hex;
 import model.HexCoordinate;
@@ -29,6 +31,7 @@ import model.Player;
 import model.Unit;
 import model.season.Season;
 import view.GamePanel;
+import view.CombatOverlay;
 import view.MainWindow;
 import view.RecruitPanel;
 import view.SaveLoadDialog;
@@ -143,6 +146,7 @@ public final class RealSwingRuntimeTest {
         openAndCloseDialog(gamePanelRef.get(), "RECRUIT", RecruitPanel.class);
         openAndCloseDialog(gamePanelRef.get(), "RESEARCH", TechPanel.class);
         openSaveDialogWithDisabledReason(gamePanelRef.get(), stateRef.get());
+        openCombatPresentation(window);
         openCampInteraction(gamePanelRef.get(), stateRef.get(), window.getController());
 
         int turnBefore = stateRef.get().getCurrentTurn();
@@ -172,7 +176,7 @@ public final class RealSwingRuntimeTest {
                 + " tribes=" + state.getTribes().size());
         System.out.println("movement=" + movedUnitRef.get().getUnitType()
                 + " " + coordinateText(movedFromRef.get()) + " -> " + coordinateText(movedToRef.get()));
-        System.out.println("dialogs=RecruitPanel,TechPanel,SaveLoadDialog,TribePanel");
+        System.out.println("dialogs=RecruitPanel,TechPanel,SaveLoadDialog,CombatOverlay,TribePanel");
         System.out.println("uncaught=0");
 
         onEdt(() -> {
@@ -358,6 +362,27 @@ public final class RealSwingRuntimeTest {
             state.endCombatPresentation();
         });
         require(observed.get(), "SaveLoadDialog did not expose disabled save reasons");
+    }
+
+    private static void openCombatPresentation(MainWindow window) throws Exception {
+        onEdt(() -> {
+            CombatReport report = new CombatReport("[SWORDSMAN, ARCHER]", "WARRIOR GUARDS",
+                    java.util.Arrays.asList(6, 4), java.util.Arrays.asList(6, 2),
+                    1, 1, "1 guard and 1 Swordsman lost", 0, 3,
+                    CombatTargetType.TRIBE_GUARDS, true, false);
+            CombatOverlay overlay = new CombatOverlay(window, report);
+            overlay.revealAllForTest();
+            overlay.setVisible(true);
+            require(overlay.getPresentationModel().getPairComparisons().size() == 2,
+                    "combat overlay did not create pair-by-pair comparisons");
+            require(overlay.getResultText().contains("Wall defense")
+                            && overlay.getResultText().contains("Casualties")
+                            && overlay.getResultText().contains("3 AP"),
+                    "combat overlay omitted wall, casualty, or AP results");
+            render(overlay);
+            writeSnapshot(overlay, new File("/tmp/hex-dominion-combat-overlay.png"));
+            overlay.dispose();
+        });
     }
 
     private static MainWindow waitForMainWindow() throws Exception {

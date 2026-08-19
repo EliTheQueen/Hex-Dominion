@@ -39,6 +39,7 @@ import model.disaster.BearActivity;
 import model.disaster.DisasterEvent;
 import model.disaster.DisasterType;
 import model.military.MilitaryUnit;
+import model.military.MilitaryUnitType;
 import model.season.Season;
 import model.tribe.Tribe;
 import model.tribe.TribeMilitaryUnit;
@@ -1720,20 +1721,25 @@ public class MapPanel extends JPanel
         boolean hasAP = u.getCurrentAP() > 0;
         if (!hasAP) unitColor = desaturate(unitColor, 0.45f);
 
-        GradientPaint unitGrad = new GradientPaint(cx - r, cy - r, unitColor.brighter(),
-                cx + r, cy + r, unitColor.darker());
-        g2.setPaint(unitGrad);
-        g2.fillOval(cx - r, cy - r, r * 2, r * 2);
+        if (u instanceof MilitaryUnit) {
+            drawMilitaryToken(g2, ((MilitaryUnit) u).getMilitaryUnitType(), cx, cy, hasAP);
+        } else {
+            GradientPaint unitGrad = new GradientPaint(cx - r, cy - r, unitColor.brighter(),
+                    cx + r, cy + r, unitColor.darker());
+            g2.setPaint(unitGrad);
+            g2.fillOval(cx - r, cy - r, r * 2, r * 2);
 
-        g2.setColor(hasAP ? Color.WHITE : new Color(150, 150, 150));
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawOval(cx - r, cy - r, r * 2, r * 2);
+            g2.setColor(hasAP ? Color.WHITE : new Color(150, 150, 150));
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawOval(cx - r, cy - r, r * 2, r * 2);
 
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 13));
-        String icon = getUnitIcon(u.getUnitType());
-        FontMetrics fm = g2.getFontMetrics();
-        g2.drawString(icon, cx - fm.stringWidth(icon) / 2, cy + fm.getAscent() / 2 - 2);
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("SansSerif", Font.BOLD, 13));
+            String icon = getUnitIcon(u.getUnitType());
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(icon, cx - fm.stringWidth(icon) / 2,
+                    cy + fm.getAscent() / 2 - 2);
+        }
 
         int barW = 26, barH = 4;
         g2.setColor(new Color(30, 30, 30, 190));
@@ -1752,10 +1758,92 @@ public class MapPanel extends JPanel
         if (u == controller.getSelectedUnit()) {
             g2.setFont(new Font("SansSerif", Font.BOLD, 10));
             g2.setColor(GOLD);
-            String name = u.getUnitType().name().replace("_", " ");
+            String name = u instanceof MilitaryUnit
+                    ? ((MilitaryUnit) u).getMilitaryUnitType().name().replace("_", " ")
+                    : u.getUnitType().name().replace("_", " ");
             g2.drawString(name, cx - g2.getFontMetrics().stringWidth(name) / 2, cy - r - 4);
         }
         g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawMilitaryToken(Graphics2D g2, MilitaryUnitType type,
+                                   int cx, int cy, boolean hasAP) {
+        Color base = switch (type) {
+            case SWORDSMAN -> new Color(185, 57, 52);
+            case ARCHER -> new Color(67, 139, 83);
+            case CAVALRY -> new Color(56, 105, 169);
+            case CATAPULT -> new Color(151, 101, 45);
+        };
+        if (!hasAP) base = desaturate(base, 0.45f);
+        g2.setPaint(new GradientPaint(cx - 14, cy - 14, base.brighter(),
+                cx + 14, cy + 14, base.darker()));
+
+        switch (type) {
+            case SWORDSMAN -> {
+                Polygon shield = new Polygon(
+                        new int[]{cx - 13, cx + 13, cx + 10, cx, cx - 10},
+                        new int[]{cy - 12, cy - 12, cy + 7, cy + 15, cy + 7}, 5);
+                g2.fillPolygon(shield);
+                g2.setColor(new Color(242, 235, 210));
+                g2.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND,
+                        BasicStroke.JOIN_ROUND));
+                g2.drawLine(cx - 7, cy + 8, cx + 8, cy - 8);
+                g2.setColor(new Color(84, 54, 35));
+                g2.drawLine(cx - 9, cy - 1, cx + 2, cy + 10);
+                g2.setStroke(new BasicStroke(1f));
+                g2.setColor(Color.WHITE);
+                g2.drawPolygon(shield);
+            }
+            case ARCHER -> {
+                g2.fillOval(cx - 14, cy - 14, 28, 28);
+                g2.setColor(new Color(237, 218, 156));
+                g2.setStroke(new BasicStroke(2.4f));
+                g2.drawArc(cx - 10, cy - 12, 18, 25, -75, 150);
+                g2.drawLine(cx - 2, cy - 10, cx - 2, cy + 10);
+                g2.setColor(new Color(245, 245, 232));
+                g2.drawLine(cx - 9, cy, cx + 10, cy);
+                g2.fillPolygon(new int[]{cx + 10, cx + 5, cx + 5},
+                        new int[]{cy, cy - 3, cy + 3}, 3);
+                g2.setStroke(new BasicStroke(1f));
+                g2.setColor(Color.WHITE);
+                g2.drawOval(cx - 14, cy - 14, 28, 28);
+            }
+            case CAVALRY -> {
+                Polygon banner = new Polygon(
+                        new int[]{cx - 14, cx + 11, cx + 14, cx, cx - 14},
+                        new int[]{cy - 12, cy - 12, cy + 4, cy + 14, cy + 4}, 5);
+                g2.fillPolygon(banner);
+                g2.setColor(new Color(232, 224, 194));
+                Polygon horse = new Polygon(
+                        new int[]{cx - 7, cx - 2, cx + 2, cx + 8, cx + 6, cx, cx - 5},
+                        new int[]{cy + 8, cy - 8, cy - 12, cy - 5, cy + 7, cy + 10, cy + 4}, 7);
+                g2.fillPolygon(horse);
+                g2.setColor(new Color(55, 46, 42));
+                g2.fillOval(cx + 3, cy - 5, 3, 3);
+                g2.setColor(new Color(246, 210, 91));
+                g2.setStroke(new BasicStroke(2f));
+                g2.drawLine(cx - 11, cy + 10, cx + 11, cy - 11);
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(1f));
+                g2.drawPolygon(banner);
+            }
+            case CATAPULT -> {
+                g2.fillRoundRect(cx - 15, cy - 13, 30, 27, 5, 5);
+                g2.setColor(new Color(71, 45, 28));
+                g2.setStroke(new BasicStroke(3f));
+                g2.drawLine(cx - 9, cy + 5, cx + 9, cy + 5);
+                g2.drawLine(cx - 7, cy + 5, cx + 3, cy - 7);
+                g2.drawLine(cx + 3, cy - 7, cx + 11, cy - 10);
+                g2.setColor(new Color(211, 190, 143));
+                g2.fillOval(cx + 8, cy - 13, 7, 7);
+                g2.setColor(new Color(48, 38, 31));
+                g2.fillOval(cx - 12, cy + 7, 8, 8);
+                g2.fillOval(cx + 5, cy + 7, 8, 8);
+                g2.setStroke(new BasicStroke(1f));
+                g2.setColor(Color.WHITE);
+                g2.drawRoundRect(cx - 15, cy - 13, 30, 27, 5, 5);
+            }
+        }
     }
 
     private void drawBoat(Graphics2D g2, int cx, int cy) {
