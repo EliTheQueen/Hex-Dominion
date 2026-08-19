@@ -16,15 +16,16 @@ import static model.Constants.INITIAL_IRON;
 import static model.Constants.TechnologyType;
 import static model.Constants.UnitType;
 
-public class Player {
+public class Player implements java.io.Serializable {
+    /** Preserves compatibility with saves written before the legacy queue was removed. */
+    private static final long serialVersionUID = 3342778921353409401L;
     private final String name;
     private final ResourceStorage resources;
     private final List<Unit> units;
     private final List<Building> buildings;
     private final Set<HexCoordinate> territory;
-    private final Set<TechnologyType> researched;
-    private final Set<TechnologyType> queuedTech;
-    private final ProductionQueue productionQueue;
+    private final Set<TechnologyType> researched; //مجموعه‌ی تکنولوژی‌های تمام‌شده.
+    private final Set<TechnologyType> queuedTech; //تکنولوژی‌هایی که در صف هستند
 
     public Player(String name) {
         this.name = name;
@@ -34,80 +35,154 @@ public class Player {
         this.territory = new HashSet<>();
         this.researched = new HashSet<>();
         this.queuedTech = new HashSet<>();
-        this.productionQueue = new ProductionQueue();
 
         resources.addResources(ResourceAmount.of(INITIAL_FOOD, INITIAL_WOOD, INITIAL_STONE, INITIAL_IRON));
     }
 
-    public String getName() { return name; }
-    public ResourceStorage getResources() { return resources; }
-    public List<Unit> getUnits() { return units; }
-    public List<Building> getBuildings() { return buildings; }
-    public Set<HexCoordinate> getTerritory() { return territory; }
-    public Set<TechnologyType> getResearched() { return researched; }
-    public ProductionQueue getProductionQueue() { return productionQueue; }
+    public String getName() {
+        return name;
+    }
 
-    public void addUnit(Unit u) { units.add(u); }
-    public void removeUnit(Unit u) { units.remove(u); }
-    public void addBuilding(Building b) { buildings.add(b); }
-    public void removeBuilding(Building b) { buildings.remove(b); }
+    public ResourceStorage getResources() {
+        return resources;
+    }
 
-    public void expandTerritory(HexCoordinate coord) { territory.add(coord); }
-    public boolean isInTerritory(HexCoordinate coord) { return territory.contains(coord); }
+    public List<Unit> getUnits() {
+        return units;
+    }
 
-    public boolean hasResearched(TechnologyType tech) { return researched.contains(tech); }
-    public boolean isTechQueued(TechnologyType tech) { return queuedTech.contains(tech); }
+    public List<Building> getBuildings() {
+        return buildings;
+    }
 
-    public ResourceAmount getTechCost(TechnologyType tech) {
-        switch (tech) {
-            case STORAGE_I:          return ResourceAmount.of(0, 20, 10, 0);
-            case STORAGE_II:         return ResourceAmount.of(0, 30, 20, 0);
-            case STONE_MINING:       return ResourceAmount.of(0, 15, 0, 0);
-            case IRON_MINING:        return ResourceAmount.of(0, 20, 15, 0);
-            case PROFESSIONAL_TOOLS: return ResourceAmount.of(0, 20, 0, 10);
-            case TOWNSHIP:           return ResourceAmount.of(0, 25, 25, 15);
-            default:                 return ResourceAmount.zero();
+    public Set<HexCoordinate> getTerritory() {
+        return territory;
+    }
+
+    public Set<TechnologyType> getResearchedLegacyTechnologies() {
+        return researched;
+    }
+
+    public void addUnit(Unit u) {
+        units.add(u);
+    }
+
+    public void removeUnit(Unit u) {
+        units.remove(u);
+    }
+
+    public void addBuilding(Building b) {
+        buildings.add(b);
+    }
+
+    /**
+     * Authoritative building destruction lifecycle.  All gameplay systems that
+     * permanently destroy a building must use this method rather than merely
+     * marking the Building as ruined.
+     */
+    public boolean destroyBuilding(GameMap map, Building building) {
+        if (map == null || building == null || !buildings.contains(building)) {
+            return false;
         }
-    }
 
-    /** Whether the tech's prerequisites are met and it is not already done or in the queue. */
-    public boolean prerequisitesMet(TechnologyType tech) {
-        if (researched.contains(tech) || queuedTech.contains(tech)) return false;
-        switch (tech) {
-            case STORAGE_II:         return researched.contains(TechnologyType.STORAGE_I);
-            case IRON_MINING:        return researched.contains(TechnologyType.STONE_MINING);
-            case PROFESSIONAL_TOOLS: return researched.contains(TechnologyType.IRON_MINING);
-            default:                 return true;
+        building.ruin(); // releases every stationed worker safely
+        buildings.remove(building); // invalidates production, upkeep and effects
+
+        Hex hex = map.getHex(building.getPosition());
+        if (hex != null) {
+            hex.setHasBuilding(false);
         }
-    }
-
-    public boolean canResearch(TechnologyType tech) {
-        return prerequisitesMet(tech) && resources.canAfford(getTechCost(tech));
-    }
-
-    /** Pays for the tech and marks it queued; the effect applies once the queue completes it. */
-    public boolean queueTech(TechnologyType tech) {
-        if (!canResearch(tech)) return false;
-        resources.spend(getTechCost(tech));
-        queuedTech.add(tech);
-        productionQueue.enqueue(ProductionTask.forTech(tech));
         return true;
     }
 
-    /** Applies a completed technology's effect. */
-    public void applyTech(TechnologyType tech) {
-        queuedTech.remove(tech);
-        researched.add(tech);
-        if (tech == TechnologyType.STORAGE_I) {
-            resources.upgradeCapacity(ResourceAmount.of(50, 50, 50, 50));
-        } else if (tech == TechnologyType.STORAGE_II) {
-            resources.upgradeCapacity(ResourceAmount.of(100, 100, 100, 100));
+    public boolean destroyBuilding(GameMap map, HexCoordinate coordinate) {
+        return destroyBuilding(map, getBuildingAt(coordinate));
+    }
+
+    public void expandTerritory(HexCoordinate coord) {
+        territory.add(coord);
+    }
+
+    public boolean isInTerritory(HexCoordinate coord) {
+        return territory.contains(coord);
+    }
+
+    public boolean hasResearchedLegacyTechnology(TechnologyType tech) {
+        return researched.contains(tech);
+    }
+
+    public boolean isLegacyTechnologyQueued(TechnologyType tech) {
+        return queuedTech.contains(tech);
+    }
+
+    public ResourceAmount getLegacyTechnologyCost(TechnologyType tech) {
+        switch (tech) {
+            case STORAGE_I:
+                return ResourceAmount.of(0, 20, 10, 0);
+            case STORAGE_II:
+                return ResourceAmount.of(0, 30, 20, 0);
+            case STONE_MINING:
+                return ResourceAmount.of(0, 15, 0, 0);
+            case IRON_MINING:
+                return ResourceAmount.of(0, 20, 15, 0);
+            case PROFESSIONAL_TOOLS:
+                return ResourceAmount.of(0, 20, 0, 10);
+            case TOWNSHIP:
+                return ResourceAmount.of(0, 25, 25, 15);
+            default:
+                return ResourceAmount.zero();
         }
     }
 
-    public boolean canAfford(ResourceAmount cost) { return resources.canAfford(cost); }
-    public boolean spend(ResourceAmount cost) { return resources.spend(cost); }
-    public void addResources(ResourceAmount amount) { resources.addResources(amount); }
+    //آیا پیش‌نیازهای این تکنولوژی فراهم است؟
+    /*
+        STORAGE_I → STORAGE_II
+        STONE_MINING → IRON_MINING → PROFESSIONAL_TOOLS
+        TOWNSHIP (مستقل)
+     */
+    public boolean legacyPrerequisitesMet(TechnologyType tech) {
+        if (researched.contains(tech) || queuedTech.contains(tech)) return false;
+        switch (tech) {
+            case STORAGE_II:
+                return researched.contains(TechnologyType.STORAGE_I);
+            case IRON_MINING:
+                return researched.contains(TechnologyType.STONE_MINING);
+            case PROFESSIONAL_TOOLS:
+                return researched.contains(TechnologyType.IRON_MINING);
+            default:
+                return true;
+        }
+    }
+
+    //آیا الان می‌توان این تکنولوژی را تحقیق کرد؟
+    // دو شرط: پیش‌نیاز فراهم باشد و پولش را داشته باشیم. ترکیبِ تمیزِ دو متدِ قبلی.
+    public boolean canResearchLegacyTechnology(TechnologyType tech) {
+        return legacyPrerequisitesMet(tech) && resources.canAfford(getLegacyTechnologyCost(tech));
+    }
+
+    public boolean markLegacyTechnologyQueued(TechnologyType tech) {
+        if (!legacyPrerequisitesMet(tech)) return false;
+        queuedTech.add(tech); return true;
+    }
+
+    public void cancelQueuedLegacyTechnology(TechnologyType tech) { queuedTech.remove(tech); }
+
+    public void completeLegacyTechnology(TechnologyType tech) {
+        queuedTech.remove(tech);
+        researched.add(tech);
+    }
+
+    public boolean canAfford(ResourceAmount cost) {
+        return resources.canAfford(cost);
+    }
+
+    public boolean spend(ResourceAmount cost) {
+        return resources.spend(cost);
+    }
+
+    public void addResources(ResourceAmount amount) {
+        resources.addResources(amount);
+    }
 
     public int getUnitCount() {
         int count = 0;
@@ -115,13 +190,8 @@ public class Player {
         return count;
     }
 
-    /** Living units in the queue count toward the cap too, so the player can't over-queue. */
     public int getEffectiveUnitCount() {
-        int queued = 0;
-        for (ProductionTask t : productionQueue.getTasks()) {
-            if (t.getKind() == ProductionTask.Kind.UNIT) queued++;
-        }
-        return getUnitCount() + queued;
+        return getUnitCount();
     }
 
     public int getTownshipCount() {
@@ -136,7 +206,9 @@ public class Player {
         return Constants.INITIAL_CAP + getTownshipCount() * Constants.CAP_PER_TOWNSHIP;
     }
 
-    public boolean atUnitCap() { return getEffectiveUnitCount() >= getUnitCap(); }
+    public boolean atUnitCap() {
+        return getEffectiveUnitCount() >= getUnitCap();
+    }
 
     public Map<UnitType, Integer> countUnitsByType() {
         Map<UnitType, Integer> counts = new EnumMap<>(UnitType.class);
@@ -147,14 +219,23 @@ public class Player {
         return counts;
     }
 
-    public int getBuildingCount() { return buildings.size(); }
+    public int getBuildingCount() {
+        return buildings.size();
+    }
+
     public int getActiveBuildingCount() {
         int n = 0;
         for (Building b : buildings) if (b.isActive()) n++;
         return n;
     }
-    public int getTerritorySize() { return territory.size(); }
-    public boolean hasProfessionalTools() { return researched.contains(TechnologyType.PROFESSIONAL_TOOLS); }
+
+    public int getTerritorySize() {
+        return territory.size();
+    }
+
+    public boolean hasProfessionalTools() {
+        return researched.contains(TechnologyType.PROFESSIONAL_TOOLS);
+    }
 
     public Unit getUnitAt(HexCoordinate coord) {
         for (Unit u : units) {
@@ -165,12 +246,26 @@ public class Player {
 
     public Building getBuildingAt(HexCoordinate coord) {
         for (Building b : buildings) {
-            if (b.getPosition().equals(coord)) return b;
+            if (b.isActive() && b.getPosition().equals(coord)) return b;
         }
         return null;
     }
 
     public void removeDeadUnits() {
         units.removeIf(u -> !u.isAlive());
+    }
+
+    public boolean canStore(ResourceAmount cost) {
+        return resources.canStore(cost);
+    }
+
+    public boolean hasBuildingType(Constants.BuildingType type) {
+        for (Building building : buildings) {
+            if (building.getType() == type && building.isActive()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

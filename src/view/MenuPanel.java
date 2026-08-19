@@ -22,6 +22,7 @@ public class MenuPanel extends JPanel {
     private final MainWindow mainWindow;
     private final JButton newGameBtn;
     private final JButton settingsBtn;
+    private final JButton loadGameBtn;
     private final JButton exitBtn;
     private float glowPhase = 0f;
     private final Timer animTimer;
@@ -45,6 +46,7 @@ public class MenuPanel extends JPanel {
 
         newGameBtn = createStyledButton("NEW GAME", new Color(50, 90, 50), new Color(80, 140, 80));
         settingsBtn = createStyledButton("SETTINGS", new Color(40, 60, 100), new Color(70, 100, 150));
+        loadGameBtn = createStyledButton("LOAD GAME", new Color(43, 66, 92), new Color(68, 99, 130));
         exitBtn = createStyledButton("EXIT", new Color(90, 30, 30), new Color(140, 50, 50));
 
         newGameBtn.addActionListener(e -> {
@@ -52,6 +54,7 @@ public class MenuPanel extends JPanel {
             mainWindow.startGame();
         });
         settingsBtn.addActionListener(e -> mainWindow.showSettings());
+        loadGameBtn.addActionListener(e -> new SaveLoadDialog(mainWindow, mainWindow.getController(), false).setVisible(true));
         exitBtn.addActionListener(e -> mainWindow.confirmExit());
 
         animTimer.start();
@@ -104,8 +107,9 @@ public class MenuPanel extends JPanel {
         int btnW = 260, btnH = 52;
         int centerX = w / 2 - btnW / 2;
         newGameBtn.setBounds(centerX, h / 2 + 30, btnW, btnH);
-        settingsBtn.setBounds(centerX, h / 2 + 30 + (btnH + 14), btnW, btnH);
-        exitBtn.setBounds(centerX, h / 2 + 30 + 2 * (btnH + 14), btnW, btnH);
+        loadGameBtn.setBounds(centerX, h / 2 + 30 + (btnH + 14), btnW, btnH);
+        settingsBtn.setBounds(centerX, h / 2 + 30 + 2 * (btnH + 14), btnW, btnH);
+        exitBtn.setBounds(centerX, h / 2 + 30 + 3 * (btnH + 14), btnW, btnH);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package model;
 import static model.Constants.ResourceType;
 
-public class ResourceStorage {
+public class ResourceStorage implements java.io.Serializable {
     private ResourceAmount current;
     private ResourceAmount capacity;
 
@@ -22,13 +22,15 @@ public class ResourceStorage {
     }
 
     public boolean spend(ResourceAmount cost) {
-        if (!canAfford(cost)) return false;
+        if (!canAfford(cost))
+            return false;
         for (ResourceType r : ResourceType.values()) {
             current.set(r, current.get(r) - cost.get(r));
         }
         return true;
     }
 
+    //in ro dobare bekhoon base ghahti!
     public int forceSpendFood(int amount) {
         int have = current.get(ResourceType.FOOD);
         int shortage = Math.max(0, amount - have);
@@ -39,6 +41,15 @@ public class ResourceStorage {
     public void upgradeCapacity(ResourceAmount extra) {
         for (ResourceType r : ResourceType.values()) {
             capacity.set(r, capacity.get(r) + extra.get(r));
+        }
+    }
+
+    /** Sets the capacity of every resource to the Town Hall's authoritative capacity. */
+    public void setCapacity(int cap) {
+        if (cap < 0) throw new IllegalArgumentException("capacity must not be negative");
+        for (ResourceType r : ResourceType.values()) {
+            capacity.set(r, cap);
+            if (current.get(r) > cap) current.set(r, cap);
         }
     }
 
@@ -53,5 +64,16 @@ public class ResourceStorage {
              + " Wood:" + current.get(ResourceType.WOOD) + "/" + capacity.get(ResourceType.WOOD)
              + " Stone:" + current.get(ResourceType.STONE) + "/" + capacity.get(ResourceType.STONE)
              + " Iron:" + current.get(ResourceType.IRON) + "/" + capacity.get(ResourceType.IRON);
+    }
+
+    public boolean canStore(ResourceAmount amount) {
+        if (amount == null) throw new NullPointerException("amount == null");
+
+        for (ResourceType r : ResourceType.values()) {
+            if (current.get(r) + amount.get(r) > capacity.get(r)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

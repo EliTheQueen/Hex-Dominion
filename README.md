@@ -11,15 +11,52 @@ mvn package                  # build target/hex-dominion-1.0.0.jar
 java -jar target/hex-dominion-1.0.0.jar
 ```
 
-### Without Maven (plain javac)
+### Without Maven (plain javac, Java 17)
 ```bash
-javac -d out/production/"Hex Dominion" $(find src -name "*.java")
-java -cp out/production/"Hex Dominion" app.Main
+BUILD_DIR=$(mktemp -d /tmp/hex-dominion-build.XXXXXX)
+javac --release 17 -Xlint:unchecked -d "$BUILD_DIR" $(rg --files src -g '*.java')
+java -cp "$BUILD_DIR" app.Main
 ```
 
 Or simply open the project in IntelliJ IDEA and run `app.Main`.
 
-> Requires Java 11 or newer (developed and tested on Temurin 17 and 21).
+> Requires Java 17 or newer.
+
+## How to test
+
+The tests are dependency-free Java entry points, so they work even when Maven is unavailable:
+
+```bash
+BUILD_DIR=$(mktemp -d /tmp/hex-dominion-tests.XXXXXX)
+javac --release 17 -Xlint:unchecked -d "$BUILD_DIR" $(rg --files src tests -g '*.java')
+for test_source in tests/*Test.java; do
+  test_class=$(basename "$test_source" .java)
+  [ "$test_class" = "RealSwingRuntimeTest" ] || java -cp "$BUILD_DIR" "$test_class" || exit 1
+done
+java -Djava.awt.headless=false -cp "$BUILD_DIR" RealSwingRuntimeTest
+```
+
+`RealSwingRuntimeTest` launches the real `app.Main`, opens the gameplay dialogs, renders the map and combat UI, and fails on uncaught EDT/Timer errors. Run it in a graphical desktop session.
+
+## Deterministic evaluation scenarios
+
+Compile `src` and `tests` as above, then run every mandatory evaluation path:
+
+```bash
+java -cp "$BUILD_DIR" app.EvaluationScenarios
+```
+
+Or run one scenario by name: `revolt`, `mandatory-disasters`, `tribe-war`, `tribe-camp-defeat`, `mission-completion`, `combat`, or `save-load`.
+
+```bash
+java -cp "$BUILD_DIR" app.EvaluationScenarios combat
+java -cp "$BUILD_DIR" PerformanceScenarioTest
+java -cp "$BUILD_DIR" MapGenerationSafetyPropertyTest
+```
+
+The performance guard uses a deterministic 41×35 map for 250 turns. The map safety property checks 500 seeds.
+
+The audit-to-implementation traceability record is in [`REQUIREMENT_MATRIX.md`](REQUIREMENT_MATRIX.md).
 
 ## Gameplay
 
@@ -39,7 +76,7 @@ You start with **1 Explorer, 2 Builders and 2 Workers**.
 | **Border Expander** | Claims its hex and all explored neighbours as territory, then is consumed. |
 
 ### Key mechanics
-- **Production queue** — recruiting units and choosing research adds them to the Town Hall queue; they complete over several turns (the HUD shows the time remaining).
+- **Town Hall command slot** — one recruitment, upgrade, or research command may run at a time; the HUD shows its remaining turns.
 - **Town Hall base output** — +1 Food and +1 Wood every turn.
 - **Finite resources** — each resource node has a remaining amount; working it depletes the node and the tile is redrawn as *empty*.
 - **Starvation** — if Food goes negative the empire enters crisis: unit Action Points are halved until it recovers.
@@ -55,7 +92,7 @@ Each production building yields resources per stationed worker, and has an upkee
 Food, Wood, Stone, Iron — capped by your storage capacity. Every unit eats 1 food per turn.
 
 ### Technologies
-Storage I/II (capacity), Stone Mining, Iron Mining, Professional Tools (+50% production), Township.
+Legacy research contains Storage I/II, Stone Mining, Iron Mining, Professional Tools, and Township. Phase 2 research contains Sailing, Steel Tools, and Defensive Architecture. Both systems share the single Town Hall command slot and are labeled separately in the UI.
 
 ### Scoring
 A running score = Territory ×5 + Buildings ×10 + Technologies ×15 + Explored hexes ×2 + Resources ÷10,
@@ -68,12 +105,12 @@ mute toggle. Quitting the game always asks for confirmation first.
 ## Controls
 - **Left-click** a unit to select it, then click a reachable hex to move (reachable hexes are tinted green; units walk there with a smooth animation, never teleporting).
 - **Drag** to pan the map, **scroll** to zoom, **click the minimap** to jump the camera.
-- **Hover** a hex for a tooltip (terrain, resource & remaining amount, building, workers).
+- **Hover** a hex for terrain, exact movement cost/prohibition, resource state, building/workers, and buildability.
 - **Right-click** or **ESC** to deselect.
 - Use the side panel for unit actions, and the top bar for *Recruit*, *Research* and *End Turn*.
 
 ## Architecture
-- `model` — pure game logic (map, units, buildings, player, turn engine, pathfinding, scoring).
+- `model` — Swing-independent game logic (map, units, buildings, player, ordered turn phases, pathfinding, combat, tribes, disasters, and scoring).
 - `controller` — `GameController` mediates between the views and the model.
 - `view` — Swing/Java2D UI: animated menu, hex map renderer, HUD, side panel, dialogs and end screen.
 - `app` — `Main` entry point.

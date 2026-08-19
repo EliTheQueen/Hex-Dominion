@@ -1,0 +1,14 @@
+package model.tribe.mission;
+
+public enum MissionActionResult {
+    SUCCESS,
+    INVALID_REQUEST,
+    RELATION_TOO_LOW,
+    TRIBE_IS_ENEMY,
+    TRIBE_NOT_DISCOVERED,
+    ACTIVE_MISSION_EXISTS,
+    MISSION_NOT_ACTIVE,
+    MISSION_NOT_COMPLETED,
+    INSUFFICIENT_STORAGE,
+    COOLDOWN
+}

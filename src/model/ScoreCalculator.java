@@ -1,6 +1,5 @@
 package model;
 
-/** Computes the player's score from territory, buildings, tech, exploration and resources. */
 public class ScoreCalculator {
 
     public static int calculate(Player player, GameMap map) {
@@ -15,12 +14,13 @@ public class ScoreCalculator {
 
     public static int buildingScore(Player p) { return p.getActiveBuildingCount() * 10; }
 
-    public static int techScore(Player p) { return p.getResearched().size() * 15; }
+    public static int techScore(Player p) { return p.getResearchedLegacyTechnologies().size() * 15; }
 
     public static int explorationScore(GameMap map) {
         int s = 0;
         for (Hex h : map.getAllHexes()) {
-            if (h.getIsExplored()) s += 2;
+            if (h.getIsExplored())
+                s += 2;
         }
         return s;
     }

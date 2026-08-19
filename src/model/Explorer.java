@@ -1,6 +1,6 @@
 package model;
 
-public class Explorer extends Unit {
+public class Explorer extends Unit{
     private boolean autoExploreMode;
 
     public Explorer(HexCoordinate pos) {
