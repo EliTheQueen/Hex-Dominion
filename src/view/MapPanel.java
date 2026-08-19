@@ -146,7 +146,9 @@ public class MapPanel extends JPanel
             drawHex(g2, hex, player);
         }
 
+        drawRoads(g2, map);
         drawRivers(g2, map);
+        drawWalls(g2, map);
 
         drawTerritoryBorders(g2, player, map);
 
@@ -814,27 +816,72 @@ public class MapPanel extends JPanel
 
     /** Rivers are model-owned edges, so both adjoining hexes must be explored before drawing one. */
     private void drawRivers(Graphics2D g2, GameMap map) {
-        g2.setStroke(new BasicStroke(Math.max(3f, (float) hexSize * 0.10f),
-                BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (model.HexEdge edge : map.getRiverEdges()) {
             Hex a = map.getHex(edge.getFirst()), b = map.getHex(edge.getSecond());
             if (a == null || b == null || !a.getIsExplored() || !b.getIsExplored()) continue;
             Point2D pa = hexToPixel(edge.getFirst()), pb = hexToPixel(edge.getSecond());
             double mx = (pa.getX() + pb.getX()) / 2.0;
             double my = (pa.getY() + pb.getY()) / 2.0;
-            double dx = pb.getX() - pa.getX(), dy = pb.getY() - pa.getY();
-            double len = Math.max(1, Math.hypot(dx, dy));
-            double half = hexSize * 0.50;
-            int x1 = (int) (mx - dx / len * half), y1 = (int) (my - dy / len * half);
-            int x2 = (int) (mx + dx / len * half), y2 = (int) (my + dy / len * half);
+            double dx = pb.getX() - pa.getX(), dy = pb.getY() - pa.getY(), len = Math.max(1, Math.hypot(dx, dy));
+            double px = -dy / len, py = dx / len, half = hexSize * .48;
+            double x1 = mx - px * half, y1 = my - py * half, x2 = mx + px * half, y2 = my + py * half;
             boolean visible = a.isVisible() || b.isVisible();
+            java.awt.geom.Path2D river = new java.awt.geom.Path2D.Double();
+            river.moveTo(x1, y1); river.quadTo(mx + dx / len * 4, my + dy / len * 4, x2, y2);
             g2.setColor(visible ? new Color(55, 155, 225, 225) : new Color(45, 85, 115, 150));
-            g2.drawLine(x1, y1, x2, y2);
+            g2.setStroke(new BasicStroke(Math.max(5f, (float) hexSize * .11f), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.draw(river);
             g2.setColor(new Color(185, 225, 250, visible ? 150 : 70));
             g2.setStroke(new BasicStroke(Math.max(1f, (float) hexSize * 0.025f)));
-            g2.drawLine(x1, y1, x2, y2);
-            g2.setStroke(new BasicStroke(Math.max(3f, (float) hexSize * 0.10f), BasicStroke.CAP_ROUND,
-                    BasicStroke.JOIN_ROUND));
+            g2.draw(river);
+            if (edge.hasBridge()) drawBridge(g2, mx, my, dx / len, dy / len);
+        }
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawRoads(Graphics2D g2, GameMap map) {
+        for (Hex hex : map.getAllHexes()) {
+            if (!hex.hasRoad() || !hex.getIsExplored()) continue;
+            Point2D center = hexToPixel(hex.getCoordinate()); boolean connected = false;
+            for (HexCoordinate neighbour : hex.getCoordinate().findNeighbours()) {
+                Hex other = map.getHex(neighbour);
+                if (other == null || !other.hasRoad() || !other.getIsExplored()) continue;
+                Point2D end = hexToPixel(neighbour); double ex = (center.getX() + end.getX()) / 2;
+                double ey = (center.getY() + end.getY()) / 2; connected = true;
+                g2.setColor(new Color(75, 55, 38, 210)); g2.setStroke(new BasicStroke(9f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.draw(new java.awt.geom.Line2D.Double(center.getX(), center.getY(), ex, ey));
+                g2.setColor(new Color(184, 145, 91, 225)); g2.setStroke(new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.draw(new java.awt.geom.Line2D.Double(center.getX(), center.getY(), ex, ey));
+            }
+            if (!connected) { g2.setColor(new Color(184, 145, 91, 220)); g2.fillOval((int)center.getX()-5, (int)center.getY()-5, 10, 10); }
+        }
+        g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawBridge(Graphics2D g2, double mx, double my, double nx, double ny) {
+        double px = -ny, py = nx;
+        g2.setColor(new Color(70, 48, 31)); g2.setStroke(new BasicStroke(13f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+        g2.draw(new java.awt.geom.Line2D.Double(mx - nx * 12, my - ny * 12, mx + nx * 12, my + ny * 12));
+        g2.setColor(new Color(188, 132, 71)); g2.setStroke(new BasicStroke(3f));
+        for (int i = -2; i <= 2; i++) { double ox = nx * i * 5, oy = ny * i * 5;
+            g2.draw(new java.awt.geom.Line2D.Double(mx + ox - px * 7, my + oy - py * 7, mx + ox + px * 7, my + oy + py * 7)); }
+    }
+
+    private void drawWalls(Graphics2D g2, GameMap map) {
+        for (model.HexEdge edge : map.getWallEdges()) {
+            if (!edge.hasWall()) continue;
+            Hex a = map.getHex(edge.getFirst()), b = map.getHex(edge.getSecond());
+            if (a == null || b == null || !a.getIsExplored() || !b.getIsExplored()) continue;
+            Point2D pa = hexToPixel(edge.getFirst()), pb = hexToPixel(edge.getSecond());
+            double mx = (pa.getX()+pb.getX())/2, my=(pa.getY()+pb.getY())/2;
+            double dx=pb.getX()-pa.getX(), dy=pb.getY()-pa.getY(), len=Math.max(1,Math.hypot(dx,dy));
+            double px=-dy/len, py=dx/len, half=hexSize*.48;
+            float hp=edge.getWall().getCurrentHp()/(float)edge.getWall().getMaxHp();
+            g2.setColor(hp > .5f ? new Color(177, 174, 163) : new Color(143, 104, 89));
+            g2.setStroke(new BasicStroke(7f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+            g2.draw(new java.awt.geom.Line2D.Double(mx-px*half,my-py*half,mx+px*half,my+py*half));
+            g2.setColor(new Color(68,64,62)); g2.setStroke(new BasicStroke(1.2f));
+            for(int i=-2;i<=2;i++){double ox=px*i*half/2.3,oy=py*i*half/2.3;g2.drawOval((int)(mx+ox-3),(int)(my+oy-3),6,6);}
         }
         g2.setStroke(new BasicStroke(1f));
     }
@@ -1198,6 +1245,12 @@ public class MapPanel extends JPanel
                 g2.setColor(new Color(60, 60, 60));
                 g2.fillOval(x + s / 4, y + s / 4, s / 3, s / 3);
                 break;
+            case FISH:
+                g2.setColor(new Color(125, 215, 235));
+                g2.fillOval(x, y + 2, s, s / 2);
+                g2.fillPolygon(new int[]{x, x - 5, x - 5}, new int[]{y + 4, y, y + 8}, 3);
+                g2.setColor(new Color(25, 85, 120)); g2.fillOval(x + s - 3, y + 3, 2, 2);
+                break;
             default:
                 break;
         }
@@ -1325,31 +1378,33 @@ public class MapPanel extends JPanel
 
     private void drawTownHall(Graphics2D g2, int cx, int cy, boolean vis) {
         int level = controller.getGameState().getTownHall().getLevel().getLevelNumber();
-        int s = 11 + level * 2;
-        g2.setColor(vis ? new Color(212, 175, 55) : new Color(150, 120, 30));
-        g2.fillRect(cx - s, cy - s, s * 2, s * 2);
-        g2.setColor(new Color(180, 140, 30));
-        g2.fillRect(cx - s, cy - s - 4, 6, 4);
-        g2.fillRect(cx + s - 6, cy - s - 4, 6, 4);
-        g2.fillRect(cx - 4, cy - s - 8, 8, 8);
-        g2.setColor(Color.BLACK);
-        g2.drawRect(cx - s, cy - s, s * 2, s * 2);
-        g2.setColor(new Color(120, 90, 20));
-        g2.fillRect(cx - 4, cy - 2, 8, s * 2);
-        g2.setColor(new Color(255, 230, 120));
-        g2.setFont(new Font("Georgia", Font.BOLD, 10));
-        g2.drawString(level == 1 ? "CAMP" : level == 2 ? "HALL" : "CAP", cx - 11, cy + 8);
+        Color wall = vis ? new Color(205, 184, 132) : new Color(126, 116, 91);
+        g2.setColor(new Color(0,0,0,90)); g2.fillOval(cx-24,cy+13,48,10);
+        if (level == 1) {
+            java.awt.geom.Path2D tent = new java.awt.geom.Path2D.Double();
+            tent.moveTo(cx,cy-22);tent.lineTo(cx+21,cy+15);tent.lineTo(cx-21,cy+15);tent.closePath();
+            g2.setPaint(new GradientPaint(cx-18,cy,new Color(188,138,77),cx+18,cy,new Color(115,70,42)));
+            g2.fill(tent);g2.setColor(new Color(70,45,31));g2.draw(tent);g2.drawLine(cx,cy-20,cx,cy+15);
+            g2.fillArc(cx-5,cy+3,10,15,0,180);
+        } else {
+            int s=level==2?15:18; g2.setColor(wall);g2.fillRoundRect(cx-s,cy-10,s*2,27,4,4);
+            g2.setColor(new Color(126,72,45));
+            g2.fillPolygon(new int[]{cx-s-4,cx,cx+s+4},new int[]{cy-10,cy-26-(level-2)*4,cy-10},3);
+            g2.setColor(new Color(77,61,49));g2.fillRoundRect(cx-4,cy+3,8,14,4,4);
+            if(level==3){g2.setColor(wall.brighter());g2.fillRect(cx-22,cy-5,7,22);g2.fillRect(cx+15,cy-5,7,22);
+                for(int x:new int[]{cx-22,cx-15,cx+15,cx+22})g2.fillRect(x-2,cy-10,5,7);}
+            g2.setColor(new Color(235,193,66));g2.fillOval(cx-3,cy-20-(level-2)*4,6,6);
+        }
     }
 
     private void drawLumberMill(Graphics2D g2, int cx, int cy, boolean vis) {
-        int s = 11;
-        g2.setColor(vis ? new Color(139, 90, 43) : new Color(100, 65, 30));
-        g2.fillRect(cx - s, cy - s / 2, s * 2, s + 4);
-        g2.setColor(vis ? new Color(205, 205, 205) : new Color(140, 140, 140));
-        g2.drawOval(cx - 7, cy - s - 6, 14, 14);
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
-        g2.drawString("LM", cx - 8, cy + 9);
+        Color wood=vis?new Color(146,91,48):new Color(92,66,43);
+        g2.setColor(wood);g2.fillRoundRect(cx-15,cy-8,24,22,3,3);
+        g2.setColor(wood.darker());g2.fillPolygon(new int[]{cx-18,cx-3,cx+12},new int[]{cy-8,cy-20,cy-8},3);
+        g2.setColor(vis?new Color(204,207,202):new Color(130,132,130));g2.fillOval(cx+2,cy-11,18,18);
+        g2.setColor(new Color(90,94,92));g2.drawOval(cx+2,cy-11,18,18);
+        for(int i=0;i<8;i++){double a=i*Math.PI/4;g2.drawLine(cx+11,cy-2,cx+11+(int)(Math.cos(a)*8),cy-2+(int)(Math.sin(a)*8));}
+        g2.setColor(new Color(103,61,31));for(int i=0;i<3;i++)g2.fillRoundRect(cx-20+i*5,cy+12-i*2,18,5,4,4);
     }
 
     private void drawFarm(Graphics2D g2, int cx, int cy, boolean vis) {
@@ -1365,40 +1420,29 @@ public class MapPanel extends JPanel
     }
 
     private void drawStoneMine(Graphics2D g2, int cx, int cy, boolean vis) {
-        g2.setColor(vis ? new Color(140, 140, 145) : new Color(90, 90, 95));
-        g2.fillRect(cx - 10, cy - 8, 20, 16);
-        g2.setColor(vis ? Color.WHITE : Color.GRAY);
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawLine(cx - 7, cy + 2, cx + 7, cy - 8);
-        g2.drawLine(cx - 7, cy - 8, cx + 3, cy + 2);
-        g2.setStroke(new BasicStroke(1f));
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
-        g2.drawString("SM", cx - 8, cy + 7);
+        drawMine(g2,cx,cy,vis,false);
     }
 
     private void drawIronMine(Graphics2D g2, int cx, int cy, boolean vis) {
-        g2.setColor(vis ? new Color(180, 60, 60) : new Color(110, 40, 40));
-        g2.fillRect(cx - 10, cy - 8, 20, 16);
-        g2.setColor(vis ? new Color(225, 125, 85) : new Color(150, 80, 50));
-        g2.setStroke(new BasicStroke(2f));
-        g2.drawLine(cx - 7, cy + 2, cx + 7, cy - 8);
-        g2.drawLine(cx - 7, cy - 8, cx + 3, cy + 2);
+        drawMine(g2,cx,cy,vis,true);
+    }
+
+    private void drawMine(Graphics2D g2,int cx,int cy,boolean vis,boolean iron){
+        Color rock=vis?new Color(135,132,130):new Color(87,86,88);
+        g2.setColor(rock);g2.fillPolygon(new int[]{cx-23,cx-10,cx,cx+13,cx+23},new int[]{cy+16,cy-10,cy-20,cy-8,cy+16},5);
+        g2.setColor(new Color(45,40,39));g2.fillArc(cx-10,cy-2,20,20,0,180);
+        g2.setColor(new Color(111,72,42));g2.setStroke(new BasicStroke(3f));g2.drawLine(cx-10,cy+7,cx-10,cy-1);g2.drawArc(cx-10,cy-2,20,20,0,180);g2.drawLine(cx+10,cy+7,cx+10,cy-1);
+        g2.setColor(iron?new Color(205,83,61):new Color(208,205,192));
+        for(int i=0;i<3;i++)g2.fillPolygon(new int[]{cx+11+i*4,cx+14+i*4,cx+12+i*4},new int[]{cy+7-i*4,cy+10-i*4,cy+12-i*4},3);
         g2.setStroke(new BasicStroke(1f));
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
-        g2.drawString("IM", cx - 8, cy + 7);
     }
 
     private void drawStable(Graphics2D g2, int cx, int cy, boolean vis) {
-        g2.setColor(vis ? new Color(160, 110, 60) : new Color(100, 70, 40));
-        g2.fillRect(cx - 12, cy - 8, 24, 16);
-        g2.setColor(vis ? new Color(90, 58, 18) : new Color(64, 42, 14));
-        g2.fillOval(cx - 6, cy - 10, 12, 9);
-        g2.fillRect(cx + 4, cy - 14, 4, 12);
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
-        g2.drawString("ST", cx - 7, cy + 9);
+        Color barn=vis?new Color(164,91,59):new Color(101,69,52);
+        g2.setColor(barn);g2.fillRoundRect(cx-17,cy-7,34,23,3,3);
+        g2.setColor(new Color(91,54,37));g2.fillPolygon(new int[]{cx-21,cx,cx+21},new int[]{cy-7,cy-23,cy-7},3);
+        g2.setColor(new Color(62,44,35));g2.fillRoundRect(cx-6,cy+1,12,15,6,6);
+        g2.setColor(new Color(229,205,153));g2.setStroke(new BasicStroke(2f));g2.drawArc(cx-4,cy+4,8,9,0,180);g2.drawLine(cx-4,cy+8,cx-4,cy+14);g2.drawLine(cx+4,cy+8,cx+4,cy+14);g2.setStroke(new BasicStroke(1f));
     }
 
     private void drawTownship(Graphics2D g2, int cx, int cy, boolean vis) {
@@ -1422,6 +1466,10 @@ public class MapPanel extends JPanel
         int cx = (int) center.getX();
         int cy = (int) center.getY() + 6;
         int r = 14;
+
+        Hex unitHex = controller.getGameState().getMap().getHex(u.getPosition());
+        if (unitHex != null && unitHex.getTerrainType() == Constants.TerrainType.SEA
+                && !(u instanceof model.disaster.Bear)) drawBoat(g2, cx, cy);
 
         g2.setColor(new Color(0, 0, 0, 110));
         g2.fillOval(cx - r + 2, cy - r + 4, r * 2, r * 2);
@@ -1466,6 +1514,17 @@ public class MapPanel extends JPanel
             g2.drawString(name, cx - g2.getFontMetrics().stringWidth(name) / 2, cy - r - 4);
         }
         g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawBoat(Graphics2D g2, int cx, int cy) {
+        java.awt.geom.Path2D hull = new java.awt.geom.Path2D.Double();
+        hull.moveTo(cx - 24, cy + 8); hull.quadTo(cx, cy + 22, cx + 24, cy + 8);
+        hull.lineTo(cx + 18, cy + 17); hull.quadTo(cx, cy + 29, cx - 18, cy + 17); hull.closePath();
+        g2.setColor(new Color(75, 44, 25, 220)); g2.fill(hull); g2.setColor(new Color(222, 163, 88)); g2.draw(hull);
+        g2.setColor(new Color(81, 55, 35)); g2.fillRect(cx - 2, cy - 23, 3, 35);
+        java.awt.geom.Path2D sail = new java.awt.geom.Path2D.Double();
+        sail.moveTo(cx + 1, cy - 21); sail.lineTo(cx + 17, cy + 2); sail.lineTo(cx + 1, cy + 2); sail.closePath();
+        g2.setColor(new Color(233, 222, 188, 225)); g2.fill(sail); g2.setColor(new Color(126, 79, 52)); g2.draw(sail);
     }
 
     private Color getUnitColor(Constants.UnitType type) {
