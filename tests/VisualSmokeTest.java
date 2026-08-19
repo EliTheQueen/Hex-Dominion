@@ -16,7 +16,7 @@ import view.MapPanel;
 public final class VisualSmokeTest {
     public static void main(String[] args) throws Exception {
         System.setProperty("java.awt.headless", "true");
-        GameController controller = new GameController(); controller.startNewGame();
+        GameController controller = new GameController(); controller.startNewGame(114L);
         HexCoordinate center = controller.getGameState().getTownHallPos();
         controller.getGameState().getMap().buildRoad(center);
         HexCoordinate neighbour = center.findNeighbours().get(0);
@@ -48,10 +48,10 @@ public final class VisualSmokeTest {
             ImageIO.write(seasonImage, "png", output);
             require(output.isFile() && output.length() > 0, season + " render was not written");
         }
+        panel.stopAnimations();
+        require(!panel.isAnimationRunning(), "MapPanel animation timer must be stopped during cleanup");
+        javax.swing.SwingUtilities.invokeAndWait(() -> { });
         System.out.println("VisualSmokeTest passed");
-        // MapPanel owns animation timers; terminate this isolated smoke-test JVM
-        // after all frames have been rendered so suite runners do not linger.
-        System.exit(0);
     }
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);

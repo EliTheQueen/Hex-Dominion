@@ -18,7 +18,7 @@ public final class CombatIntegrationTest {
                 new DiceResult(Arrays.asList(4))).resolve();
         require(tie.getDefenderWins() == 1, "tie favors defender");
 
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 111L);
         Tribe tribe = state.getTribes().get(0);
         tribe.discover();
         tribe.getRelation().setScore(20);

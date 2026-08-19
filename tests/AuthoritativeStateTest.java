@@ -79,7 +79,7 @@ public final class AuthoritativeStateTest {
     }
 
     private static void townHallAggregateOwnsProjectionAndStorage() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 107L);
         Building projection = state.getPlayer().getBuildingAt(state.getTownHallPos());
         require(projection != null && projection.getTownHallLevel() == TownHallLevel.BASE_CAMP,
                 "map Town Hall is bound to the authoritative aggregate");

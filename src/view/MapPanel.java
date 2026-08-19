@@ -99,7 +99,30 @@ public class MapPanel extends JPanel
             stepAnimations();
             repaint();
         });
-        pulseTimer.start();
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        if (!pulseTimer.isRunning()) pulseTimer.start();
+    }
+
+    @Override
+    public void removeNotify() {
+        stopAnimations();
+        super.removeNotify();
+    }
+
+    /** Explicit lifecycle hook for tests and hosts that render without a JFrame. */
+    public void stopAnimations() {
+        pulseTimer.stop();
+        animatedRaw.clear();
+        bearDamageRevision.clear();
+        bearDamageStartedAt.clear();
+    }
+
+    public boolean isAnimationRunning() {
+        return pulseTimer.isRunning();
     }
 
     /** Eases every unit's displayed position toward its true hex, in zoom-independent raw space. */

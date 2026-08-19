@@ -34,7 +34,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void guardsAreTypedPositionedMilitaryUnits() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 130L);
         for (Tribe tribe : state.getTribes()) {
             require(tribe.getGuardCount() == 2, tribe.getType() + " starts with two typed guards");
             Set<MilitaryUnitType> categories = EnumSet.noneOf(MilitaryUnitType.class);
@@ -50,7 +50,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void playerAttackUsesTypedGuardCombat() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 131L);
         Tribe farmer = find(state, TribeType.FARMER);
         farmer.discover();
         Swordsman attacker = new Swordsman(validNeighbour(state, farmer.getCampCoordinate()));
@@ -65,7 +65,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void neutralWarningAndAcceleratedDispleasedPenaltyWork() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 132L);
         Tribe farmer = find(state, TribeType.FARMER);
         farmer.discover();
         Unit intruder = state.getPlayer().getUnits().get(0);
@@ -87,7 +87,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void friendlyMissionAndTradeOffersAreRealState() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 133L);
         Tribe merchant = find(state, TribeType.MERCHANT);
         merchant.discover(); merchant.getRelation().setScore(20);
         for (int i = 0; i < 4; i++) state.endTurn();
@@ -106,7 +106,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void enemyGuardSpawningUsesExactCadenceAndCaps() {
-        GameState normalState = new GameState(15, 13);
+        GameState normalState = new GameState(15, 13, 134L);
         Tribe farmer = find(normalState, TribeType.FARMER);
         farmer.discover(); farmer.getRelation().becomeEnemy();
         normalState.endTurn();
@@ -116,7 +116,7 @@ public final class TribeAiBehaviorTest {
         for (int i = 0; i < 6; i++) normalState.endTurn();
         require(farmer.getGuardCount() == 3, "normal tribe guard cap is three");
 
-        GameState warriorState = new GameState(15, 13);
+        GameState warriorState = new GameState(15, 13, 135L);
         Tribe warrior = find(warriorState, TribeType.WARRIOR);
         warrior.discover(); warrior.getRelation().becomeEnemy();
         for (int i = 0; i < 11; i++) warriorState.endTurn();
@@ -130,7 +130,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void campDefenseMovesAndAttacksThroughCombatEngine() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 136L);
         Tribe farmer = find(state, TribeType.FARMER);
         farmer.discover(); farmer.getRelation().becomeEnemy();
         TribeMilitaryUnit defender = farmer.getMilitaryUnits().get(0);
@@ -153,7 +153,7 @@ public final class TribeAiBehaviorTest {
     }
 
     private static void campDefeatCreatesOutpostTerritoryLootAndCleanup() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 137L);
         Tribe farmer = find(state, TribeType.FARMER);
         farmer.discover(); farmer.getRelation().setScore(20);
         require(state.requestMission(farmer) == MissionActionResult.SUCCESS, "pre-defeat mission exists");

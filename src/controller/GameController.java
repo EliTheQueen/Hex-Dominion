@@ -64,6 +64,16 @@ public class GameController {
 
     public void startNewGame() {
         gameState = new GameState(15, 13);
+        resetSessionSelection();
+    }
+
+    /** Starts a reproducible game for tests and deterministic evaluation scenarios. */
+    public void startNewGame(long seed) {
+        gameState = new GameState(15, 13, seed);
+        resetSessionSelection();
+    }
+
+    private void resetSessionSelection() {
         selectedUnit = null;
         selectedHex = null;
         pendingBuildType = null;

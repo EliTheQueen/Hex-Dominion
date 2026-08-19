@@ -22,7 +22,7 @@ public final class TribeDiplomacyLifecycleTest {
     }
 
     private static void giftIsAtomic() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 140L);
         Tribe farmer = find(state, TribeType.FARMER);
         farmer.discover();
         int foodBefore = state.getPlayer().getResources().get(Constants.ResourceType.FOOD);
@@ -37,7 +37,7 @@ public final class TribeDiplomacyLifecycleTest {
     }
 
     private static void peaceWaitsForThreeConsecutiveNonAttackTurns() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 141L);
         Tribe warrior = find(state, TribeType.WARRIOR);
         warrior.discover();
         warrior.getRelation().becomeEnemy();
@@ -69,7 +69,7 @@ public final class TribeDiplomacyLifecycleTest {
     }
 
     private static void recentMissionFailureBlocksAllianceForFiveTurns() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 142L);
         Tribe mountain = find(state, TribeType.MOUNTAIN);
         mountain.discover();
         mountain.getRelation().setScore(20);
@@ -92,7 +92,7 @@ public final class TribeDiplomacyLifecycleTest {
     }
 
     private static void allianceRestrictionsAndAutomaticRemovalWork() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 143L);
         Tribe farmer = find(state, TribeType.FARMER);
         Tribe mountain = find(state, TribeType.MOUNTAIN);
         farmer.discover(); mountain.discover();
@@ -104,7 +104,7 @@ public final class TribeDiplomacyLifecycleTest {
         require(!state.isAllied(farmer), "relation below 70 removes alliance automatically");
         require(!state.isAllianceBenefitActive(farmer), "removed alliance disables its benefit");
 
-        GameState warriorState = new GameState(15, 13);
+        GameState warriorState = new GameState(15, 13, 144L);
         Tribe warrior = find(warriorState, TribeType.WARRIOR);
         Tribe merchant = find(warriorState, TribeType.MERCHANT);
         warrior.discover(); merchant.discover();
@@ -121,7 +121,7 @@ public final class TribeDiplomacyLifecycleTest {
         assertBenefit(TribeType.MOUNTAIN, TribeAllianceBenefit.MOUNTAIN, 0, 0, 2, 0);
         assertBenefit(TribeType.COASTAL, TribeAllianceBenefit.COASTAL, 1, 1, 0, 0);
 
-        GameState liveState = new GameState(15, 13);
+        GameState liveState = new GameState(15, 13, 145L);
         Tribe warrior = find(liveState, TribeType.WARRIOR);
         warrior.discover(); warrior.getRelation().setScore(70);
         require(liveState.requestAlliance(warrior) == DiplomacyResult.SUCCESS,
@@ -137,7 +137,7 @@ public final class TribeDiplomacyLifecycleTest {
 
     private static void assertBenefit(TribeType type, TribeAllianceBenefit expected,
                                       int food, int wood, int stone, int iron) {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 146L);
         Tribe tribe = find(state, type);
         tribe.discover(); tribe.getRelation().setScore(70);
         require(state.requestAlliance(tribe) == DiplomacyResult.SUCCESS, type + " alliance forms");

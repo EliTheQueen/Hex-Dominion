@@ -192,7 +192,7 @@ public final class TribeMissionSpecificationTest {
     }
 
     private static final class MissionFixture {
-        private final GameState state = new GameState(15, 13);
+        private final GameState state = new GameState(15, 13, 113L);
         private final Tribe tribe;
 
         private MissionFixture(TribeType type) {

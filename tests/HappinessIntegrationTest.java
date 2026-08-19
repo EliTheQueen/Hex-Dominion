@@ -36,7 +36,7 @@ public final class HappinessIntegrationTest {
     }
 
     private static void townHallGarrisonIsOneCurrentCondition() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 104L);
         HexCoordinate townHall = state.getTownHallPos();
         HexCoordinate away = townHall.findNeighbours().get(0);
         Swordsman first = new Swordsman(townHall);
@@ -74,7 +74,7 @@ public final class HappinessIntegrationTest {
     }
 
     private static void monumentRemainsRecurring() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 105L);
         HexCoordinate position = state.getTownHallPos().findNeighbours().get(0);
         Building monument = new Building(position, Constants.BuildingType.MONUMENT);
         state.getPlayer().addBuilding(monument);

@@ -55,7 +55,7 @@ public final class InfrastructureRulesTest {
     }
 
     private static void verifyMonumentTerrainRule() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 109L);
         Hex candidate = null;
         for (HexCoordinate coordinate : state.getPlayer().getTerritory()) {
             Hex hex = state.getMap().getHex(coordinate);

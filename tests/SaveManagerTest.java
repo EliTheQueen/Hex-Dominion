@@ -9,7 +9,7 @@ public final class SaveManagerTest {
     public static void main(String[] args) throws Exception {
         Path directory = Files.createTempDirectory("hex-dominion-save-test");
         SaveManager manager = new SaveManager(directory);
-        GameState original = new GameState(15, 13);
+        GameState original = new GameState(15, 13, 101L);
         original.getPlayer().addResources(ResourceAmount.of(5, 7, 9, 11));
         require(manager.save(SaveSlot.MANUAL_1, "Round trip", original), "atomic save");
         SavePreview preview = manager.preview(SaveSlot.MANUAL_1);

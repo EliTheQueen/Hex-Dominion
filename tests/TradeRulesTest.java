@@ -3,7 +3,7 @@ import model.save.*;
 
 public final class TradeRulesTest {
     public static void main(String[] args) {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 112L);
         HexCoordinate bazaarPosition = state.getTownHallPos().findNeighbours().get(0);
         Building bazaar = new Building(bazaarPosition, Constants.BuildingType.BAZAAR);
         state.getPlayer().addBuilding(bazaar);

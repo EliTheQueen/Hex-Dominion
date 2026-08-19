@@ -19,7 +19,7 @@ public final class TribeVisibilityTest {
     }
 
     private static void undiscoveredTribesAreAbsentFromUiProjection() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 150L);
         for (Tribe tribe : state.getTribes()) {
             Hex camp = state.getMap().getHex(tribe.getCampCoordinate());
             camp.setVisible(false);
@@ -30,7 +30,7 @@ public final class TribeVisibilityTest {
     }
 
     private static void discoveryAndCurrentVisibilityAreDistinct() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 151L);
         Tribe farmer = find(state, TribeType.FARMER);
         Hex camp = state.getMap().getHex(farmer.getCampCoordinate());
         farmer.discover();
@@ -53,7 +53,7 @@ public final class TribeVisibilityTest {
 
     private static void campClickRoutesToInteraction() {
         GameController controller = new GameController();
-        controller.startNewGame();
+        controller.startNewGame(152L);
         Tribe merchant = find(controller.getGameState(), TribeType.MERCHANT);
         merchant.discover();
         controller.getGameState().getMap().getHex(merchant.getCampCoordinate()).setVisible(true);
@@ -64,7 +64,7 @@ public final class TribeVisibilityTest {
     }
 
     private static void actionReasonsAndFormValidationAreStateAware() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 153L);
         Tribe merchant = visible(state, TribeType.MERCHANT);
         merchant.getRelation().setScore(20);
         for (TribeAction action : TribeAction.values()) {
@@ -85,7 +85,7 @@ public final class TribeVisibilityTest {
     }
 
     private static void storageFullTurnInHasExactDisabledReason() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 154L);
         Tribe farmer = visible(state, TribeType.FARMER);
         farmer.getRelation().setScore(20);
         require(state.requestMission(farmer) == MissionActionResult.SUCCESS, "Farmer mission accepts");

@@ -10,7 +10,16 @@ public class MapGenerator {
     private int mapHeight;
     private Map<HexCoordinate, Hex> hexes;
     private HexCoordinate center;
-    private final Random random = new Random();
+    private final Random random;
+
+    public MapGenerator() {
+        this(new Random());
+    }
+
+    public MapGenerator(Random random) {
+        if (random == null) throw new IllegalArgumentException("random must not be null");
+        this.random = random;
+    }
 
     public GameMap generateMap(int mapWidth, int mapHeight) {
         this.mapWidth = mapWidth;

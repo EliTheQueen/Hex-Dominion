@@ -22,7 +22,7 @@ public final class GlobalUiAvailabilityTest {
 
     private static void centralizedResultCoversSpecializedActions() {
         GameController controller = new GameController();
-        controller.startNewGame();
+        controller.startNewGame(120L);
         require(controller.getSaveAvailability() instanceof ActionAvailability,
                 "save availability must use the global result");
         require(controller.getTribeActionAvailability(controller.getGameState().getTribes().get(0),
@@ -40,7 +40,7 @@ public final class GlobalUiAvailabilityTest {
 
     private static void movementExplainsCostAndProhibitions() {
         GameController controller = new GameController();
-        controller.startNewGame();
+        controller.startNewGame(121L);
         GameState state = controller.getGameState();
         Unit selected = null;
         HexCoordinate reachable = null;
@@ -81,7 +81,7 @@ public final class GlobalUiAvailabilityTest {
 
     private static void buildRecruitAndTechnologyReasonsAreSpecific() {
         GameController controller = new GameController();
-        controller.startNewGame();
+        controller.startNewGame(122L);
         GameState state = controller.getGameState();
         Builder builder = null;
         for (Unit unit : state.getPlayer().getUnits()) {
@@ -125,7 +125,7 @@ public final class GlobalUiAvailabilityTest {
 
     private static void tradeExplainsResourceAndStorageFailures() {
         GameController controller = new GameController();
-        controller.startNewGame();
+        controller.startNewGame(123L);
         GameState state = controller.getGameState();
         ActionAvailability missingSource = controller.getBazaarTradeAvailability(
                 Constants.ResourceType.FOOD, Constants.ResourceType.WOOD, 10);

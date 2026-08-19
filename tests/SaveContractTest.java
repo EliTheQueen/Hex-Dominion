@@ -56,7 +56,7 @@ public final class SaveContractTest {
     private static void stableGuardAndAutosavePreservation() throws Exception {
         Path directory = Files.createTempDirectory("hex-save-stability");
         SaveManager manager = new SaveManager(directory);
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 160L);
         SaveAvailability stable = state.getSaveAvailability();
         require(stable.isEnabled() && !stable.getReason().isBlank(),
                 "stable state exposes an enabled reason");
@@ -76,7 +76,7 @@ public final class SaveContractTest {
         state.endCombatPresentation();
 
         GameController progressController = new GameController(manager);
-        progressController.startNewGame();
+        progressController.startNewGame(161L);
         require(progressController.hasUnsavedProgress(),
                 "a new in-game session must warn before load");
         require(progressController.saveGame(SaveSlot.MANUAL_1, "Progress baseline")
@@ -102,7 +102,7 @@ public final class SaveContractTest {
         Path notDirectory = root.resolve("not-a-directory");
         Files.writeString(notDirectory, "occupied");
         GameController controller = new GameController(new SaveManager(notDirectory));
-        controller.startNewGame();
+        controller.startNewGame(162L);
         controller.onEndTurnClicked();
         require(controller.getStatusMessage().startsWith("Autosave failed:")
                         && controller.getStatusMessage().contains("preserved"),
@@ -112,14 +112,14 @@ public final class SaveContractTest {
     private static void migrationAndDeepValidationPrecedeReplacement() throws Exception {
         Path directory = Files.createTempDirectory("hex-save-migration");
         SaveManager manager = new SaveManager(directory);
-        GameState legacy = new GameState(15, 13);
+        GameState legacy = new GameState(15, 13, 163L);
         writeEnvelope(directory.resolve(SaveSlot.MANUAL_1.getFileName()), legacy, 2);
         SaveLoadResult migrated = manager.load(SaveSlot.MANUAL_1);
         require(migrated.isSuccessful()
                         && migrated.getGameState().getSaveAvailability().isEnabled(),
                 "compatible version-2 envelope must run through the explicit migration");
 
-        GameState invalid = new GameState(15, 13);
+        GameState invalid = new GameState(15, 13, 164L);
         HexCoordinate badPosition = firstFreeHex(invalid);
         invalid.getPlayer().addBuilding(
                 new Building(badPosition, Constants.BuildingType.FARM));
@@ -127,7 +127,7 @@ public final class SaveContractTest {
         writeEnvelope(directory.resolve(SaveSlot.MANUAL_2.getFileName()), invalid, 2);
 
         GameController controller = new GameController(manager);
-        controller.startNewGame();
+        controller.startNewGame(165L);
         GameState live = controller.getGameState();
         SaveLoadResult corrupt = controller.loadGame(SaveSlot.MANUAL_2);
         require(!corrupt.isSuccessful() && controller.getGameState() == live,

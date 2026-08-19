@@ -94,7 +94,7 @@ public final class PhaseTwoTownHallTest {
     }
 
     private static GameState fundedState() {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 102L);
         state.getPlayer().addResources(ResourceAmount.of(100, 100, 100, 100));
         return state;
     }

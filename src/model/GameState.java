@@ -113,6 +113,20 @@ public class GameState implements java.io.Serializable {
         );
     }
 
+    /** Deterministic complete-game constructor used by tests and evaluation scenarios. */
+    public GameState(int mapWidth, int mapHeight, long seed) {
+        this(
+                mapWidth,
+                mapHeight,
+                new Random(seed),
+                new DisasterGenerator(
+                        new DisasterOccurrencePolicy(),
+                        new DisasterSelector(),
+                        new DisasterOriginSelector()
+                )
+        );
+    }
+
     /**
      * Deterministic construction seam used by rule tests and save restoration.
      * The same random stream drives combat and disasters, so callers can replay
@@ -128,7 +142,7 @@ public class GameState implements java.io.Serializable {
             throw new IllegalArgumentException("random and disasterGenerator must not be null");
         }
 
-        MapGenerator generator = new MapGenerator();
+        MapGenerator generator = new MapGenerator(random);
         map = generator.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");

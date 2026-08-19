@@ -4,7 +4,7 @@ import model.tribe.mission.*;
 
 public final class TribeIntegrationTest {
     public static void main(String[] args) {
-        GameState state = new GameState(15, 13);
+        GameState state = new GameState(15, 13, 108L);
         require(state.getTribes().size() == 5, "five tribes generated");
         Tribe farmer = find(state, TribeType.FARMER);
         Tribe mountain = find(state, TribeType.MOUNTAIN);

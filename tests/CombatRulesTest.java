@@ -25,18 +25,53 @@ import model.military.Cavalry;
 import model.military.MilitaryDamageHandler;
 import model.military.MilitaryHex;
 import model.military.MilitaryUnit;
+import model.military.MilitaryUnitType;
 import model.military.Swordsman;
 
 public final class CombatRulesTest {
     public static void main(String[] args) {
+        exactDiceCompositionByDistinctType();
         distinctTypesWallValuesAndDamagePriority();
         rangeTwoIsArcherOnlyAndExactlyOneDie();
+        structureDamageAggregatesAtEveryStep();
         structuresAggregateAndUseDestructionLifecycle();
         defendersBlockStructuresAtomically();
         adjacentEmptyHexCaptureMovesTheForce();
         bearOffenseUsesTheSameDiceAndWallRules();
         bearEventDelegatesItsRealAttackToCombatEngine();
         System.out.println("CombatRulesTest passed");
+    }
+
+    private static void exactDiceCompositionByDistinctType() {
+        assertComposition(1, MilitaryUnitType.SWORDSMAN, MilitaryUnitType.SWORDSMAN);
+        assertComposition(2, MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER);
+        assertComposition(2, MilitaryUnitType.SWORDSMAN, MilitaryUnitType.SWORDSMAN,
+                MilitaryUnitType.CAVALRY);
+        assertComposition(1, MilitaryUnitType.SWORDSMAN, MilitaryUnitType.CATAPULT);
+    }
+
+    private static void assertComposition(int expected, MilitaryUnitType... types) {
+        Fixture fixture = new Fixture();
+        MilitaryHex attackers = fixture.hexAt(fixture.a);
+        MilitaryUnit initiator = null;
+        for (MilitaryUnitType type : types) {
+            MilitaryUnit unit = switch (type) {
+                case SWORDSMAN -> new Swordsman(fixture.a);
+                case ARCHER -> new Archer(fixture.a);
+                case CAVALRY -> new Cavalry(fixture.a);
+                case CATAPULT -> new Catapult(fixture.a);
+            };
+            fixture.add(attackers, unit);
+            if (initiator == null && type != MilitaryUnitType.CATAPULT) initiator = unit;
+        }
+        MilitaryHex defenders = fixture.hexAt(fixture.b);
+        fixture.add(defenders, new Swordsman(fixture.b));
+        List<Integer> attackRolls = new ArrayList<>();
+        for (int i = 0; i < expected; i++) attackRolls.add(6);
+        ScriptedRoller roller = new ScriptedRoller(attackRolls, Arrays.asList(1));
+        fixture.service(roller).resolve(CombatRequest.military(initiator, attackers, defenders));
+        require(roller.counts.equals(Arrays.asList(expected, 1)),
+                Arrays.toString(types) + " must produce exactly " + expected + " attack die/dice");
     }
 
     private static void distinctTypesWallValuesAndDamagePriority() {
@@ -90,6 +125,38 @@ public final class CombatRulesTest {
                 "every participating Archer spends AP");
         require(catapult.getCurrentAP() == catapult.getMaxAP(),
                 "Catapult does not participate in range-two anti-unit combat");
+    }
+
+    private static void structureDamageAggregatesAtEveryStep() {
+        require(resolveStructureDamage(MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER) == 16,
+                "Sword + Archer must deal exactly 16 structure damage");
+        require(resolveStructureDamage(MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER,
+                        MilitaryUnitType.CAVALRY) == 24,
+                "Sword + Archer + Cavalry must deal exactly 24 structure damage");
+        require(resolveStructureDamage(MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER,
+                        MilitaryUnitType.CAVALRY, MilitaryUnitType.CATAPULT) == 44,
+                "Sword + Archer + Cavalry + Catapult must deal exactly 44 structure damage");
+    }
+
+    private static int resolveStructureDamage(MilitaryUnitType... types) {
+        Fixture fixture = new Fixture();
+        MilitaryHex attackers = fixture.hexAt(fixture.a);
+        MilitaryUnit initiator = null;
+        for (MilitaryUnitType type : types) {
+            MilitaryUnit unit = switch (type) {
+                case SWORDSMAN -> new Swordsman(fixture.a);
+                case ARCHER -> new Archer(fixture.a);
+                case CAVALRY -> new Cavalry(fixture.a);
+                case CATAPULT -> new Catapult(fixture.a);
+            };
+            fixture.add(attackers, unit);
+            if (initiator == null) initiator = unit;
+        }
+        Building target = new Building(fixture.b, Constants.BuildingType.FARM);
+        fixture.player.addBuilding(target);
+        fixture.map.getHex(fixture.b).setHasBuilding(true);
+        return fixture.service(new ScriptedRoller()).resolve(
+                CombatRequest.building(initiator, attackers, target, null)).getStructureDamage();
     }
 
     private static void structuresAggregateAndUseDestructionLifecycle() {
