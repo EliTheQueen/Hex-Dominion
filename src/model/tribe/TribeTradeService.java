@@ -46,12 +46,7 @@ public class TribeTradeService implements java.io.Serializable {
             return false;
         }
 
-        TradePolicy policy =
-                policyFactory.create(
-                        tribe.getType()
-                );
-        int bonus = missionTradeBonusPercent.getOrDefault(tribe.getId(), 0);
-        if (bonus > 0) policy = new model.trade.TradeRateBonusPolicy(policy, bonus);
+        TradePolicy policy = createPolicy(tribe);
 
         boolean completed =
                 tradeService.complete(
@@ -80,5 +75,22 @@ public class TribeTradeService implements java.io.Serializable {
 
     public void clearTribeState(Tribe tribe) {
         if (tribe != null) missionTradeBonusPercent.remove(tribe.getId());
+    }
+
+    public boolean allowsTrade(Tribe tribe, Constants.ResourceType sell,
+                               Constants.ResourceType buy) {
+        if (tribe == null || sell == null || buy == null || tribe.getType() == TribeType.WARRIOR) return false;
+        return createPolicy(tribe).allowsToTrade(sell, buy);
+    }
+
+    public int calculateReceiveAmount(Tribe tribe, int amount) {
+        if (tribe == null || amount <= 0 || tribe.getType() == TribeType.WARRIOR) return 0;
+        return createPolicy(tribe).calculateReceiveAmount(amount);
+    }
+
+    private TradePolicy createPolicy(Tribe tribe) {
+        TradePolicy policy = policyFactory.create(tribe.getType());
+        int bonus = missionTradeBonusPercent.getOrDefault(tribe.getId(), 0);
+        return bonus > 0 ? new model.trade.TradeRateBonusPolicy(policy, bonus) : policy;
     }
 }

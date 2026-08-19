@@ -31,6 +31,8 @@ import view.GamePanel;
 import view.MainWindow;
 import view.RecruitPanel;
 import view.TechPanel;
+import view.TribePanel;
+import model.tribe.Tribe;
 
 /**
  * Non-headless runtime verification for the real Swing entry point.
@@ -79,6 +81,9 @@ public final class RealSwingRuntimeTest {
             stateRef.set(state);
             verifyInitialState(state);
             verifyHudLayout(gamePanel);
+            require(gamePanel.getMissionHudPanel() != null && gamePanel.getMissionHudPanel().isShowing(),
+                    "dedicated mission HUD did not initialize");
+            render(gamePanel.getMissionHudPanel());
             render(gamePanel);
             render(gamePanel.getMapPanel());
             writeSnapshot(gamePanel, new File("/tmp/hex-dominion-real-swing.png"));
@@ -133,6 +138,7 @@ public final class RealSwingRuntimeTest {
 
         openAndCloseDialog(gamePanelRef.get(), "RECRUIT", RecruitPanel.class);
         openAndCloseDialog(gamePanelRef.get(), "RESEARCH", TechPanel.class);
+        openCampInteraction(gamePanelRef.get(), stateRef.get(), window.getController());
 
         int turnBefore = stateRef.get().getCurrentTurn();
         onEdt(() -> {
@@ -161,7 +167,7 @@ public final class RealSwingRuntimeTest {
                 + " tribes=" + state.getTribes().size());
         System.out.println("movement=" + movedUnitRef.get().getUnitType()
                 + " " + coordinateText(movedFromRef.get()) + " -> " + coordinateText(movedToRef.get()));
-        System.out.println("dialogs=RecruitPanel,TechPanel");
+        System.out.println("dialogs=RecruitPanel,TechPanel,TribePanel");
         System.out.println("uncaught=0");
 
         onEdt(() -> {
@@ -259,6 +265,50 @@ public final class RealSwingRuntimeTest {
             button.doClick();
         });
         require(observed.get(), dialogType.getSimpleName() + " did not open and render");
+    }
+
+    private static void openCampInteraction(GamePanel gamePanel, GameState state,
+                                            GameController controller) throws Exception {
+        Tribe tribe = state.getTribes().get(0);
+        AtomicBoolean observed = new AtomicBoolean(false);
+        onEdt(() -> {
+            tribe.discover();
+            state.getMap().getHex(tribe.getCampCoordinate()).setVisible(true);
+            Timer closer = new Timer(500, event -> {
+                for (Window openWindow : Window.getWindows()) {
+                    if (openWindow instanceof TribePanel && openWindow.isShowing()) {
+                        TribePanel panel = (TribePanel) openWindow;
+                        require(panel.getFocusedTribe() == tribe, "camp click focused the wrong tribe");
+                        require(panel.getDisplayedTribeCount() >= 1, "discovered tribe is absent from panel");
+                        List<JButton> actions = new ArrayList<>();
+                        collectButtons(panel, actions);
+                        require(!actions.isEmpty(), "tribe interaction has no actions");
+                        for (JButton action : actions) {
+                            if (action.getName() == null || !action.getName().startsWith("tribe-action-")) continue;
+                            require(action.getToolTipText() != null && !action.getToolTipText().isBlank(),
+                                    "tribe action lacks availability reason: " + action.getText());
+                        }
+                        require(findButton(panel, "GIFT…") != null, "gift form action missing");
+                        require(findButton(panel, "TRADE…") != null, "trade form action missing");
+                        require(findButton(panel, "DECLARE WAR") != null, "war confirmation action missing");
+                        render(panel);
+                        try {
+                            writeSnapshot(panel, new File("/tmp/hex-dominion-tribe-panel.png"));
+                        } catch (Exception failure) {
+                            throw new RuntimeException(failure);
+                        }
+                        observed.set(true);
+                        panel.dispose();
+                    }
+                }
+            });
+            closer.setRepeats(false);
+            closer.start();
+            controller.onHexClicked(tribe.getCampCoordinate());
+            gamePanel.repaintAll();
+        });
+        require(observed.get(), "clicking a visible camp did not open TribePanel");
+        require(controller.getLastOpenedTribe() == tribe, "controller did not retain opened tribe");
     }
 
     private static MainWindow waitForMainWindow() throws Exception {

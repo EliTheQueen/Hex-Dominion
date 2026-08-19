@@ -169,7 +169,9 @@ public class MapPanel extends JPanel
 
         for (Tribe tribe : gs.getTribes()) {
             Hex camp = map.getHex(tribe.getCampCoordinate());
-            if (camp != null && camp.getIsExplored()) drawTribeCamp(g2, tribe, hexToPixel(tribe.getCampCoordinate()), camp.isVisible());
+            if (camp != null && (camp.isVisible() || tribe.isOutpost() && camp.getIsExplored())) {
+                drawTribeCamp(g2, tribe, hexToPixel(tribe.getCampCoordinate()), camp.isVisible());
+            }
             for (TribeMilitaryUnit unit : tribe.getMilitaryUnits()) {
                 Hex unitHex = map.getHex(unit.getPosition());
                 if (unitHex != null && unitHex.isVisible()) {

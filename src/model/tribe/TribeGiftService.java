@@ -51,7 +51,7 @@ public class TribeGiftService implements java.io.Serializable {
         return true;
     }
 
-    private int calculateRelationGain(
+    public int calculateRelationGain(
             Constants.ResourceType resourceType,
             int amount
     ) {

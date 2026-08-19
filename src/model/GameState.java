@@ -1174,7 +1174,169 @@ public class GameState implements java.io.Serializable {
     }
 
     public List<Tribe> getTribes() { return java.util.Collections.unmodifiableList(tribes); }
+
+    /** Tribes known to the player; undiscovered camps never enter UI projections. */
+    public List<Tribe> getDiscoveredTribes() {
+        List<Tribe> result = new ArrayList<>();
+        for (Tribe tribe : tribes) if (tribe.isDiscovered()) result.add(tribe);
+        return java.util.Collections.unmodifiableList(result);
+    }
+
+    /** Current sight, distinct from permanent discovery knowledge. */
+    public boolean isTribeCurrentlyVisible(Tribe tribe) {
+        if (tribe == null || !tribe.isDiscovered()) return false;
+        Hex camp = map.getHex(tribe.getCampCoordinate());
+        return camp != null && camp.isVisible();
+    }
+
+    public List<Tribe> getVisibleTribes() {
+        List<Tribe> result = new ArrayList<>();
+        for (Tribe tribe : tribes) if (isTribeCurrentlyVisible(tribe)) result.add(tribe);
+        return java.util.Collections.unmodifiableList(result);
+    }
+
+    public Tribe getVisibleTribeAt(HexCoordinate coordinate) {
+        Tribe tribe = getTribeAt(coordinate);
+        return isTribeCurrentlyVisible(tribe) ? tribe : null;
+    }
+
     public TribeMission getMission(Tribe tribe) { return tribeMissionService.getActiveMission(tribe); }
+
+    public TribeActionAvailability getTribeActionAvailability(Tribe tribe, TribeAction action) {
+        if (tribe == null || action == null) return TribeActionAvailability.unavailable("No tribe selected");
+        if (!tribe.isDiscovered()) return TribeActionAvailability.unavailable("Tribe has not been discovered");
+        if (action == TribeAction.VIEW_ALLIANCE_BENEFIT) {
+            return TribeActionAvailability.available("View the permanent alliance reward");
+        }
+        if (tribe.isDefeated()) return TribeActionAvailability.unavailable("Camp has become an Outpost");
+        if (!isTribeCurrentlyVisible(tribe)) {
+            return TribeActionAvailability.unavailable("Camp is outside current vision");
+        }
+
+        TribeMission mission = getMission(tribe);
+        return switch (action) {
+            case GIFT -> tribe.getRelation().isEnemy()
+                    ? TribeActionAvailability.unavailable("Enemy tribes reject gifts")
+                    : TribeActionAvailability.available("Choose a resource and amount");
+            case TRADE -> {
+                if (tribe.getType() == TribeType.WARRIOR) {
+                    yield TribeActionAvailability.unavailable("Warrior tribes do not trade resources");
+                }
+                if (!tribe.getRelation().isFriendlyOrAllied()) {
+                    yield TribeActionAvailability.unavailable("Requires Friendly relation (20 or higher)");
+                }
+                if (!tribe.canTradeAt(currentTurn)) {
+                    yield TribeActionAvailability.unavailable("This tribe already traded this turn");
+                }
+                yield TribeActionAvailability.available("Choose resources and an amount");
+            }
+            case REQUEST_MISSION -> {
+                if (mission != null) yield TribeActionAvailability.unavailable("An active mission already exists");
+                if (tribe.getRelation().isEnemy() || tribe.getRelation().getScore() < 20) {
+                    yield TribeActionAvailability.unavailable("Requires Friendly relation (20 or higher)");
+                }
+                int cooldownUntil = tribeMissionCooldownUntil.getOrDefault(tribe.getId(), 0);
+                if (currentTurn < cooldownUntil) {
+                    yield TribeActionAvailability.unavailable("Mission cooldown: "
+                            + (cooldownUntil - currentTurn) + " turn(s) remaining");
+                }
+                yield TribeActionAvailability.available(offeredMissions.containsKey(tribe.getId())
+                        ? "Accept the offered mission" : "Request this tribe's mission");
+            }
+            case TURN_IN_MISSION -> {
+                if (mission == null) yield TribeActionAvailability.unavailable("No active mission");
+                mission.refreshCompletionState();
+                if (mission.getStatus() != TribeMissionStatus.READY_TO_TURN_IN) {
+                    yield TribeActionAvailability.unavailable("Mission objective is not complete");
+                }
+                if (!player.canStore(mission.getReward().getResources())) {
+                    yield TribeActionAvailability.unavailable("Insufficient storage for the mission reward");
+                }
+                yield TribeActionAvailability.available("Claim mission reward");
+            }
+            case CANCEL_MISSION -> mission == null
+                    ? TribeActionAvailability.unavailable("No active mission")
+                    : TribeActionAvailability.available("Cancel mission (-5 relation)");
+            case REQUEST_ALLIANCE -> {
+                refreshAllianceState(tribe);
+                if (tribeAllianceRegistry.isAlliedWith(tribe)) {
+                    yield TribeActionAvailability.unavailable("Alliance is already active");
+                }
+                if (tribe.getRelation().getScore() < 70) {
+                    yield TribeActionAvailability.unavailable("Requires 70 relation");
+                }
+                Integer failureTurn = tribeMissionFailureTurn.get(tribe.getId());
+                if (failureTurn != null && currentTurn - failureTurn < 5) {
+                    yield TribeActionAvailability.unavailable("Blocked for five turns after mission failure");
+                }
+                if (!tribeAllianceRegistry.canAllyWith(tribe)) {
+                    yield TribeActionAvailability.unavailable("Conflicts with an existing alliance");
+                }
+                yield TribeActionAvailability.available("Form alliance and activate its permanent benefit");
+            }
+            case DECLARE_WAR -> tribe.getRelation().isEnemy()
+                    ? TribeActionAvailability.unavailable("Already at war")
+                    : TribeActionAvailability.available("Declare war (confirmation required)");
+            case REQUEST_PEACE -> {
+                if (!tribe.getRelation().isEnemy()) yield TribeActionAvailability.unavailable("Peace is only available at war");
+                if (tribePeaceService.isPeacePending(tribe)) {
+                    yield TribeActionAvailability.unavailable("Peace already pending: "
+                            + tribePeaceService.getPeacefulTurns(tribe) + "/"
+                            + tribePeaceService.getRequiredPeacefulTurns() + " peaceful turns");
+                }
+                if (!player.canAfford(tribePeaceService.getPeaceCost())) {
+                    yield TribeActionAvailability.unavailable("Requires 30 Food, 30 Wood, and 30 Iron");
+                }
+                yield TribeActionAvailability.available("Pay 30 Food, 30 Wood, and 30 Iron");
+            }
+            case VIEW_ALLIANCE_BENEFIT -> throw new IllegalStateException("handled above");
+        };
+    }
+
+    public TribeActionAvailability getGiftAvailability(Tribe tribe, Constants.ResourceType resource,
+                                                        int amount) {
+        TribeActionAvailability base = getTribeActionAvailability(tribe, TribeAction.GIFT);
+        if (!base.isAvailable()) return base;
+        if (resource == null) return TribeActionAvailability.unavailable("Choose a gift resource");
+        if (amount <= 0) return TribeActionAvailability.unavailable("Gift amount must be positive");
+        if (tribeGiftService.calculateRelationGain(resource, amount) <= 0) {
+            return TribeActionAvailability.unavailable(resource == Constants.ResourceType.IRON
+                    ? "Iron gifts must be at least 5" : "This gift must be at least 10");
+        }
+        if (!player.canAfford(resourceAmount(resource, amount))) {
+            return TribeActionAvailability.unavailable("Not enough " + resource.name());
+        }
+        return TribeActionAvailability.available("Send gift");
+    }
+
+    public TribeActionAvailability getTradeAvailability(Tribe tribe, Constants.ResourceType sell,
+                                                         Constants.ResourceType buy, int amount) {
+        TribeActionAvailability base = getTribeActionAvailability(tribe, TribeAction.TRADE);
+        if (!base.isAvailable()) return base;
+        if (sell == null || buy == null) return TribeActionAvailability.unavailable("Choose both resources");
+        if (amount <= 0) return TribeActionAvailability.unavailable("Trade amount must be positive");
+        if (!tribeTradeService.allowsTrade(tribe, sell, buy)) {
+            return TribeActionAvailability.unavailable("That tribe does not offer the selected output resource");
+        }
+        int received = tribeTradeService.calculateReceiveAmount(tribe, amount);
+        if (received <= 0) return TribeActionAvailability.unavailable("Amount is too small for this trade rate");
+        if (!player.canAfford(resourceAmount(sell, amount))) {
+            return TribeActionAvailability.unavailable("Not enough " + sell.name());
+        }
+        if (!player.canStore(resourceAmount(buy, received))) {
+            return TribeActionAvailability.unavailable("Insufficient storage for " + received + " " + buy.name());
+        }
+        return TribeActionAvailability.available("Receive " + received + " " + buy.name());
+    }
+
+    private ResourceAmount resourceAmount(Constants.ResourceType type, int amount) {
+        return switch (type) {
+            case FOOD -> ResourceAmount.of(amount, 0, 0, 0);
+            case WOOD -> ResourceAmount.of(0, amount, 0, 0);
+            case STONE -> ResourceAmount.of(0, 0, amount, 0);
+            case IRON -> ResourceAmount.of(0, 0, 0, amount);
+        };
+    }
 
     public boolean giftTribe(Tribe tribe, Constants.ResourceType resource, int amount) {
         boolean sent = tribeGiftService.sendGift(player, tribe, resource, amount);
@@ -1467,7 +1629,9 @@ public class GameState implements java.io.Serializable {
         int index = 0;
         for (Hex hex : map.getAllHexes()) {
             if (index >= types.length) break;
-            if (hex.getCoordinate().distanceTo(townHallPos) < 4
+            // Starting Explorer can see three hexes from an adjacent spawn, so
+            // distance five is the minimum that keeps every camp initially hidden.
+            if (hex.getCoordinate().distanceTo(townHallPos) < 5
                     || hex.getTerrainType() == Constants.TerrainType.SEA
                     || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE
                     || map.hasTradingPost(hex.getCoordinate()) || hex.hasNaturalResource()) continue;

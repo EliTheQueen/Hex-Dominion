@@ -12,6 +12,7 @@ import javax.swing.JPanel;
 
 import controller.GameController;
 import model.combat.CombatReport;
+import model.tribe.Tribe;
 
 public class MainWindow extends JFrame {
     private final CardLayout cardLayout;
@@ -92,5 +93,9 @@ public class MainWindow extends JFrame {
 
     public void showCombatReport(CombatReport report) {
         new CombatOverlay(this, report).setVisible(true);
+    }
+
+    public void showTribePanel(Tribe focusedTribe) {
+        new TribePanel(controller, this, focusedTribe).setVisible(true);
     }
 }

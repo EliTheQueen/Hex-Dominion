@@ -16,6 +16,7 @@ public class GamePanel extends JPanel {
     private final MapPanel mapPanel;
     private final HudPanel hudPanel;
     private final SidePanel sidePanel;
+    private final MissionHudPanel missionHudPanel;
 
     public GamePanel(GameController controller, MainWindow mainWindow) {
         this.controller = controller;
@@ -25,10 +26,12 @@ public class GamePanel extends JPanel {
         mapPanel = new MapPanel(controller, this);
         hudPanel = new HudPanel(controller, this);
         sidePanel = new SidePanel(controller, this);
+        missionHudPanel = new MissionHudPanel(controller);
 
         add(hudPanel, BorderLayout.NORTH);
         add(mapPanel, BorderLayout.CENTER);
         add(sidePanel, BorderLayout.EAST);
+        add(missionHudPanel, BorderLayout.WEST);
 
         // ESC deselects the current unit.
         getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
@@ -45,9 +48,11 @@ public class GamePanel extends JPanel {
         mapPanel.repaint();
         hudPanel.update();
         sidePanel.update();
+        missionHudPanel.update();
     }
 
     public MapPanel getMapPanel() { return mapPanel; }
     public HudPanel getHudPanel() { return hudPanel; }
     public SidePanel getSidePanel() { return sidePanel; }
+    public MissionHudPanel getMissionHudPanel() { return missionHudPanel; }
 }

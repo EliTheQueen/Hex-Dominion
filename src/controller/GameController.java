@@ -43,6 +43,7 @@ public class GameController {
     private BuildingType pendingBuildType;
     private boolean buildMode;
     private String statusMessage = "";
+    private Tribe lastOpenedTribe;
     private final SaveManager saveManager = new SaveManager(Paths.get("saves"));
 
     public GameController() {}
@@ -72,22 +73,20 @@ public class GameController {
 
         Player player = gameState.getPlayer();
 
+        Tribe visibleTribe = gameState.getVisibleTribeAt(coord);
+        if (visibleTribe != null) {
+            selectedHex = coord;
+            lastOpenedTribe = visibleTribe;
+            if (mainWindow != null) mainWindow.showTribePanel(visibleTribe);
+            return;
+        }
+
         if (selectedUnit instanceof MilitaryUnit) {
             Bear bear = gameState.getBearAt(coord);
             if (bear != null) {
                 CombatReport report = gameState.attackBear((MilitaryUnit) selectedUnit, bear);
                 if (report != null) {
                     statusMessage = report.getCasualty();
-                    if (mainWindow != null) mainWindow.showCombatReport(report);
-                    return;
-                }
-            }
-            Tribe targetTribe = gameState.getTribeAt(coord);
-            if (targetTribe != null) {
-                CombatReport report = gameState.attackTribeCamp((MilitaryUnit) selectedUnit, targetTribe);
-                if (report != null) {
-                    statusMessage = report.isStructureAttack() ? "Structure hit for " + report.getStructureDamage()
-                            : report.getCasualty();
                     if (mainWindow != null) mainWindow.showCombatReport(report);
                     return;
                 }
@@ -429,20 +428,74 @@ public class GameController {
     }
 
     public boolean giftTribe(Tribe tribe, Constants.ResourceType resource, int amount) {
+        TribeActionAvailability availability = gameState.getGiftAvailability(tribe, resource, amount);
+        if (!availability.isAvailable()) { statusMessage = availability.getReason(); return false; }
         boolean ok = gameState.giftTribe(tribe, resource, amount);
-        statusMessage = ok ? "Gift sent to " + tribe.getName() : "Gift unavailable"; return ok;
+        statusMessage = ok ? "Gift sent to " + tribe.getName() : "Gift could not be completed"; return ok;
     }
     public boolean tradeWithTribe(Tribe tribe, Constants.ResourceType sell,
                                   Constants.ResourceType buy, int amount) {
+        TribeActionAvailability availability = gameState.getTradeAvailability(tribe, sell, buy, amount);
+        if (!availability.isAvailable()) { statusMessage = availability.getReason(); return false; }
         boolean ok = gameState.tradeWithTribe(tribe, sell, buy, amount);
-        statusMessage = ok ? "Tribe trade completed" : "Tribe trade unavailable"; return ok;
+        statusMessage = ok ? "Tribe trade completed" : "Tribe trade could not be completed"; return ok;
     }
-    public MissionActionResult requestMission(Tribe tribe) { return gameState.requestMission(tribe); }
-    public MissionActionResult turnInMission(Tribe tribe) { return gameState.turnInMission(tribe); }
-    public MissionActionResult cancelMission(Tribe tribe) { return gameState.cancelMission(tribe); }
-    public DiplomacyResult declareWar(Tribe tribe) { return gameState.declareWar(tribe); }
-    public DiplomacyResult requestPeace(Tribe tribe) { return gameState.requestPeace(tribe); }
-    public DiplomacyResult requestAlliance(Tribe tribe) { return gameState.requestAlliance(tribe); }
+    public MissionActionResult requestMission(Tribe tribe) {
+        MissionActionResult result = gameState.requestMission(tribe);
+        statusMessage = "Mission: " + result.name().replace('_', ' '); return result;
+    }
+    public MissionActionResult turnInMission(Tribe tribe) {
+        MissionActionResult result = gameState.turnInMission(tribe);
+        statusMessage = "Mission turn-in: " + result.name().replace('_', ' '); return result;
+    }
+    public MissionActionResult cancelMission(Tribe tribe) {
+        MissionActionResult result = gameState.cancelMission(tribe);
+        statusMessage = "Mission cancellation: " + result.name().replace('_', ' '); return result;
+    }
+    public DiplomacyResult declareWar(Tribe tribe) {
+        DiplomacyResult result = gameState.declareWar(tribe);
+        statusMessage = "War: " + result.name().replace('_', ' '); return result;
+    }
+    public DiplomacyResult requestPeace(Tribe tribe) {
+        DiplomacyResult result = gameState.requestPeace(tribe);
+        statusMessage = result == DiplomacyResult.SUCCESS ? "Peace request pending"
+                : "Peace: " + result.name().replace('_', ' '); return result;
+    }
+    public DiplomacyResult requestAlliance(Tribe tribe) {
+        DiplomacyResult result = gameState.requestAlliance(tribe);
+        statusMessage = "Alliance: " + result.name().replace('_', ' '); return result;
+    }
+
+    public CombatReport attackSelectedTribeCamp(Tribe tribe) {
+        if (!(selectedUnit instanceof MilitaryUnit)) {
+            statusMessage = "Select a military unit first";
+            return null;
+        }
+        CombatReport report = gameState.attackTribeCamp((MilitaryUnit) selectedUnit, tribe);
+        if (report == null) {
+            statusMessage = "Selected military unit cannot attack this camp";
+            return null;
+        }
+        statusMessage = report.isStructureAttack() ? "Structure hit for " + report.getStructureDamage()
+                : report.getCasualty();
+        if (mainWindow != null) mainWindow.showCombatReport(report);
+        return report;
+    }
+
+    public TribeActionAvailability getTribeActionAvailability(Tribe tribe, TribeAction action) {
+        return gameState.getTribeActionAvailability(tribe, action);
+    }
+
+    public TribeActionAvailability getGiftAvailability(Tribe tribe, Constants.ResourceType resource, int amount) {
+        return gameState.getGiftAvailability(tribe, resource, amount);
+    }
+
+    public TribeActionAvailability getTradeAvailability(Tribe tribe, Constants.ResourceType sell,
+                                                         Constants.ResourceType buy, int amount) {
+        return gameState.getTradeAvailability(tribe, sell, buy, amount);
+    }
+
+    public Tribe getLastOpenedTribe() { return lastOpenedTribe; }
 
     /** Hexes the selected unit can reach this turn (used to tint the map green). */
     public List<HexCoordinate> getReachableHexes() {

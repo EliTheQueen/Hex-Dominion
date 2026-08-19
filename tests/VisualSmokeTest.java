@@ -40,6 +40,9 @@ public final class VisualSmokeTest {
             require(output.isFile() && output.length() > 0, season + " render was not written");
         }
         System.out.println("VisualSmokeTest passed");
+        // MapPanel owns animation timers; terminate this isolated smoke-test JVM
+        // after all frames have been rendered so suite runners do not linger.
+        System.exit(0);
     }
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
