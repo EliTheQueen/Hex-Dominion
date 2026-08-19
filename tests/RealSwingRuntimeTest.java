@@ -5,6 +5,7 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +31,7 @@ import model.season.Season;
 import view.GamePanel;
 import view.MainWindow;
 import view.RecruitPanel;
+import view.SaveLoadDialog;
 import view.TechPanel;
 import view.TribePanel;
 import model.tribe.Tribe;
@@ -59,6 +61,8 @@ public final class RealSwingRuntimeTest {
             if (previous != null) previous.uncaughtException(thread, failure);
         });
 
+        System.setProperty("hex.dominion.saveDir",
+                Files.createTempDirectory("hex-dominion-swing-saves").toString());
         Main.main(new String[0]);
         MainWindow window = waitForMainWindow();
 
@@ -138,6 +142,7 @@ public final class RealSwingRuntimeTest {
 
         openAndCloseDialog(gamePanelRef.get(), "RECRUIT", RecruitPanel.class);
         openAndCloseDialog(gamePanelRef.get(), "RESEARCH", TechPanel.class);
+        openSaveDialogWithDisabledReason(gamePanelRef.get(), stateRef.get());
         openCampInteraction(gamePanelRef.get(), stateRef.get(), window.getController());
 
         int turnBefore = stateRef.get().getCurrentTurn();
@@ -167,7 +172,7 @@ public final class RealSwingRuntimeTest {
                 + " tribes=" + state.getTribes().size());
         System.out.println("movement=" + movedUnitRef.get().getUnitType()
                 + " " + coordinateText(movedFromRef.get()) + " -> " + coordinateText(movedToRef.get()));
-        System.out.println("dialogs=RecruitPanel,TechPanel,TribePanel");
+        System.out.println("dialogs=RecruitPanel,TechPanel,SaveLoadDialog,TribePanel");
         System.out.println("uncaught=0");
 
         onEdt(() -> {
@@ -309,6 +314,50 @@ public final class RealSwingRuntimeTest {
         });
         require(observed.get(), "clicking a visible camp did not open TribePanel");
         require(controller.getLastOpenedTribe() == tribe, "controller did not retain opened tribe");
+    }
+
+    private static void openSaveDialogWithDisabledReason(GamePanel gamePanel, GameState state)
+            throws Exception {
+        AtomicBoolean observed = new AtomicBoolean(false);
+        onEdt(() -> {
+            state.beginCombatPresentation();
+            JButton button = findButton(gamePanel.getHudPanel(), "SAVE / LOAD");
+            require(button != null && button.isEnabled(), "SAVE / LOAD button is unavailable");
+            Timer closer = new Timer(500, event -> {
+                for (Window openWindow : Window.getWindows()) {
+                    if (openWindow instanceof SaveLoadDialog && openWindow.isShowing()) {
+                        List<JButton> buttons = new ArrayList<>();
+                        collectButtons((SaveLoadDialog) openWindow, buttons);
+                        int saveButtons = 0;
+                        for (JButton candidate : buttons) {
+                            if (candidate.getName() == null
+                                    || !candidate.getName().startsWith("save-slot-")) continue;
+                            saveButtons++;
+                            require(!candidate.isEnabled(),
+                                    "manual save must be disabled during combat presentation");
+                            require(candidate.getToolTipText() != null
+                                            && candidate.getToolTipText().toLowerCase().contains("combat"),
+                                    "disabled manual save must explain the combat phase");
+                        }
+                        require(saveButtons == 3, "expected three guarded manual save buttons");
+                        render(openWindow);
+                        try {
+                            writeSnapshot(openWindow,
+                                    new File("/tmp/hex-dominion-save-dialog.png"));
+                        } catch (Exception failure) {
+                            throw new RuntimeException(failure);
+                        }
+                        observed.set(true);
+                        openWindow.dispose();
+                    }
+                }
+            });
+            closer.setRepeats(false);
+            closer.start();
+            button.doClick();
+            state.endCombatPresentation();
+        });
+        require(observed.get(), "SaveLoadDialog did not expose disabled save reasons");
     }
 
     private static MainWindow waitForMainWindow() throws Exception {

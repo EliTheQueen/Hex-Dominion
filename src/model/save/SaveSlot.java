@@ -15,4 +15,5 @@ public enum SaveSlot {
     public String getDisplayName() { return displayName; }
     public String getFileName() { return fileName; }
     public boolean isManual() { return this != AUTOSAVE; }
+    @Override public String toString() { return displayName; }
 }

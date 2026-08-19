@@ -44,9 +44,18 @@ public class GameController {
     private boolean buildMode;
     private String statusMessage = "";
     private Tribe lastOpenedTribe;
-    private final SaveManager saveManager = new SaveManager(Paths.get("saves"));
+    private final SaveManager saveManager;
+    private String savedStateFingerprint;
 
-    public GameController() {}
+    public GameController() {
+        this(new SaveManager(Paths.get(
+                System.getProperty("hex.dominion.saveDir", "saves"))));
+    }
+
+    public GameController(SaveManager saveManager) {
+        if (saveManager == null) throw new IllegalArgumentException("save manager is required");
+        this.saveManager = saveManager;
+    }
 
     public void setMainWindow(MainWindow w) { this.mainWindow = w; }
 
@@ -57,6 +66,7 @@ public class GameController {
         pendingBuildType = null;
         buildMode = false;
         statusMessage = "";
+        savedStateFingerprint = null;
     }
 
     public GameState getGameState() { return gameState; }
@@ -87,7 +97,7 @@ public class GameController {
                 CombatReport report = gameState.attackBear((MilitaryUnit) selectedUnit, bear);
                 if (report != null) {
                     statusMessage = report.getCasualty();
-                    if (mainWindow != null) mainWindow.showCombatReport(report);
+                    presentCombatReport(report);
                     return;
                 }
             }
@@ -178,7 +188,15 @@ public class GameController {
         buildMode = false;
         pendingBuildType = null;
         statusMessage = "";
-        if (!gameState.isGameOver()) saveManager.save(SaveSlot.AUTOSAVE, "Autosave", gameState);
+        if (!gameState.isGameOver()) {
+            SaveWriteResult autosave = saveManager.saveWithResult(
+                    SaveSlot.AUTOSAVE, "Autosave", gameState);
+            if (autosave.isSuccessful()) {
+                savedStateFingerprint = saveManager.fingerprint(gameState);
+            } else {
+                statusMessage = "Autosave failed: " + autosave.getMessage();
+            }
+        }
         if (gameState.isGameOver() && mainWindow != null) {
             mainWindow.showEndGame(gameState.getFinalScore());
         }
@@ -394,9 +412,12 @@ public class GameController {
     }
 
     public boolean saveGame(SaveSlot slot, String name) {
-        boolean saved = gameState != null && saveManager.save(slot, name, gameState);
-        statusMessage = saved ? "Game saved to " + slot.getDisplayName() : "Could not save game";
-        return saved;
+        SaveWriteResult result = gameState == null
+                ? SaveWriteResult.failure("No active game to save")
+                : saveManager.saveWithResult(slot, name, gameState);
+        statusMessage = result.getMessage();
+        if (result.isSuccessful()) savedStateFingerprint = saveManager.fingerprint(gameState);
+        return result.isSuccessful();
     }
 
     public SaveLoadResult loadGame(SaveSlot slot) {
@@ -405,6 +426,7 @@ public class GameController {
             gameState = result.getGameState();
             deselectUnit();
             statusMessage = "Loaded " + slot.getDisplayName();
+            savedStateFingerprint = saveManager.fingerprint(gameState);
         } else {
             statusMessage = result.getMessage();
         }
@@ -413,6 +435,19 @@ public class GameController {
 
     public SavePreview getSavePreview(SaveSlot slot) { return saveManager.preview(slot); }
     public boolean deleteSave(SaveSlot slot) { return saveManager.delete(slot); }
+
+    public SaveAvailability getSaveAvailability() {
+        return gameState == null
+                ? SaveAvailability.disabled("Start or load a game before saving")
+                : gameState.getSaveAvailability();
+    }
+
+    public boolean hasUnsavedProgress() {
+        if (gameState == null) return false;
+        String current = saveManager.fingerprint(gameState);
+        return savedStateFingerprint == null || current == null
+                || !savedStateFingerprint.equals(current);
+    }
 
     public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy, int amount) {
         boolean ok = gameState != null && gameState.tradeAtBazaar(sell, buy, amount);
@@ -478,8 +513,18 @@ public class GameController {
         }
         statusMessage = report.isStructureAttack() ? "Structure hit for " + report.getStructureDamage()
                 : report.getCasualty();
-        if (mainWindow != null) mainWindow.showCombatReport(report);
+        presentCombatReport(report);
         return report;
+    }
+
+    private void presentCombatReport(CombatReport report) {
+        if (mainWindow == null || gameState == null || report == null) return;
+        gameState.beginCombatPresentation();
+        try {
+            mainWindow.showCombatReport(report);
+        } finally {
+            gameState.endCombatPresentation();
+        }
     }
 
     public TribeActionAvailability getTribeActionAvailability(Tribe tribe, TribeAction action) {

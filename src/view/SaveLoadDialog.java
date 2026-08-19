@@ -66,8 +66,16 @@ public final class SaveLoadDialog extends JDialog {
         card.add(Box.createVerticalGlue());
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0)); actions.setOpaque(false);
         if (canSave && slot.isManual()) {
+            SaveAvailability availability = controller.getSaveAvailability();
             JButton save = button(preview.isPresent() ? "OVERWRITE" : "SAVE", new Color(47, 91, 67));
+            save.setName("save-slot-" + slot.name());
+            save.setEnabled(availability.isEnabled());
+            save.setToolTipText(availability.getReason());
             save.addActionListener(e -> save(slot, preview.isPresent())); actions.add(save);
+            if (!availability.isEnabled()) {
+                card.add(label("<html><font color='#d6ad63'>Save unavailable:</font> "
+                        + availability.getReason() + "</html>", TEXT, Font.PLAIN, 10));
+            }
         }
         JButton load = button("LOAD", new Color(43, 76, 118));
         load.setEnabled(preview.isPresent() && !preview.isCorrupted());
@@ -89,9 +97,39 @@ public final class SaveLoadDialog extends JDialog {
     }
 
     private void load(SaveSlot slot) {
+        if (canSave && controller.hasUnsavedProgress() && !resolveUnsavedProgress()) return;
         SaveLoadResult result = controller.loadGame(slot);
         if (result.isSuccessful()) { dispose(); window.showCurrentGame(); }
         else JOptionPane.showMessageDialog(this, result.getMessage(), "Load failed", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private boolean resolveUnsavedProgress() {
+        Object[] options = {"Save", "Continue", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(this,
+                "The current game has unsaved progress. Save before loading another chronicle?",
+                "Unsaved progress", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                null, options, options[0]);
+        if (choice == 1) return true;
+        if (choice != 0) return false;
+        return saveBeforeLoad();
+    }
+
+    private boolean saveBeforeLoad() {
+        SaveSlot[] manualSlots = {SaveSlot.MANUAL_1, SaveSlot.MANUAL_2, SaveSlot.MANUAL_3};
+        SaveSlot slot = (SaveSlot) JOptionPane.showInputDialog(this,
+                "Choose a manual slot:", "Save before load", JOptionPane.QUESTION_MESSAGE,
+                null, manualSlots, manualSlots[0]);
+        if (slot == null) return false;
+        SavePreview preview = controller.getSavePreview(slot);
+        if (preview.isPresent() && JOptionPane.showConfirmDialog(this,
+                "Overwrite " + slot.getDisplayName() + "?", "Confirm overwrite",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return false;
+        String name = JOptionPane.showInputDialog(this, "Save name:", "Before load");
+        if (name == null) return false;
+        if (controller.saveGame(slot, name)) return true;
+        JOptionPane.showMessageDialog(this, controller.getStatusMessage(),
+                "Save failed", JOptionPane.ERROR_MESSAGE);
+        return false;
     }
 
     private JLabel label(String text, Color color, int style, int size) {

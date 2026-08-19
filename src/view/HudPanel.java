@@ -97,6 +97,7 @@ public class HudPanel extends JPanel {
             new TribePanel(controller, (JFrame) SwingUtilities.getWindowAncestor(this)).setVisible(true);
             gamePanel.repaintAll();
         });
+        update();
     }
 
     private JButton createBtn(String text, Color normal, Color hover) {
@@ -157,7 +158,11 @@ public class HudPanel extends JPanel {
         tribesBtn.setBounds(right - 88, 76, 88, 38);
     }
 
-    public void update() { repaint(); }
+    public void update() {
+        model.save.SaveAvailability availability = controller.getSaveAvailability();
+        saveBtn.setToolTipText("Open Save / Load. " + availability.getReason());
+        repaint();
+    }
 
     @Override
     protected void paintComponent(Graphics g) {

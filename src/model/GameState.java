@@ -37,6 +37,9 @@ import model.military.MilitaryHex;
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState implements java.io.Serializable {
 
+    /** Matches the pre-contract model graph so compatible version-2 saves can migrate. */
+    private static final long serialVersionUID = 1666278809554545114L;
+
     private final GameMap map;
     private final Player player;
     private final HexCoordinate townHallPos;
@@ -57,8 +60,9 @@ public class GameState implements java.io.Serializable {
     private DisasterEvent lastDisasterEvent;
 
     private BearAttackEvent activeBearAttack;
-    private final java.util.Map<HexCoordinate, Integer> bearAreaCooldownUntil =
+    private java.util.Map<HexCoordinate, Integer> bearAreaCooldownUntil =
             new java.util.HashMap<>();
+    private transient GamePhase gamePhase = GamePhase.STABLE;
 
     private final InfrastructureService infrastructureService;
 
@@ -70,7 +74,7 @@ public class GameState implements java.io.Serializable {
     private boolean militaryCapPenaltyApplied;
 
     private final MilitaryRecruitmentService militaryRecruitmentService;
-    private final CombatService combatService;
+    private CombatService combatService;
 
     private final TownHall townHall;
     private final TownHallCommandService townHallCommandService;
@@ -83,16 +87,16 @@ public class GameState implements java.io.Serializable {
     private final TribeTradeService tribeTradeService;
     private final TribeAllianceRegistry tribeAllianceRegistry;
     private final TribeAllianceService tribeAllianceService;
-    private final TribeAllianceBenefitService tribeAllianceBenefitService;
+    private TribeAllianceBenefitService tribeAllianceBenefitService;
     private final TribeWarService tribeWarService;
     private final TribePeaceService tribePeaceService;
     private final TribeTurnService tribeTurnService;
-    private final java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
-    private final java.util.Map<String, Integer> tribeMissionFailureTurn = new java.util.HashMap<>();
-    private final java.util.Map<String, Integer> tribeForbiddenZoneTurns = new java.util.HashMap<>();
-    private final java.util.Map<String, TribeMission> offeredMissions = new java.util.HashMap<>();
-    private final java.util.Map<String, Integer> tribeTradeOfferTurn = new java.util.HashMap<>();
-    private final java.util.List<TribeNotification> tribeNotifications = new java.util.ArrayList<>();
+    private java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> tribeMissionFailureTurn = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> tribeForbiddenZoneTurns = new java.util.HashMap<>();
+    private java.util.Map<String, TribeMission> offeredMissions = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> tribeTradeOfferTurn = new java.util.HashMap<>();
+    private java.util.List<TribeNotification> tribeNotifications = new java.util.ArrayList<>();
     private CombatReport lastTribeCombatReport;
     private int discountedDockBuilds;
 
@@ -226,6 +230,19 @@ public class GameState implements java.io.Serializable {
         if (gameOver) {
             return;
         }
+        if (getGamePhase() != GamePhase.STABLE) {
+            throw new IllegalStateException("cannot end turn during " + getGamePhase());
+        }
+
+        gamePhase = GamePhase.END_TURN;
+        try {
+            processEndTurnTransaction();
+        } finally {
+            gamePhase = GamePhase.STABLE;
+        }
+    }
+
+    private void processEndTurnTransaction() {
 
         lastTurnEvents.clear();
 
@@ -503,6 +520,40 @@ public class GameState implements java.io.Serializable {
             }
         }
         return true;
+    }
+
+    public GamePhase getGamePhase() {
+        return gamePhase == null ? GamePhase.STABLE : gamePhase;
+    }
+
+    public model.save.SaveAvailability getSaveAvailability() {
+        if (gameOver) {
+            return model.save.SaveAvailability.disabled(
+                    "Game over states cannot be saved");
+        }
+        if (getGamePhase() == GamePhase.END_TURN) {
+            return model.save.SaveAvailability.disabled(
+                    "Wait for end-of-turn processing to finish");
+        }
+        if (getGamePhase() == GamePhase.COMBAT_PRESENTATION) {
+            return model.save.SaveAvailability.disabled(
+                    "Close the combat presentation before saving");
+        }
+        return model.save.SaveAvailability.enabled(
+                "Game state is stable and ready to save");
+    }
+
+    public void beginCombatPresentation() {
+        if (getGamePhase() != GamePhase.STABLE) {
+            throw new IllegalStateException("game is already busy: " + getGamePhase());
+        }
+        gamePhase = GamePhase.COMBAT_PRESENTATION;
+    }
+
+    public void endCombatPresentation() {
+        if (getGamePhase() == GamePhase.COMBAT_PRESENTATION) {
+            gamePhase = GamePhase.STABLE;
+        }
     }
 
     private String describeDisaster(DisasterEvent disaster) {
@@ -2224,6 +2275,244 @@ public class GameState implements java.io.Serializable {
         if (building != null && building.getType() == Constants.BuildingType.TOWN_HALL) {
             building.bindTownHallProjection(townHall);
         }
+    }
+
+    /** Validates the complete persistent graph without consuming randomness. */
+    public void validatePersistentState() {
+        requirePersistent(map != null && player != null && townHallPos != null,
+                "map, player, and Town Hall position are required");
+        requirePersistent(random != null && disasterGenerator != null && combatService != null,
+                "random and simulation services are required");
+        requirePersistent(infrastructureService != null && tradeService != null
+                        && adjacencyBonusService != null && happinessService != null
+                        && militaryRecruitmentService != null && townHallCommandService != null,
+                "core services are incomplete");
+        requirePersistent(seasonCycle != null && currentTurn >= 1
+                        && seasonCycle.getCurrentTurn() == currentTurn,
+                "turn and season counters are inconsistent");
+        requirePersistent(map.containsCoordinate(townHallPos),
+                "Town Hall position is outside the map");
+
+        java.util.List<Hex> mapHexes = map.getAllHexes();
+        requirePersistent(!mapHexes.isEmpty(), "map has no hexes");
+        java.util.Set<HexCoordinate> coordinates = new java.util.HashSet<>();
+        for (Hex hex : mapHexes) {
+            requirePersistent(hex != null && hex.getCoordinate() != null
+                            && coordinates.add(hex.getCoordinate()),
+                    "map contains null or duplicate hexes");
+            requirePersistent(hex.getTerrainType() != null && hex.getBlockedTurns() >= 0,
+                    "hex terrain or blocked duration is invalid");
+            if (hex.hasRoad()) {
+                requirePersistent(hex.getTerrainType() != Constants.TerrainType.SEA
+                                && hex.getTerrainType() != Constants.TerrainType.MOUNTAIN_RANGE,
+                        "road occupies forbidden terrain");
+            }
+        }
+
+        for (Constants.ResourceType resource : Constants.ResourceType.values()) {
+            int amount = player.getResources().get(resource);
+            int capacity = player.getResources().getCap(resource);
+            requirePersistent(capacity > 0 && amount >= 0 && amount <= capacity,
+                    "resource storage is outside its capacity");
+        }
+        for (HexCoordinate coordinate : player.getTerritory()) {
+            requirePersistent(coordinate != null && map.containsCoordinate(coordinate),
+                    "territory references a missing hex");
+        }
+
+        java.util.Set<HexCoordinate> buildingCoordinates = new java.util.HashSet<>();
+        java.util.Set<Building> buildings =
+                java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Building building : player.getBuildings()) {
+            requirePersistent(building != null && building.isActive()
+                            && building.getPosition() != null
+                            && map.containsCoordinate(building.getPosition())
+                            && buildingCoordinates.add(building.getPosition())
+                            && buildings.add(building),
+                    "building list contains an invalid or duplicate structure");
+            requirePersistent(building.getCurrentHp() > 0
+                            && building.getCurrentHp() <= building.getMaxHp()
+                            && map.getHex(building.getPosition()).getHasBuilding(),
+                    "building health or map occupancy is inconsistent");
+        }
+        for (Hex hex : mapHexes) {
+            requirePersistent(hex.getHasBuilding()
+                            == buildingCoordinates.contains(hex.getCoordinate()),
+                    "map building occupancy does not match the player list");
+        }
+        Building hallBuilding = player.getBuildingAt(townHallPos);
+        requirePersistent(hallBuilding != null
+                        && hallBuilding.getType() == Constants.BuildingType.TOWN_HALL
+                        && hallBuilding.getCurrentHp() == townHall.getCurrentHp()
+                        && hallBuilding.getMaxHp() == townHall.getMaxHp(),
+                "Town Hall projection is missing or stale");
+
+        java.util.Set<Unit> units =
+                java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Unit unit : player.getUnits()) {
+            requirePersistent(unit != null && units.add(unit)
+                            && unit.getPosition() != null && map.containsCoordinate(unit.getPosition())
+                            && unit.getCurrentHp() >= 0 && unit.getCurrentHp() <= unit.getMaxHp()
+                            && unit.getCurrentAP() >= 0 && unit.getCurrentAP() <= unit.getMaxAP(),
+                    "unit state is invalid");
+            requirePersistent(unit.isAlive() == (unit.getCurrentHp() > 0),
+                    "unit life flag and health disagree");
+            if (unit instanceof Worker) {
+                Worker worker = (Worker) unit;
+                if (worker.isStationed()) {
+                    requirePersistent(buildings.contains(worker.getStationedAt())
+                                    && worker.getStationedAt().getWorkers().contains(worker),
+                            "stationed worker references a missing building");
+                }
+            }
+        }
+        for (Building building : player.getBuildings()) {
+            for (Worker worker : building.getWorkers()) {
+                requirePersistent(units.contains(worker) && worker.getStationedAt() == building,
+                        "building worker reference is not bidirectional");
+            }
+        }
+        for (ProductionTask task : player.getProductionQueue().getTasks()) {
+            requirePersistent(task != null && task.getKind() != null
+                            && task.getTotalTurns() > 0
+                            && task.getTurnsRemaining() >= 0
+                            && task.getTurnsRemaining() <= task.getTotalTurns(),
+                    "production queue contains an invalid task");
+        }
+
+        for (HexEdge edge : map.getWallEdges()) {
+            requirePersistent(edge != null && map.containsCoordinate(edge.getFirst())
+                            && map.containsCoordinate(edge.getSecond())
+                            && edge.getFirst().distanceTo(edge.getSecond()) == 1
+                            && edge.hasWall() && edge.getWall().getCurrentHp() > 0
+                            && edge.getWall().getCurrentHp() <= edge.getWall().getMaxHp(),
+                    "wall edge is invalid");
+        }
+        for (HexEdge edge : map.getRiverEdges()) {
+            requirePersistent(edge != null && map.containsCoordinate(edge.getFirst())
+                            && map.containsCoordinate(edge.getSecond())
+                            && edge.getFirst().distanceTo(edge.getSecond()) == 1,
+                    "river or bridge edge is invalid");
+        }
+
+        requirePersistent(tribes != null && tribeMissionService != null
+                        && tribeAllianceRegistry != null && tribeAllianceService != null
+                        && tribeAllianceBenefitService != null && tribePeaceService != null,
+                "tribe services are incomplete");
+        java.util.Map<String, Tribe> canonicalTribes = new java.util.HashMap<>();
+        for (Tribe tribe : tribes) {
+            requirePersistent(tribe != null && tribe.getId() != null
+                            && canonicalTribes.put(tribe.getId(), tribe) == null
+                            && map.containsCoordinate(tribe.getCampCoordinate()),
+                    "tribe identity or camp reference is invalid");
+            requirePersistent(tribe.getCurrentHp() >= 0
+                            && tribe.getCurrentHp() <= tribe.getMaxHp()
+                            && tribe.isDefeated() == (tribe.getCurrentHp() == 0)
+                            && (!tribe.isOutpost() || tribe.isDefeated()),
+                    "tribe health or defeat state is inconsistent");
+            requirePersistent(tribe.getRelation().getScore() >= TribeRelation.MIN_SCORE
+                            && tribe.getRelation().getScore() <= TribeRelation.MAX_SCORE,
+                    "tribe relation is out of range");
+            for (TribeMilitaryUnit unit : tribe.getMilitaryUnits()) {
+                requirePersistent(tribe.getId().equals(unit.getTribeId())
+                                && map.containsCoordinate(unit.getPosition()) && unit.isAlive(),
+                        "tribe military reference is invalid");
+            }
+        }
+        for (Tribe ally : tribeAllianceRegistry.getAlliedTribes()) {
+            requirePersistent(canonicalTribes.get(ally.getId()) == ally
+                            && !ally.isDefeated() && ally.getRelation().getScore() >= 70,
+                    "alliance points to a non-canonical or ineligible tribe");
+        }
+        for (java.util.Map.Entry<String, TribeMission> entry
+                : tribeMissionService.getActiveMissions().entrySet()) {
+            TribeMission mission = entry.getValue();
+            requirePersistent(mission != null && entry.getKey().equals(mission.getTribe().getId())
+                            && canonicalTribes.get(entry.getKey()) == mission.getTribe()
+                            && (mission.getStatus() == TribeMissionStatus.ACTIVE
+                            || mission.getStatus() == TribeMissionStatus.READY_TO_TURN_IN)
+                            && mission.getRemainingTurns() >= 0,
+                    "active mission has an invalid tribe or status reference");
+        }
+        for (java.util.Map.Entry<String, TribeMission> entry : offeredMissions.entrySet()) {
+            TribeMission mission = entry.getValue();
+            requirePersistent(mission != null && canonicalTribes.get(entry.getKey()) == mission.getTribe()
+                            && mission.getStatus() == TribeMissionStatus.AVAILABLE,
+                    "offered mission has an invalid tribe or status reference");
+        }
+        validateTribeKeyMap(canonicalTribes, tribeMissionCooldownUntil, "mission cooldown");
+        validateTribeKeyMap(canonicalTribes, tribeMissionFailureTurn, "mission failure");
+        validateTribeKeyMap(canonicalTribes, tribeForbiddenZoneTurns, "forbidden-zone timer");
+        validateTribeKeyMap(canonicalTribes, tribeTradeOfferTurn, "trade offer");
+
+        requirePersistent(bearAreaCooldownUntil != null, "bear area cooldown registry is missing");
+        for (java.util.Map.Entry<HexCoordinate, Integer> entry : bearAreaCooldownUntil.entrySet()) {
+            requirePersistent(entry.getKey() != null && map.containsCoordinate(entry.getKey())
+                            && entry.getValue() != null && entry.getValue() >= 1,
+                    "bear cooldown references an invalid area or turn");
+        }
+        if (activeBearAttack != null) {
+            requirePersistent(activeBearAttack.getStatus() == DisasterStatus.ACTIVE
+                            && map.containsCoordinate(activeBearAttack.getOrigin()),
+                    "active bear event has invalid status or origin");
+            for (Bear bear : activeBearAttack.getBears()) {
+                requirePersistent(bear != null && map.containsCoordinate(bear.getPosition())
+                                && map.containsCoordinate(bear.getDen()),
+                        "active bear references a missing map coordinate");
+            }
+        }
+    }
+
+    private void validateTribeKeyMap(java.util.Map<String, Tribe> canonicalTribes,
+                                     java.util.Map<String, Integer> values, String label) {
+        requirePersistent(values != null, label + " registry is missing");
+        for (java.util.Map.Entry<String, Integer> entry : values.entrySet()) {
+            requirePersistent(canonicalTribes.containsKey(entry.getKey())
+                            && entry.getValue() != null,
+                    label + " references an unknown tribe");
+        }
+    }
+
+    private static void requirePersistent(boolean condition, String message) {
+        if (!condition) throw new IllegalStateException(message);
+    }
+
+    /** Applies only explicit compatible-version defaults; it never rolls RNG. */
+    public void migratePersistentState(int sourceVersion) {
+        if (sourceVersion != 2) {
+            throw new IllegalArgumentException("unsupported migration source " + sourceVersion);
+        }
+        if (bearAreaCooldownUntil == null) bearAreaCooldownUntil = new java.util.HashMap<>();
+        if (tribeMissionCooldownUntil == null) tribeMissionCooldownUntil = new java.util.HashMap<>();
+        if (tribeMissionFailureTurn == null) tribeMissionFailureTurn = new java.util.HashMap<>();
+        if (tribeForbiddenZoneTurns == null) tribeForbiddenZoneTurns = new java.util.HashMap<>();
+        if (offeredMissions == null) offeredMissions = new java.util.HashMap<>();
+        if (tribeTradeOfferTurn == null) tribeTradeOfferTurn = new java.util.HashMap<>();
+        if (tribeNotifications == null) tribeNotifications = new java.util.ArrayList<>();
+        if (combatService == null) {
+            combatService = new CombatService(map, player, new DiceRoller(random),
+                    new MilitaryDamageHandler());
+        }
+        if (tribeAllianceBenefitService == null) {
+            tribeAllianceBenefitService = new TribeAllianceBenefitService(tribeAllianceRegistry);
+        }
+        gamePhase = GamePhase.STABLE;
+    }
+
+    /** Recomputes projections after validation without advancing or randomizing state. */
+    public void prepareAfterLoad() {
+        gamePhase = GamePhase.STABLE;
+        if (bearAreaCooldownUntil == null) bearAreaCooldownUntil = new java.util.HashMap<>();
+        syncTownHallBuildingFromDomain();
+        applyTownHallGarrisonHappiness();
+        updateVisibility();
+        bearAreaCooldownUntil.entrySet().removeIf(entry -> entry.getValue() <= currentTurn);
+    }
+
+    private void readObject(java.io.ObjectInputStream input)
+            throws java.io.IOException, ClassNotFoundException {
+        input.defaultReadObject();
+        gamePhase = GamePhase.STABLE;
     }
 
     private final class TrainingCommand extends model.townhall.AbstractProductionCommand {
