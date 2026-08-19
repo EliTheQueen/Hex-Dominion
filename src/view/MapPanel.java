@@ -877,11 +877,23 @@ public class MapPanel extends JPanel
             double dx=pb.getX()-pa.getX(), dy=pb.getY()-pa.getY(), len=Math.max(1,Math.hypot(dx,dy));
             double px=-dy/len, py=dx/len, half=hexSize*.48;
             float hp=edge.getWall().getCurrentHp()/(float)edge.getWall().getMaxHp();
-            g2.setColor(hp > .5f ? new Color(177, 174, 163) : new Color(143, 104, 89));
-            g2.setStroke(new BasicStroke(7f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
-            g2.draw(new java.awt.geom.Line2D.Double(mx-px*half,my-py*half,mx+px*half,my+py*half));
-            g2.setColor(new Color(68,64,62)); g2.setStroke(new BasicStroke(1.2f));
-            for(int i=-2;i<=2;i++){double ox=px*i*half/2.3,oy=py*i*half/2.3;g2.drawOval((int)(mx+ox-3),(int)(my+oy-3),6,6);}
+            Color stone = hp > .5f ? new Color(188, 187, 177) : new Color(153, 111, 94);
+            java.awt.geom.AffineTransform old = g2.getTransform();
+            g2.translate(mx, my);
+            g2.rotate(Math.atan2(py, px));
+            g2.setColor(new Color(28, 26, 28, 115));
+            g2.fillRoundRect((int)-half, -2, (int)(half * 2), 10, 4, 4);
+            int blockW = Math.max(7, (int)(half * 2 / 5.4));
+            for (int i = -2; i <= 2; i++) {
+                int bx = (int)(i * half / 2.45) - blockW / 2;
+                g2.setPaint(new GradientPaint(bx, -7, stone.brighter(), bx, 6, stone.darker()));
+                g2.fillRoundRect(bx, -7 + Math.abs(i % 2), blockW, 12, 3, 3);
+                g2.setColor(new Color(63, 59, 57, 185));
+                g2.drawRoundRect(bx, -7 + Math.abs(i % 2), blockW, 12, 3, 3);
+            }
+            g2.setColor(new Color(226, 222, 205, 105));
+            g2.drawLine((int)-half + 3, -6, (int)half - 3, -6);
+            g2.setTransform(old);
         }
         g2.setStroke(new BasicStroke(1f));
     }
@@ -1468,15 +1480,18 @@ public class MapPanel extends JPanel
     }
 
     private void drawHealthBar(Graphics2D g2, int cx, int y, int hp, int maxHp) {
-        int w = 34, h = 5;
+        int w = 36, h = 6;
         float pct = maxHp > 0 ? Math.max(0f, Math.min(1f, hp / (float) maxHp)) : 0f;
-        g2.setColor(new Color(25, 22, 25, 210));
-        g2.fillRect(cx - w / 2, y, w, h);
-        g2.setColor(pct > .55f ? new Color(70, 205, 85) : pct > .25f
-                ? new Color(235, 175, 45) : new Color(225, 65, 60));
-        g2.fillRect(cx - w / 2, y, (int) (w * pct), h);
-        g2.setColor(new Color(245, 245, 245, 150));
-        g2.drawRect(cx - w / 2, y, w, h);
+        g2.setColor(new Color(0, 0, 0, 90));
+        g2.fillRoundRect(cx - w / 2 + 1, y + 2, w, h, 6, 6);
+        g2.setColor(new Color(18, 18, 25, 225));
+        g2.fillRoundRect(cx - w / 2, y, w, h, 6, 6);
+        Color fill = pct > .55f ? new Color(70, 205, 85) : pct > .25f
+                ? new Color(235, 175, 45) : new Color(225, 65, 60);
+        g2.setPaint(new GradientPaint(cx - w / 2, y, fill.brighter(), cx + w / 2, y, fill.darker()));
+        g2.fillRoundRect(cx - w / 2, y, (int) (w * pct), h, 6, 6);
+        g2.setColor(new Color(245, 245, 245, 115));
+        g2.drawRoundRect(cx - w / 2, y, w, h, 6, 6);
     }
 
     private void drawTownHall(Graphics2D g2, int cx, int cy, boolean vis) {
@@ -1511,15 +1526,22 @@ public class MapPanel extends JPanel
     }
 
     private void drawFarm(Graphics2D g2, int cx, int cy, boolean vis) {
-        g2.setColor(vis ? new Color(120, 80, 40) : new Color(80, 55, 28));
-        g2.fillRect(cx - 13, cy - 11, 26, 22);
-        g2.setColor(vis ? new Color(100, 210, 60) : new Color(60, 130, 40));
-        for (int i = 0; i < 3; i++) {
-            g2.fillRect(cx - 11, cy - 9 + i * 7, 22, 4);
+        Color soil = vis ? new Color(132, 86, 47) : new Color(82, 61, 39);
+        Color crop = vis ? new Color(142, 190, 69) : new Color(81, 116, 56);
+        g2.setColor(new Color(0, 0, 0, 70));
+        g2.fillOval(cx - 22, cy + 12, 44, 8);
+        java.awt.geom.Path2D field = new java.awt.geom.Path2D.Double();
+        field.moveTo(cx - 20, cy - 12); field.lineTo(cx + 16, cy - 9);
+        field.lineTo(cx + 21, cy + 14); field.lineTo(cx - 17, cy + 12); field.closePath();
+        g2.setPaint(new GradientPaint(cx, cy - 12, soil.brighter(), cx, cy + 15, soil.darker()));
+        g2.fill(field); g2.setColor(soil.darker()); g2.draw(field);
+        g2.setStroke(new BasicStroke(2.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        for (int i = 0; i < 4; i++) {
+            int y = cy - 7 + i * 6;
+            g2.setColor(new Color(72, 49, 33, 170)); g2.drawLine(cx - 15, y + 2, cx + 16, y + 4);
+            g2.setColor(crop); g2.drawLine(cx - 14, y, cx + 15, y + 2);
         }
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 8));
-        g2.drawString("FM", cx - 8, cy + 9);
+        g2.setStroke(new BasicStroke(1f));
     }
 
     private void drawStoneMine(Graphics2D g2, int cx, int cy, boolean vis) {
@@ -1549,18 +1571,25 @@ public class MapPanel extends JPanel
     }
 
     private void drawTownship(Graphics2D g2, int cx, int cy, boolean vis) {
-        Color c = vis ? new Color(186, 164, 84) : new Color(112, 96, 50);
-        g2.setColor(c);
-        g2.fillRect(cx - 14, cy - 6, 10, 12);
-        g2.fillRect(cx - 2, cy - 10, 12, 16);
-        g2.fillRect(cx + 6, cy - 4, 9, 10);
-        g2.setColor(c.darker());
-        g2.drawRect(cx - 14, cy - 6, 10, 12);
-        g2.drawRect(cx - 2, cy - 10, 12, 16);
-        g2.drawRect(cx + 6, cy - 4, 9, 10);
-        g2.setColor(Color.BLACK);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 7));
-        g2.drawString("TWN", cx - 11, cy + 10);
+        Color plaster = vis ? new Color(211, 188, 126) : new Color(126, 116, 83);
+        Color roof = vis ? new Color(151, 73, 54) : new Color(91, 61, 52);
+        g2.setColor(new Color(0, 0, 0, 80));
+        g2.fillOval(cx - 25, cy + 11, 50, 9);
+        int[][] homes = {{-15, 0, 11, 14}, {-2, -7, 14, 21}, {13, 2, 10, 12}};
+        for (int[] home : homes) {
+            int x = cx + home[0], y = cy + home[1], w = home[2], h = home[3];
+            g2.setPaint(new GradientPaint(x, y, plaster.brighter(), x + w, y + h, plaster.darker()));
+            g2.fillRoundRect(x - w / 2, y - h / 2, w, h, 2, 2);
+            g2.setColor(roof);
+            g2.fillPolygon(new int[]{x - w / 2 - 2, x, x + w / 2 + 2},
+                    new int[]{y - h / 2, y - h / 2 - 7, y - h / 2}, 3);
+            g2.setColor(new Color(68, 49, 39));
+            g2.fillRoundRect(x - 2, y + h / 2 - 7, 4, 7, 2, 2);
+            if (vis && w > 10) {
+                g2.setColor(new Color(244, 202, 87));
+                g2.fillRect(x + 3, y - 1, 3, 3);
+            }
+        }
     }
 
     // ---- Units -------------------------------------------------------------
@@ -1678,10 +1707,20 @@ public class MapPanel extends JPanel
     private void drawSelectionGlow(Graphics2D g2, Point2D center) {
         float pulse = 0.5f + 0.5f * (float) Math.sin(selectionPulse);
         int r = (int) (hexSize * 0.72);
-        float alpha = 0.35f + 0.35f * pulse;
-        g2.setColor(new Color(1f, 0.9f, 0.2f, Math.min(1f, alpha)));
-        g2.setStroke(new BasicStroke(3f + pulse * 2f));
+        float alpha = 0.3f + 0.34f * pulse;
+        g2.setColor(new Color(1f, .84f, .12f, .07f + .08f * pulse));
+        g2.fillOval((int) (center.getX() - r - 7), (int) (center.getY() - r - 7),
+                (r + 7) * 2, (r + 7) * 2);
+        g2.setColor(new Color(1f, 0.88f, 0.2f, Math.min(1f, alpha)));
+        g2.setStroke(new BasicStroke(2.2f + pulse * 1.6f));
         g2.drawOval((int) (center.getX() - r), (int) (center.getY() - r), r * 2, r * 2);
+        g2.setColor(new Color(255, 239, 130, 180));
+        g2.setStroke(new BasicStroke(1.2f));
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        g2.drawLine(cx - r - 5, cy, cx - r + 3, cy);
+        g2.drawLine(cx + r - 3, cy, cx + r + 5, cy);
+        g2.drawLine(cx, cy - r - 5, cx, cy - r + 3);
+        g2.drawLine(cx, cy + r - 3, cx, cy + r + 5);
         g2.setStroke(new BasicStroke(1f));
     }
 
