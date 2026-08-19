@@ -1,8 +1,16 @@
 package model;
 
 import model.disaster.*;
-import model.happiness.*;
+import model.happiness.HappinessEventType;
+import model.happiness.HappinessLevel;
+import model.happiness.HappinessModifiers;
+import model.happiness.HappinessService;
+import model.happiness.HappinessTracker;
+import model.military.MilitaryRecruitmentService;
+import model.military.MilitaryUnit;
+import model.military.MilitaryUnitType;
 import model.season.SeasonCycle;
+import model.townhall.TownHallLevel;
 import model.trade.BazaarTradePolicy;
 import model.trade.TradeService;
 import model.trade.TradingPostPolicy;
@@ -47,11 +55,14 @@ public class GameState {
     private final HappinessService happinessService;
     private boolean militaryCapPenaltyApplied;
 
+    private final MilitaryRecruitmentService militaryRecruitmentService;
+
     public GameState(int mapWidth, int mapHeight) {
-        MapGenerator gen = new MapGenerator();
-        map = gen.generateMap(mapWidth, mapHeight);
+        MapGenerator generator = new MapGenerator();
+        map = generator.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");
+
         seasonCycle = new SeasonCycle();
 
         infrastructureService = new InfrastructureService(map, player);
@@ -71,15 +82,16 @@ public class GameState {
         player.addBuilding(townHall);
 
         Hex centerHex = map.getHex(center);
+
         if (centerHex != null) {
             centerHex.setHasBuilding(true);
         }
 
         player.expandTerritory(center);
 
-        for (HexCoordinate n : center.findNeighbours()) {
-            if (map.containsCoordinate(n)) {
-                player.expandTerritory(n);
+        for (HexCoordinate neighbour : center.findNeighbours()) {
+            if (map.containsCoordinate(neighbour)) {
+                player.expandTerritory(neighbour);
             }
         }
 
@@ -99,15 +111,17 @@ public class GameState {
         happinessTracker = new HappinessTracker();
         happinessService = new HappinessService(happinessTracker);
         militaryCapPenaltyApplied = false;
+
+        militaryRecruitmentService = new MilitaryRecruitmentService(player, map);
     }
 
     /** Doc start: 1 Explorer, 2 Builders, 2 Workers placed around the Town Hall. */
     private void spawnStartingUnits(HexCoordinate center) {
         List<HexCoordinate> spots = new ArrayList<>();
 
-        for (HexCoordinate n : center.findNeighbours()) {
-            if (map.containsCoordinate(n)) {
-                spots.add(n);
+        for (HexCoordinate neighbour : center.findNeighbours()) {
+            if (map.containsCoordinate(neighbour)) {
+                spots.add(neighbour);
             }
         }
 
@@ -131,44 +145,55 @@ public class GameState {
             bearAttackCooldown--;
         }
 
-        boolean profTools = player.hasProfessionalTools();
+        boolean professionalTools = player.hasProfessionalTools();
+
         applyRecurringHappiness();
+
         HappinessLevel happinessLevel = happinessService.getCurrentLevel();
 
-        // 1. Production from buildings.
-        for (Building b : player.getBuildings()) {
-            if (!b.isActive()) {
+        // 1. Production.
+        for (Building building : player.getBuildings()) {
+            if (!building.isActive()) {
                 continue;
             }
 
-            if (b.getType() == Constants.BuildingType.TOWN_HALL) {
-                player.addResources(ResourceAmount.of(
-                        Constants.TOWN_HALL_FOOD,
-                        Constants.TOWN_HALL_WOOD,
-                        0,
-                        0
-                ));
+            if (building.getType() == Constants.BuildingType.TOWN_HALL) {
+                player.addResources(
+                        ResourceAmount.of(
+                                Constants.TOWN_HALL_FOOD,
+                                Constants.TOWN_HALL_WOOD,
+                                0,
+                                0
+                        )
+                );
 
                 continue;
             }
 
-            ResourceAmount yield = b.produce(profTools);
-            Constants.ResourceType producedResource = Constants.PRODUCES.get(b.getType());
-            int adjacencyBonus = adjacencyBonusService.calculateBonus(b, player, map);
+            ResourceAmount yield = building.produce(professionalTools);
+
+            Constants.ResourceType producedResource =
+                    Constants.PRODUCES.get(building.getType());
+
+            int adjacencyBonus =
+                    adjacencyBonusService.calculateBonus(building, player, map);
 
             if (producedResource != null) {
-                int production = yield.get(producedResource) + adjacencyBonus;
+                int production =
+                        yield.get(producedResource) + adjacencyBonus;
 
-                int modifiedProduction = HappinessModifiers.applyProductionModifiers(
-                        production,
-                        b.getWorkers().size(),
-                        happinessLevel
-                );
+                int modifiedProduction =
+                        HappinessModifiers.applyProductionModifiers(
+                                production,
+                                building.getWorkers().size(),
+                                happinessLevel
+                        );
 
                 yield.set(producedResource, modifiedProduction);
             }
 
-            yield = depleteForYield(b, yield);
+            yield = depleteForYield(building, yield);
+
             player.addResources(yield);
         }
 
@@ -176,27 +201,31 @@ public class GameState {
             building.advanceTurnStatus();
         }
 
-        // 2. Town Hall production queue.
+        // 2. Production queue.
         if (!starving) {
-            ProductionTask done = player.getProductionQueue().advance();
+            ProductionTask completedTask =
+                    player.getProductionQueue().advance();
 
-            if (done != null) {
-                completeTask(done);
+            if (completedTask != null) {
+                completeTask(completedTask);
             }
         }
 
         // 3. Building upkeep.
-        for (Building b : player.getBuildings()) {
-            if (!b.isActive() || b.getType() == Constants.BuildingType.TOWN_HALL) {
+        for (Building building : player.getBuildings()) {
+            if (!building.isActive()
+                    || building.getType() == Constants.BuildingType.TOWN_HALL) {
+
                 continue;
             }
 
-            ResourceAmount upkeep = b.getUpkeepCost();
+            ResourceAmount upkeep = building.getUpkeepCost();
 
-            boolean noUpkeep = upkeep.get(Constants.ResourceType.FOOD) == 0
-                    && upkeep.get(Constants.ResourceType.WOOD) == 0
-                    && upkeep.get(Constants.ResourceType.STONE) == 0
-                    && upkeep.get(Constants.ResourceType.IRON) == 0;
+            boolean noUpkeep =
+                    upkeep.get(Constants.ResourceType.FOOD) == 0
+                            && upkeep.get(Constants.ResourceType.WOOD) == 0
+                            && upkeep.get(Constants.ResourceType.STONE) == 0
+                            && upkeep.get(Constants.ResourceType.IRON) == 0;
 
             if (noUpkeep) {
                 continue;
@@ -204,21 +233,28 @@ public class GameState {
 
             if (player.canAfford(upkeep)) {
                 player.spend(upkeep);
-                b.payUpkeep();
-            } else if (b.missUpkeep()) {
-                Hex hex = map.getHex(b.getPosition());
+                building.payUpkeep();
+            } else if (building.missUpkeep()) {
+                Hex hex = map.getHex(building.getPosition());
 
                 if (hex != null) {
                     hex.setHasBuilding(false);
                 }
 
-                lastTurnEvents.add(b.getType().name() + " fell into ruin (unpaid upkeep)");
+                lastTurnEvents.add(
+                        building.getType().name()
+                                + " fell into ruin (unpaid upkeep)"
+                );
             }
         }
 
         // 4. Food consumption and starvation.
         int unitCount = player.getUnitCount();
-        int shortage = player.getResources().forceSpendFood(unitCount * Constants.FOOD_PER_UNIT);
+
+        int shortage =
+                player.getResources().forceSpendFood(
+                        unitCount * Constants.FOOD_PER_UNIT
+                );
 
         starving = shortage > 0;
 
@@ -226,8 +262,9 @@ public class GameState {
             lastTurnEvents.add("STARVATION: food ran out");
         }
 
-        // 5. Reset AP and apply starvation + happiness penalties.
-        int happinessPenalty = HappinessModifiers.actionPointPenalty(happinessLevel);
+        // 5. Reset AP and apply penalties.
+        int happinessPenalty =
+                HappinessModifiers.actionPointPenalty(happinessLevel);
 
         for (Unit unit : player.getUnits()) {
             if (!unit.isAlive()) {
@@ -237,12 +274,22 @@ public class GameState {
             unit.resetAP();
 
             if (starving) {
-                int reduced = (int) Math.floor(unit.getMaxAP() * Constants.STARVATION_AP_FACTOR);
+                int reduced =
+                        (int) Math.floor(
+                                unit.getMaxAP()
+                                        * Constants.STARVATION_AP_FACTOR
+                        );
+
                 unit.setCurrentAP(Math.max(1, reduced));
             }
 
             if (happinessPenalty > 0) {
-                unit.setCurrentAP(Math.max(0, unit.getCurrentAP() - happinessPenalty));
+                unit.setCurrentAP(
+                        Math.max(
+                                0,
+                                unit.getCurrentAP() - happinessPenalty
+                        )
+                );
             }
 
             if (unit.getState() == Constants.UnitState.MOVING) {
@@ -277,27 +324,33 @@ public class GameState {
 
             if (activeBearAttack.shouldEnd()) {
                 activeBearAttack.complete();
+
                 lastTurnEvents.add("Bear attack ended");
+
                 activeBearAttack = null;
             }
         }
 
-        // 10. Generate disaster.
+        // 10. Disaster generation.
         if (activeBearAttack == null) {
-            DisasterEvent disaster = disasterGenerator.generate(
-                    seasonCycle.getCurrentSeason(),
-                    false,
-                    bearAttackCooldown == 0,
-                    map,
-                    player,
-                    random
-            );
+            DisasterEvent disaster =
+                    disasterGenerator.generate(
+                            seasonCycle.getCurrentSeason(),
+                            false,
+                            bearAttackCooldown == 0,
+                            map,
+                            player,
+                            random
+                    );
 
             if (disaster != null) {
                 disaster.start();
+
                 lastDisasterEvent = disaster;
 
-                lastTurnEvents.add("Disaster: " + disaster.getType().name());
+                lastTurnEvents.add(
+                        "Disaster: " + disaster.getType().name()
+                );
 
                 if (disaster instanceof BearAttackEvent) {
                     activeBearAttack = (BearAttackEvent) disaster;
@@ -308,7 +361,9 @@ public class GameState {
             }
         }
 
-        if (player.getUnitCount() == 0 && player.getActiveBuildingCount() == 0) {
+        if (player.getUnitCount() == 0
+                && player.getActiveBuildingCount() == 0) {
+
             gameOver = true;
             gameOverReason = "All units and buildings lost";
             finalScore = ScoreCalculator.calculate(player, map);
@@ -322,7 +377,9 @@ public class GameState {
             }
 
             if (building.getType() == Constants.BuildingType.MONUMENT) {
-                happinessService.applyEvent(HappinessEventType.MONUMENT_ACTIVATED);
+                happinessService.applyEvent(
+                        HappinessEventType.MONUMENT_ACTIVATED
+                );
             }
         }
     }
@@ -333,7 +390,9 @@ public class GameState {
         }
 
         if (building.getType() == Constants.BuildingType.TOWNSHIP) {
-            happinessService.applyEvent(HappinessEventType.TOWNSHIP_BUILT);
+            happinessService.applyEvent(
+                    HappinessEventType.TOWNSHIP_BUILT
+            );
         }
     }
 
@@ -342,13 +401,20 @@ public class GameState {
             return;
         }
 
-        happinessService.applyEvent(HappinessEventType.UNIT_CAP_REACHED);
+        happinessService.applyEvent(
+                HappinessEventType.UNIT_CAP_REACHED
+        );
+
         militaryCapPenaltyApplied = true;
     }
 
     /** Consumes natural resources to back the calculated production. */
-    private ResourceAmount depleteForYield(Building building, ResourceAmount yield) {
-        Constants.NaturalResourceType naturalResource = harvestResource(building);
+    private ResourceAmount depleteForYield(
+            Building building,
+            ResourceAmount yield
+    ) {
+        Constants.NaturalResourceType naturalResource =
+                harvestResource(building);
 
         if (naturalResource == Constants.NaturalResourceType.NONE) {
             return yield;
@@ -360,14 +426,17 @@ public class GameState {
             return yield;
         }
 
-        Constants.ResourceType producedResource = Constants.PRODUCES.get(building.getType());
+        Constants.ResourceType producedResource =
+                Constants.PRODUCES.get(building.getType());
 
         if (producedResource == null) {
             return yield;
         }
 
         int produced = yield.get(producedResource);
-        int available = hex.getNaturalResourceAmount(naturalResource);
+
+        int available =
+                hex.getNaturalResourceAmount(naturalResource);
 
         if (available <= 0) {
             return ResourceAmount.zero();
@@ -375,24 +444,35 @@ public class GameState {
 
         int actual = Math.min(produced, available);
 
-        hex.decreaseNaturalResource(naturalResource, actual);
+        hex.decreaseNaturalResource(
+                naturalResource,
+                actual
+        );
 
         if (hex.isResourceDepleted(naturalResource)) {
-            for (Worker worker : new ArrayList<>(building.getWorkers())) {
+            for (Worker worker :
+                    new ArrayList<>(building.getWorkers())) {
+
                 worker.unstation();
             }
 
-            lastTurnEvents.add(building.getType().name() + " exhausted its resource");
+            lastTurnEvents.add(
+                    building.getType().name()
+                            + " exhausted its resource"
+            );
         }
 
         ResourceAmount result = ResourceAmount.zero();
+
         result.set(producedResource, actual);
 
         return result;
     }
 
     /** Returns the natural resource consumed by a producing building. */
-    private Constants.NaturalResourceType harvestResource(Building building) {
+    private Constants.NaturalResourceType harvestResource(
+            Building building
+    ) {
         Hex hex = map.getHex(building.getPosition());
 
         switch (building.getType()) {
@@ -407,7 +487,9 @@ public class GameState {
 
             case FARM:
                 if (hex != null
-                        && hex.getNaturalResourceAmount(Constants.NaturalResourceType.WHEAT) > 0) {
+                        && hex.getNaturalResourceAmount(
+                        Constants.NaturalResourceType.WHEAT
+                ) > 0) {
 
                     return Constants.NaturalResourceType.WHEAT;
                 }
@@ -416,7 +498,9 @@ public class GameState {
 
             case STABLE:
                 if (hex != null
-                        && hex.getNaturalResourceAmount(Constants.NaturalResourceType.COW) > 0) {
+                        && hex.getNaturalResourceAmount(
+                        Constants.NaturalResourceType.COW
+                ) > 0) {
 
                     return Constants.NaturalResourceType.COW;
                 }
@@ -431,17 +515,26 @@ public class GameState {
     private void completeTask(ProductionTask task) {
         if (task.getKind() == ProductionTask.Kind.TECH) {
             player.applyTech(task.getTechType());
-            lastTurnEvents.add("Researched " + task.getTechType().name());
+
+            lastTurnEvents.add(
+                    "Researched " + task.getTechType().name()
+            );
+
             return;
         }
 
-        HexCoordinate position = findFreeHexNearTownHall();
+        HexCoordinate position =
+                findFreeHexNearTownHall();
 
         if (position == null) {
-            player.getProductionQueue().getTasks().add(
-                    0,
-                    ProductionTask.forUnit(task.getUnitType())
-            );
+            player.getProductionQueue()
+                    .getTasks()
+                    .add(
+                            0,
+                            ProductionTask.forUnit(
+                                    task.getUnitType()
+                            )
+                    );
 
             return;
         }
@@ -470,7 +563,10 @@ public class GameState {
         }
 
         player.addUnit(unit);
-        lastTurnEvents.add("Trained " + task.getUnitType().name());
+
+        lastTurnEvents.add(
+                "Trained " + task.getUnitType().name()
+        );
     }
 
     public HexCoordinate findFreeHexNearTownHall() {
@@ -478,14 +574,21 @@ public class GameState {
             return townHallPos;
         }
 
-        for (HexCoordinate neighbour : townHallPos.findNeighbours()) {
-            if (map.containsCoordinate(neighbour) && player.getUnitAt(neighbour) == null) {
+        for (HexCoordinate neighbour :
+                townHallPos.findNeighbours()) {
+
+            if (map.containsCoordinate(neighbour)
+                    && player.getUnitAt(neighbour) == null) {
+
                 return neighbour;
             }
         }
 
-        for (Hex hex : map.getHexesInRadius(townHallPos, 2)) {
-            HexCoordinate coordinate = hex.getCoordinate();
+        for (Hex hex :
+                map.getHexesInRadius(townHallPos, 2)) {
+
+            HexCoordinate coordinate =
+                    hex.getCoordinate();
 
             if (player.getUnitAt(coordinate) == null) {
                 return coordinate;
@@ -496,7 +599,10 @@ public class GameState {
     }
 
     /** Validates whether a building may be placed on a coordinate. */
-    public boolean canBuildAt(HexCoordinate coord, Constants.BuildingType type) {
+    public boolean canBuildAt(
+            HexCoordinate coord,
+            Constants.BuildingType type
+    ) {
         Hex hex = map.getHex(coord);
 
         if (hex == null) {
@@ -511,43 +617,69 @@ public class GameState {
             return false;
         }
 
-        if (player.getBuildingAt(coord) != null || hex.getHasBuilding()) {
+        if (player.getBuildingAt(coord) != null
+                || hex.getHasBuilding()) {
+
             return false;
         }
 
         switch (type) {
             case LUMBER_MILL:
-                return hex.hasResource(Constants.NaturalResourceType.WOOD);
+                return hex.hasResource(
+                        Constants.NaturalResourceType.WOOD
+                );
 
             case STONE_MINE:
-                return player.hasResearched(Constants.TechnologyType.STONE_MINING)
-                        && hex.hasResource(Constants.NaturalResourceType.STONE);
+                return player.hasResearched(
+                        Constants.TechnologyType.STONE_MINING
+                )
+                        && hex.hasResource(
+                        Constants.NaturalResourceType.STONE
+                );
 
             case IRON_MINE:
-                return player.hasResearched(Constants.TechnologyType.IRON_MINING)
-                        && hex.hasResource(Constants.NaturalResourceType.IRON);
+                return player.hasResearched(
+                        Constants.TechnologyType.IRON_MINING
+                )
+                        && hex.hasResource(
+                        Constants.NaturalResourceType.IRON
+                );
 
             case FARM:
-                return hex.hasResource(Constants.NaturalResourceType.WHEAT)
-                        || hex.hasResource(Constants.NaturalResourceType.RICE);
+                return hex.hasResource(
+                        Constants.NaturalResourceType.WHEAT
+                )
+                        || hex.hasResource(
+                        Constants.NaturalResourceType.RICE
+                );
 
             case STABLE:
-                return hex.hasResource(Constants.NaturalResourceType.COW)
-                        || hex.hasResource(Constants.NaturalResourceType.SHEEP);
+                return hex.hasResource(
+                        Constants.NaturalResourceType.COW
+                )
+                        || hex.hasResource(
+                        Constants.NaturalResourceType.SHEEP
+                );
 
             case TOWNSHIP:
-                return player.hasResearched(Constants.TechnologyType.TOWNSHIP)
+                return player.hasResearched(
+                        Constants.TechnologyType.TOWNSHIP
+                )
                         && !hex.everHadResource();
 
             case DOCK:
                 return map.isCoastal(coord);
 
             case MONUMENT:
-                return !player.hasBuildingType(Constants.BuildingType.MONUMENT)
+                return !player.hasBuildingType(
+                        Constants.BuildingType.MONUMENT
+                )
                         && !hex.everHadResource();
 
             case BAZAAR:
-                return !player.hasBuildingType(Constants.BuildingType.BAZAAR)
+                return !player.hasBuildingType(
+                        Constants.BuildingType.BAZAAR
+                )
                         && !hex.everHadResource();
 
             default:
@@ -555,63 +687,111 @@ public class GameState {
         }
     }
 
-    /** Projected next-turn resource change. This method does not mutate game state. */
+    /** Projected next-turn resource change. Does not mutate game state. */
     public int[] getNetRate() {
-        int[] net = new int[Constants.ResourceType.values().length];
+        int[] net =
+                new int[Constants.ResourceType.values().length];
 
-        boolean profTools = player.hasProfessionalTools();
-        HappinessLevel happinessLevel = happinessService.getCurrentLevel();
+        boolean professionalTools =
+                player.hasProfessionalTools();
 
-        net[Constants.ResourceType.FOOD.ordinal()] += Constants.TOWN_HALL_FOOD;
-        net[Constants.ResourceType.WOOD.ordinal()] += Constants.TOWN_HALL_WOOD;
+        HappinessLevel happinessLevel =
+                happinessService.getCurrentLevel();
 
-        for (Building building : player.getBuildings()) {
+        net[Constants.ResourceType.FOOD.ordinal()]
+                += Constants.TOWN_HALL_FOOD;
+
+        net[Constants.ResourceType.WOOD.ordinal()]
+                += Constants.TOWN_HALL_WOOD;
+
+        for (Building building :
+                player.getBuildings()) {
+
             if (!building.isActive()
-                    || building.getType() == Constants.BuildingType.TOWN_HALL) {
+                    || building.getType()
+                    == Constants.BuildingType.TOWN_HALL) {
 
                 continue;
             }
 
-            ResourceAmount yield = building.produce(profTools);
-            Constants.ResourceType producedResource = Constants.PRODUCES.get(building.getType());
+            ResourceAmount yield =
+                    building.produce(professionalTools);
 
-            int adjacencyBonus = adjacencyBonusService.calculateBonus(building, player, map);
+            Constants.ResourceType producedResource =
+                    Constants.PRODUCES.get(
+                            building.getType()
+                    );
+
+            int adjacencyBonus =
+                    adjacencyBonusService.calculateBonus(
+                            building,
+                            player,
+                            map
+                    );
 
             if (producedResource != null) {
-                int production = yield.get(producedResource) + adjacencyBonus;
+                int production =
+                        yield.get(producedResource)
+                                + adjacencyBonus;
 
-                int modifiedProduction = HappinessModifiers.applyProductionModifiers(
-                        production,
-                        building.getWorkers().size(),
-                        happinessLevel
+                int modifiedProduction =
+                        HappinessModifiers
+                                .applyProductionModifiers(
+                                        production,
+                                        building.getWorkers().size(),
+                                        happinessLevel
+                                );
+
+                yield.set(
+                        producedResource,
+                        modifiedProduction
                 );
-
-                yield.set(producedResource, modifiedProduction);
             }
 
-            Constants.NaturalResourceType naturalResource = harvestResource(building);
-            Hex hex = map.getHex(building.getPosition());
+            Constants.NaturalResourceType naturalResource =
+                    harvestResource(building);
+
+            Hex hex =
+                    map.getHex(building.getPosition());
 
             if (producedResource != null) {
-                int produced = yield.get(producedResource);
+                int produced =
+                        yield.get(producedResource);
 
-                if (naturalResource != Constants.NaturalResourceType.NONE && hex != null) {
-                    int available = hex.getNaturalResourceAmount(naturalResource);
-                    produced = Math.min(produced, available);
+                if (naturalResource
+                        != Constants.NaturalResourceType.NONE
+                        && hex != null) {
+
+                    int available =
+                            hex.getNaturalResourceAmount(
+                                    naturalResource
+                            );
+
+                    produced =
+                            Math.min(
+                                    produced,
+                                    available
+                            );
                 }
 
-                net[producedResource.ordinal()] += produced;
+                net[producedResource.ordinal()]
+                        += produced;
             }
 
-            ResourceAmount upkeep = building.getUpkeepCost();
+            ResourceAmount upkeep =
+                    building.getUpkeepCost();
 
-            for (Constants.ResourceType resourceType : Constants.ResourceType.values()) {
-                net[resourceType.ordinal()] -= upkeep.get(resourceType);
+            for (Constants.ResourceType resourceType :
+                    Constants.ResourceType.values()) {
+
+                net[resourceType.ordinal()]
+                        -= upkeep.get(resourceType);
             }
         }
 
-        net[Constants.ResourceType.FOOD.ordinal()] -=
-                player.getUnitCount() * Constants.FOOD_PER_UNIT;
+        net[Constants.ResourceType.FOOD.ordinal()]
+                -= player.getUnitCount()
+                * Constants.FOOD_PER_UNIT;
 
         return net;
     }
@@ -624,11 +804,16 @@ public class GameState {
                 continue;
             }
 
-            if (unit.getState() == Constants.UnitState.STATIONED) {
+            if (unit.getState()
+                    == Constants.UnitState.STATIONED) {
+
                 continue;
             }
 
-            if (unit instanceof Explorer && ((Explorer) unit).isAutoExploreMode()) {
+            if (unit instanceof Explorer
+                    && ((Explorer) unit)
+                    .isAutoExploreMode()) {
+
                 continue;
             }
 
@@ -643,24 +828,31 @@ public class GameState {
     /** Greedily walks an auto-explore unit toward the nearest unexplored frontier hex. */
     private void autoExplore(Explorer explorer) {
         while (explorer.getCurrentAP() > 0) {
-            HexCoordinate target = nearestUnexploredFrontier(explorer.getPosition());
+            HexCoordinate target =
+                    nearestUnexploredFrontier(
+                            explorer.getPosition()
+                    );
 
             if (target == null) {
                 break;
             }
 
-            List<HexCoordinate> path = PathFinder.findPath(
-                    map,
-                    explorer.getPosition(),
-                    target,
-                    explorer.getCurrentAP()
-            );
+            List<HexCoordinate> path =
+                    PathFinder.findPath(
+                            map,
+                            explorer.getPosition(),
+                            target,
+                            explorer.getCurrentAP()
+                    );
 
-            if (path == null || path.size() < 2) {
+            if (path == null
+                    || path.size() < 2) {
+
                 break;
             }
 
-            HexCoordinate next = path.get(1);
+            HexCoordinate next =
+                    path.get(1);
 
             if (!explorer.moveTo(map, next)) {
                 break;
@@ -671,9 +863,13 @@ public class GameState {
     }
 
     /** Nearest explored hex that borders unexplored territory. */
-    private HexCoordinate nearestUnexploredFrontier(HexCoordinate from) {
+    private HexCoordinate nearestUnexploredFrontier(
+            HexCoordinate from
+    ) {
         HexCoordinate best = null;
-        int bestDistance = Integer.MAX_VALUE;
+
+        int bestDistance =
+                Integer.MAX_VALUE;
 
         for (Hex hex : map.getAllHexes()) {
             if (!hex.getIsExplored()) {
@@ -682,10 +878,18 @@ public class GameState {
 
             boolean bordersFog = false;
 
-            for (HexCoordinate neighbourCoordinate : hex.getCoordinate().findNeighbours()) {
-                Hex neighbour = map.getHex(neighbourCoordinate);
+            for (HexCoordinate neighbourCoordinate :
+                    hex.getCoordinate()
+                            .findNeighbours()) {
 
-                if (neighbour != null && !neighbour.getIsExplored()) {
+                Hex neighbour =
+                        map.getHex(
+                                neighbourCoordinate
+                        );
+
+                if (neighbour != null
+                        && !neighbour.getIsExplored()) {
+
                     bordersFog = true;
                     break;
                 }
@@ -695,9 +899,14 @@ public class GameState {
                 continue;
             }
 
-            int distance = from.distanceTo(hex.getCoordinate());
+            int distance =
+                    from.distanceTo(
+                            hex.getCoordinate()
+                    );
 
-            if (distance > 0 && distance < bestDistance) {
+            if (distance > 0
+                    && distance < bestDistance) {
+
                 bestDistance = distance;
                 best = hex.getCoordinate();
             }
@@ -719,25 +928,35 @@ public class GameState {
                 continue;
             }
 
-            for (Hex hex : map.getHexesInRadius(
-                    unit.getPosition(),
-                    unit.getVisionRadius()
-            )) {
+            for (Hex hex :
+                    map.getHexesInRadius(
+                            unit.getPosition(),
+                            unit.getVisionRadius()
+                    )) {
 
                 hex.setVisible(true);
             }
         }
 
-        for (Building building : player.getBuildings()) {
+        for (Building building :
+                player.getBuildings()) {
+
             if (!building.isActive()) {
                 continue;
             }
 
-            int radius = building.getType() == Constants.BuildingType.TOWN_HALL
-                    ? 2
-                    : Constants.BUILDING_VISION;
+            int radius =
+                    building.getType()
+                            == Constants.BuildingType.TOWN_HALL
+                            ? 2
+                            : Constants.BUILDING_VISION;
 
-            for (Hex hex : map.getHexesInRadius(building.getPosition(), radius)) {
+            for (Hex hex :
+                    map.getHexesInRadius(
+                            building.getPosition(),
+                            radius
+                    )) {
+
                 hex.setVisible(true);
             }
         }
@@ -758,15 +977,19 @@ public class GameState {
             return false;
         }
 
-        BazaarTradePolicy policy = new BazaarTradePolicy(bazaar.getBazaarTradeLevel());
+        BazaarTradePolicy policy =
+                new BazaarTradePolicy(
+                        bazaar.getBazaarTradeLevel()
+                );
 
-        boolean successful = tradeService.complete(
-                player,
-                policy,
-                sell,
-                buy,
-                quantitySold
-        );
+        boolean successful =
+                tradeService.complete(
+                        player,
+                        policy,
+                        sell,
+                        buy,
+                        quantitySold
+                );
 
         if (successful) {
             markTradeUsed();
@@ -776,8 +999,11 @@ public class GameState {
     }
 
     private Building getBazaar() {
-        for (Building building : player.getBuildings()) {
-            if (building.getType() == Constants.BuildingType.BAZAAR
+        for (Building building :
+                player.getBuildings()) {
+
+            if (building.getType()
+                    == Constants.BuildingType.BAZAAR
                     && building.isActive()) {
 
                 return building;
@@ -806,15 +1032,17 @@ public class GameState {
             return false;
         }
 
-        TradingPostPolicy policy = new TradingPostPolicy();
+        TradingPostPolicy policy =
+                new TradingPostPolicy();
 
-        boolean successful = tradeService.complete(
-                player,
-                policy,
-                sell,
-                buy,
-                quantitySold
-        );
+        boolean successful =
+                tradeService.complete(
+                        player,
+                        policy,
+                        sell,
+                        buy,
+                        quantitySold
+                );
 
         if (successful) {
             markTradeUsed();
@@ -829,6 +1057,74 @@ public class GameState {
 
     private void markTradeUsed() {
         lastTradeTurn = currentTurn;
+    }
+
+    public boolean canRecruitMilitaryUnit(
+            MilitaryUnitType type,
+            HexCoordinate position,
+            TownHallLevel townHallLevel
+    ) {
+        return militaryRecruitmentService.canRecruit(
+                type,
+                position,
+                townHallLevel
+        );
+    }
+
+    public MilitaryUnit recruitMilitaryUnit(
+            MilitaryUnitType type,
+            HexCoordinate position,
+            TownHallLevel townHallLevel
+    ) {
+        int before =
+                militaryRecruitmentService
+                        .getMilitaryUnitCount();
+
+        int cap =
+                militaryRecruitmentService
+                        .getCap(townHallLevel);
+
+        MilitaryUnit unit =
+                militaryRecruitmentService.recruit(
+                        type,
+                        position,
+                        townHallLevel
+                );
+
+        if (unit == null) {
+            return null;
+        }
+
+        int after =
+                militaryRecruitmentService
+                        .getMilitaryUnitCount();
+
+        if (before < cap
+                && after >= cap) {
+
+            onMilitaryCapReached();
+        }
+
+        updateVisibility();
+
+        lastTurnEvents.add(
+                "Recruited "
+                        + type.name()
+        );
+
+        return unit;
+    }
+
+    public int getMilitaryUnitCount() {
+        return militaryRecruitmentService
+                .getMilitaryUnitCount();
+    }
+
+    public int getMilitaryUnitCap(
+            TownHallLevel level
+    ) {
+        return militaryRecruitmentService
+                .getCap(level);
     }
 
     public GameMap getMap() {
@@ -872,7 +1168,10 @@ public class GameState {
     }
 
     public int getCurrentScore() {
-        return ScoreCalculator.calculate(player, map);
+        return ScoreCalculator.calculate(
+                player,
+                map
+        );
     }
 
     public DisasterEvent getLastDisasterEvent() {
