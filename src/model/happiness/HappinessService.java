@@ -3,6 +3,7 @@ package model.happiness;
 public class HappinessService implements java.io.Serializable {
 
     private final HappinessTracker tracker;
+    private boolean townHallGarrisoned;
 
     public HappinessService(HappinessTracker tracker) {
         if (tracker == null) {
@@ -21,10 +22,17 @@ public class HappinessService implements java.io.Serializable {
     }
 
     public HappinessLevel getCurrentLevel() {
-        return tracker.getLevel();
+        return HappinessLevel.fromScore(getCurrentScore());
     }
 
     public int getCurrentScore() {
-        return tracker.getScore();
+        return tracker.getScore() + (townHallGarrisoned ? 1 : 0);
     }
+
+    /** A current condition, not a cumulative event; multiple guards still contribute only +1. */
+    public void setTownHallGarrisoned(boolean garrisoned) {
+        townHallGarrisoned = garrisoned;
+    }
+
+    public boolean isTownHallGarrisoned() { return townHallGarrisoned; }
 }

@@ -67,7 +67,6 @@ public class GameState implements java.io.Serializable {
     private final HappinessTracker happinessTracker;
     private final HappinessService happinessService;
     private boolean militaryCapPenaltyApplied;
-    private final java.util.Set<MilitaryUnit> rewardedTownHallGarrisons = new java.util.HashSet<>();
 
     private final MilitaryRecruitmentService militaryRecruitmentService;
     private final CombatService combatService;
@@ -341,7 +340,8 @@ public class GameState implements java.io.Serializable {
                 unit.setCurrentAP(Math.max(1, reduced));
             }
 
-            if (happinessPenalty > 0) {
+            if (happinessPenalty > 0
+                    && HappinessModifiers.actionPointPenaltyAppliesTo(happinessLevel, unit)) {
                 unit.setCurrentAP(
                         Math.max(
                                 0,
@@ -366,7 +366,6 @@ public class GameState implements java.io.Serializable {
         }
 
         player.removeDeadUnits();
-        rewardedTownHallGarrisons.removeIf(unit -> !unit.isAlive());
         if (getMilitaryUnitCount() < getMilitaryUnitCap(townHall.getLevel())) militaryCapPenaltyApplied = false;
 
         // 7. Visibility.
@@ -454,11 +453,14 @@ public class GameState implements java.io.Serializable {
     }
 
     private void applyTownHallGarrisonHappiness() {
+        boolean hasMilitaryGarrison = false;
         for (Unit unit : player.getUnits()) {
-            if (unit instanceof MilitaryUnit && unit.isAlive() && unit.getPosition().equals(townHallPos)
-                    && rewardedTownHallGarrisons.add((MilitaryUnit) unit))
-                happinessService.applyEvent(HappinessEventType.TOWN_HALL_GARRISONED);
+            if (unit instanceof MilitaryUnit && unit.isAlive() && unit.getPosition().equals(townHallPos)) {
+                hasMilitaryGarrison = true;
+                break;
+            }
         }
+        happinessService.setTownHallGarrisoned(hasMilitaryGarrison);
     }
 
     public void onBuildingConstructed(Building building) {
@@ -1505,14 +1507,17 @@ public class GameState implements java.io.Serializable {
     }
 
     public int getHappinessScore() {
+        applyTownHallGarrisonHappiness();
         return happinessService.getCurrentScore();
     }
 
     public HappinessLevel getHappinessLevel() {
+        applyTownHallGarrisonHappiness();
         return happinessService.getCurrentLevel();
     }
 
     public HappinessService getHappinessService() {
+        applyTownHallGarrisonHappiness();
         return happinessService;
     }
 

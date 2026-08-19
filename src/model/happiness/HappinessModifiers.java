@@ -1,5 +1,9 @@
 package model.happiness;
 
+import model.Unit;
+import model.Worker;
+import model.military.MilitaryUnit;
+
 public final class HappinessModifiers {
 
     //قرار نیست از آن Object ساخته شود.
@@ -34,6 +38,13 @@ public final class HappinessModifiers {
         }
 
         return 0;
+    }
+
+    public static boolean actionPointPenaltyAppliesTo(HappinessLevel level, Unit unit) {
+        requireLevel(level);
+        if (unit == null) throw new IllegalArgumentException("unit must not be null");
+        return actionPointPenalty(level) > 0
+                && (unit instanceof Worker || unit instanceof MilitaryUnit);
     }
 
     public static int applyProductionModifiers(int baseProduction, int workerCount, HappinessLevel level) {
