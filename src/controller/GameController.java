@@ -227,11 +227,9 @@ public class GameController {
     /** Research is queued in the Town Hall and applies when the queue completes it. */
     public void onResearchChosen(TechnologyType tech) {
         if (gameState == null) return;
-        if (gameState.getPlayer().queueTech(tech)) {
-            statusMessage = "Queued research: " + tech.name();
-        } else {
-            statusMessage = "Cannot research " + tech.name() + " (prereqs/resources)";
-        }
+        CommandStartResult result = gameState.startLegacyResearch(tech);
+        statusMessage = result == CommandStartResult.STARTED ? "Researching " + tech.name()
+                : "Cannot research " + tech.name() + ": " + result.name().replace('_', ' ');
     }
 
     public CommandStartResult onTownHallUpgrade() {

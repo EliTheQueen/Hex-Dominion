@@ -1385,6 +1385,11 @@ public class GameState implements java.io.Serializable {
         return townHallCommandService.startCommand(new TrainingCommand(type, cost, turns));
     }
 
+    public CommandStartResult startLegacyResearch(Constants.TechnologyType technology) {
+        if (technology == null || !player.canResearch(technology)) return CommandStartResult.INVALID_COMMAND;
+        return townHallCommandService.startCommand(new LegacyResearchCommand(technology));
+    }
+
     public int getMilitaryUnitCount() {
         return militaryRecruitmentService
                 .getMilitaryUnitCount();
@@ -1557,6 +1562,21 @@ public class GameState implements java.io.Serializable {
             }
             player.addUnit(unit);
             lastTurnEvents.add("Trained " + civilianType.name());
+        }
+    }
+
+    private final class LegacyResearchCommand extends model.townhall.AbstractProductionCommand {
+        private final Constants.TechnologyType technology;
+        private LegacyResearchCommand(Constants.TechnologyType technology) {
+            super(player.getTechCost(technology), model.ProductionTask.forTech(technology).getTotalTurns());
+            this.technology = technology;
+        }
+        @Override public void onStarted() {
+            if (!player.markTechQueued(technology)) throw new IllegalStateException("Technology cannot be queued");
+        }
+        @Override public void onCancelled() { player.cancelQueuedTech(technology); }
+        @Override protected void executeEffect() {
+            player.applyTech(technology); lastTurnEvents.add("Researched " + technology.name());
         }
     }
 }

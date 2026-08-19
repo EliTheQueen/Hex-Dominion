@@ -13,7 +13,15 @@ public final class PhaseTwoTownHallTest {
         cancellationDoesNotRefund();
         researchUsesTheSameSlot();
         militaryTrainingUsesTheSameSlot();
+        legacyResearchUsesTheSameSlot();
         System.out.println("PhaseTwoTownHallTest passed");
+    }
+
+    private static void legacyResearchUsesTheSameSlot() {
+        GameState state = fundedState();
+        require(state.startTownHallUpgrade() == CommandStartResult.STARTED, "upgrade starts");
+        require(state.startLegacyResearch(model.Constants.TechnologyType.STORAGE_I)
+                == CommandStartResult.TOWN_HALL_BUSY, "legacy research shares slot");
     }
 
     private static void militaryTrainingUsesTheSameSlot() {

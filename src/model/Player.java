@@ -153,6 +153,13 @@ public class Player implements java.io.Serializable {
         return true;
     }
 
+    public boolean markTechQueued(TechnologyType tech) {
+        if (!prerequisitesMet(tech)) return false;
+        queuedTech.add(tech); return true;
+    }
+
+    public void cancelQueuedTech(TechnologyType tech) { queuedTech.remove(tech); }
+
     public void applyTech(TechnologyType tech) {
         queuedTech.remove(tech);
         researched.add(tech);

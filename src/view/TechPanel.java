@@ -145,7 +145,8 @@ public class TechPanel extends JDialog {
 
     private JPanel buildTechCard(Constants.TechnologyType tech, Player player) {
         boolean researched = player.hasResearched(tech);
-        boolean available = player.canResearch(tech);
+        boolean available = player.canResearch(tech)
+                && !controller.getGameState().getTownHall().getCommandSlot().isBusy();
 
         final Color borderColor = researched ? RESEARCHED : (available ? AVAILABLE : LOCKED);
         final Color bgColor = researched ? new Color(20, 50, 20)
@@ -201,6 +202,7 @@ public class TechPanel extends JDialog {
             if (available) {
                 JButton resBtn = makeButton("RESEARCH", new Color(30, 80, 140));
                 resBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+                resBtn.setToolTipText("Uses the single Town Hall command slot");
                 resBtn.addActionListener(e -> {
                     controller.onResearchChosen(tech);
                     dispose();
