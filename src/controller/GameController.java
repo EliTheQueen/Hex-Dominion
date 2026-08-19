@@ -23,7 +23,6 @@ import view.MainWindow;
 import static model.Constants.BuildingType;
 import static model.Constants.TechnologyType;
 import static model.Constants.UnitType;
-import static model.Constants.BUILD_COST;
 import static model.Constants.UNIT_COST;
 import model.townhall.CommandStartResult;
 import model.technology.ResearchStartResult;
@@ -144,7 +143,7 @@ public class GameController {
 
     private void placeBuilding(HexCoordinate coord, Player player) {
         Builder builder = (Builder) selectedUnit;
-        ResourceAmount cost = BUILD_COST.get(pendingBuildType);
+        ResourceAmount cost = gameState.getBuildCost(pendingBuildType);
 
         if (!gameState.canBuildAt(coord, pendingBuildType)) {
             statusMessage = "Cannot build there (need territory / tech / matching resource)";
@@ -193,7 +192,7 @@ public class GameController {
                 statusMessage = "Builder has no charges left";
                 return;
             }
-            ResourceAmount cost = BUILD_COST.get(type);
+            ResourceAmount cost = gameState.getBuildCost(type);
             if (cost != null && !gameState.getPlayer().canAfford(cost)) {
                 statusMessage = "Not enough resources for " + type.name();
                 return;
@@ -323,7 +322,7 @@ public class GameController {
         if (gameState == null || !(selectedUnit instanceof Builder)) return false;
         Builder b = (Builder) selectedUnit;
         if (!b.hasCharges()) return false;
-        ResourceAmount cost = BUILD_COST.get(type);
+        ResourceAmount cost = gameState.getBuildCost(type);
         if (cost == null || !gameState.getPlayer().canAfford(cost)) return false;
         if (gameState.canBuildAt(b.getPosition(), type)) return true;
         for (HexCoordinate n : b.getPosition().findNeighbours()) {

@@ -86,6 +86,7 @@ public class GameState implements java.io.Serializable {
     private final TribePeaceService tribePeaceService;
     private final TribeTurnService tribeTurnService;
     private final java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
+    private int discountedDockBuilds;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator generator = new MapGenerator();
@@ -158,14 +159,15 @@ public class GameState implements java.io.Serializable {
                 townHall, phaseTwoTechnologies, effects, phaseTwoTechnologyTarget,
                 townHallCommandService);
         tribes = createTribes();
-        tribeMissionService = new TribeMissionService(player);
         tribeGiftService = new TribeGiftService();
         tribeTradeService = new TribeTradeService(tradeService, new TribeTradePolicyFactory());
+        tribeMissionService = new TribeMissionService(player, new MissionRewardApplier());
         tribeAllianceRegistry = new TribeAllianceRegistry();
         tribeAllianceService = new TribeAllianceService(tribeAllianceRegistry);
         tribeWarService = new TribeWarService();
         tribePeaceService = new TribePeaceService();
         tribeTurnService = new TribeTurnService(new DefaultTribeBehaviorStrategy());
+        discountedDockBuilds = 0;
         updateVisibility();
     }
 
@@ -380,7 +382,7 @@ public class GameState implements java.io.Serializable {
         java.util.List<Tribe> missionFailures = tribeMissionService.advanceOneTurn();
         for (Tribe failedTribe : missionFailures) {
             happinessService.applyEvent(HappinessEventType.MISSION_FAILED);
-            tribeMissionCooldownUntil.put(failedTribe.getId(), currentTurn + 3);
+            tribeMissionCooldownUntil.put(failedTribe.getId(), currentTurn + 5);
         }
         processTribeTurns();
 
@@ -472,6 +474,10 @@ public class GameState implements java.io.Serializable {
             happinessService.applyEvent(
                     HappinessEventType.TOWNSHIP_BUILT
             );
+        }
+
+        if (building.getType() == Constants.BuildingType.DOCK && discountedDockBuilds > 0) {
+            discountedDockBuilds--;
         }
     }
 
@@ -1208,6 +1214,7 @@ public class GameState implements java.io.Serializable {
                 || !attacker.canAttack() || attacker.getPosition().distanceTo(tribe.getCampCoordinate()) > attacker.getRange())
             return null;
         MilitaryHex attackerHex = militaryHexAt(attacker.getPosition());
+        int guardsBefore = tribe.getGuardCount();
         CombatReport report;
         try {
             report = combatService.resolve(tribe.getGuardCount() == 0
@@ -1223,6 +1230,8 @@ public class GameState implements java.io.Serializable {
         tribeAllianceService.breakAlliance(tribe);
         if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
         tribe.getRelation().becomeEnemy();
+        int guardsDefeated = Math.max(0, guardsBefore - tribe.getGuardCount());
+        if (guardsDefeated > 0) recordMissionKillsNear(tribe.getCampCoordinate(), guardsDefeated);
         return report;
     }
 
@@ -1243,15 +1252,19 @@ public class GameState implements java.io.Serializable {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-        if (!bear.isAlive()) recordMissionKillNear(bear.getPosition());
+        if (!bear.isAlive()) recordMissionKillsNear(bear.getPosition(), 1);
         return report;
     }
 
     public CombatReport attackMilitaryHex(MilitaryUnit attacker, MilitaryHex defenderHex) {
         if (attacker == null || defenderHex == null) return null;
+        int defendersBefore = defenderHex.getAliveUnits().size();
         try {
-            return combatService.resolve(CombatRequest.military(attacker,
+            CombatReport report = combatService.resolve(CombatRequest.military(attacker,
                     militaryHexAt(attacker.getPosition()), defenderHex));
+            int defeated = Math.max(0, defendersBefore - defenderHex.getAliveUnits().size());
+            if (defeated > 0) recordMissionKillsNear(defenderHex.getCoordinate(), defeated);
+            return report;
         } catch (IllegalArgumentException ex) {
             return null;
         }
@@ -1293,13 +1306,20 @@ public class GameState implements java.io.Serializable {
         }
     }
 
-    private void recordMissionKillNear(HexCoordinate coordinate) {
+    private void recordMissionKillsNear(HexCoordinate coordinate, int count) {
         for (TribeMission mission : tribeMissionService.getActiveMissions().values()) {
             if (mission.getObjective() instanceof KillCountObjective
-                    && mission.getTribe().getCampCoordinate().distanceTo(coordinate) <= 3) {
-                ((KillCountObjective) mission.getObjective()).recordKill(); mission.refreshCompletionState();
+                    && mission.getTribe().getCampCoordinate().distanceTo(coordinate) <= 5) {
+                for (int i = 0; i < count; i++) ((KillCountObjective) mission.getObjective()).recordKill();
+                mission.refreshCompletionState();
             }
         }
+    }
+
+    /** Event hook for future barbarian/enemy systems; combat paths call the same mission tracker. */
+    public void onEnemyDefeated(HexCoordinate coordinate) {
+        if (coordinate == null) throw new IllegalArgumentException("coordinate must not be null");
+        recordMissionKillsNear(coordinate, 1);
     }
 
     private MilitaryHex militaryHexAt(HexCoordinate coordinate) {
@@ -1329,21 +1349,85 @@ public class GameState implements java.io.Serializable {
 
     private TribeMission createMissionFor(Tribe tribe) {
         TribeMissionObjective objective;
+        TribeMissionReward reward;
+        int deadline;
         switch (tribe.getType()) {
-            case FARMER:
-                objective = new ResourcePaymentObjective(player, ResourceAmount.of(0, 20, 0, 0)); break;
-            case WARRIOR:
-                objective = new KillCountObjective(2); break;
-            case MERCHANT:
-                objective = new RoadConnectionObjective(map, townHallPos, tribe.getCampCoordinate()); break;
-            case MOUNTAIN:
-                objective = new BuildingNearCampObjective(player, tribe.getCampCoordinate(), Constants.BuildingType.STONE_MINE); break;
-            case COASTAL:
-                objective = new BuildingNearCampObjective(player, tribe.getCampCoordinate(), Constants.BuildingType.DOCK); break;
-            default: throw new IllegalStateException("Unknown tribe type");
+            case FARMER -> {
+                objective = new ResourcePaymentObjective(player, ResourceAmount.of(0, 20, 10, 0));
+                reward = new TribeMissionReward(ResourceAmount.of(30, 0, 0, 0), 15);
+                deadline = 5;
+            }
+            case MERCHANT -> {
+                objective = new RoadConnectionObjective(map, player, tribe.getCampCoordinate());
+                reward = new TribeMissionReward(ResourceAmount.zero(), 20,
+                        java.util.EnumSet.of(TribeMissionRewardEffect.TRADE_RATE_BONUS_10_PERCENT));
+                deadline = 10;
+            }
+            case WARRIOR -> {
+                objective = new KillCountObjective(2);
+                reward = new TribeMissionReward(ResourceAmount.zero(), 20,
+                        java.util.EnumSet.of(TribeMissionRewardEffect.THREE_SWORDSMEN));
+                deadline = 8;
+            }
+            case MOUNTAIN -> {
+                objective = new ResourcePaymentObjective(player, ResourceAmount.of(0, 15, 0, 10));
+                reward = new TribeMissionReward(ResourceAmount.of(0, 0, 20, 0), 15);
+                deadline = 6;
+            }
+            case COASTAL -> {
+                objective = new BuildingNearCampObjective(player, tribe.getCampCoordinate(),
+                        Constants.BuildingType.DOCK, 4);
+                reward = new TribeMissionReward(ResourceAmount.of(30, 0, 0, 0), 0,
+                        java.util.EnumSet.of(TribeMissionRewardEffect.NEXT_DOCK_COST_REDUCTION));
+                deadline = 10;
+            }
+            default -> throw new IllegalStateException("Unknown tribe type");
         }
         return new TribeMission(tribe.getType().name() + " Accord", objective.getDescription(), tribe,
-                objective, new TribeMissionReward(ResourceAmount.of(15, 15, 10, 5), 12), 8);
+                objective, reward, deadline);
+    }
+
+    public ResourceAmount getBuildCost(Constants.BuildingType type) {
+        ResourceAmount base = Constants.BUILD_COST.get(type);
+        if (base == null) return null;
+        if (type == Constants.BuildingType.DOCK && discountedDockBuilds > 0) return base.multiply(0.5);
+        return base.copy();
+    }
+
+    public int getDiscountedDockBuilds() { return discountedDockBuilds; }
+    public int getMissionTradeBonusPercent(Tribe tribe) {
+        return tribeTradeService.getMissionTradeBonusPercent(tribe);
+    }
+
+    private final class MissionRewardApplier implements TribeMissionRewardApplier {
+        @Override public boolean canApply(Tribe tribe, TribeMissionReward reward) {
+            if (reward.hasEffect(TribeMissionRewardEffect.THREE_SWORDSMEN)) {
+                int available = 0;
+                if (player.getUnitAt(townHallPos) == null) available++;
+                for (Hex hex : map.getHexesInRadius(townHallPos, 2)) {
+                    if (!hex.getCoordinate().equals(townHallPos)
+                            && player.getUnitAt(hex.getCoordinate()) == null) available++;
+                }
+                return available >= 3;
+            }
+            return true;
+        }
+
+        @Override public void apply(Tribe tribe, TribeMissionReward reward) {
+            if (reward.hasEffect(TribeMissionRewardEffect.TRADE_RATE_BONUS_10_PERCENT)) {
+                tribeTradeService.activateMissionTradeBonus(tribe, 10);
+            }
+            if (reward.hasEffect(TribeMissionRewardEffect.THREE_SWORDSMEN)) {
+                for (int i = 0; i < 3; i++) {
+                    HexCoordinate position = findFreeHexNearTownHall();
+                    if (position == null) throw new IllegalStateException("no space for mission Swordsmen");
+                    player.addUnit(new model.military.Swordsman(position));
+                }
+            }
+            if (reward.hasEffect(TribeMissionRewardEffect.NEXT_DOCK_COST_REDUCTION)) {
+                discountedDockBuilds++;
+            }
+        }
     }
 
     private void processTribeTurns() {

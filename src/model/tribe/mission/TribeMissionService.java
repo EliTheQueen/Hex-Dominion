@@ -16,15 +16,26 @@ public class TribeMissionService implements java.io.Serializable {
     private static final int CANCEL_RELATION_PENALTY = 5;
 
     private final Player player;
+    private final TribeMissionRewardApplier rewardApplier;
 
     private final Map<String, TribeMission> activeMissionsByTribeId = new HashMap<>();
 
     public TribeMissionService(Player player) {
-        if (player == null) {
-            throw new IllegalArgumentException("player must not be null");
+        this(player, new TribeMissionRewardApplier() {
+            @Override public boolean canApply(Tribe tribe, TribeMissionReward reward) {
+                return reward.getEffects().isEmpty();
+            }
+            @Override public void apply(Tribe tribe, TribeMissionReward reward) { }
+        });
+    }
+
+    public TribeMissionService(Player player, TribeMissionRewardApplier rewardApplier) {
+        if (player == null || rewardApplier == null) {
+            throw new IllegalArgumentException("player and reward applier must not be null");
         }
 
         this.player = player;
+        this.rewardApplier = rewardApplier;
     }
 
     public MissionActionResult acceptMission(TribeMission mission) {
@@ -74,6 +85,10 @@ public class TribeMissionService implements java.io.Serializable {
             return MissionActionResult.INSUFFICIENT_STORAGE;
         }
 
+        if (!rewardApplier.canApply(mission.getTribe(), mission.getReward())) {
+            return MissionActionResult.MISSION_NOT_COMPLETED;
+        }
+
         if (!mission.getObjective().fulfill(player)) return MissionActionResult.MISSION_NOT_COMPLETED;
 
         player.addResources(rewardResources);
@@ -83,6 +98,8 @@ public class TribeMissionService implements java.io.Serializable {
         if (relationReward > 0) {
             mission.getTribe().getRelation().increase(relationReward);
         }
+
+        rewardApplier.apply(mission.getTribe(), mission.getReward());
 
         mission.complete();
 

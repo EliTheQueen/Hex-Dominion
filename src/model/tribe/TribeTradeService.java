@@ -11,6 +11,7 @@ public class TribeTradeService implements java.io.Serializable {
 
     private final TribeTradePolicyFactory
             policyFactory;
+    private final java.util.Map<String, Integer> missionTradeBonusPercent = new java.util.HashMap<>();
 
     public TribeTradeService(
             TradeService tradeService,
@@ -49,6 +50,8 @@ public class TribeTradeService implements java.io.Serializable {
                 policyFactory.create(
                         tribe.getType()
                 );
+        int bonus = missionTradeBonusPercent.getOrDefault(tribe.getId(), 0);
+        if (bonus > 0) policy = new model.trade.TradeRateBonusPolicy(policy, bonus);
 
         boolean completed =
                 tradeService.complete(
@@ -64,5 +67,14 @@ public class TribeTradeService implements java.io.Serializable {
         }
 
         return completed;
+    }
+
+    public void activateMissionTradeBonus(Tribe tribe, int percent) {
+        if (tribe == null || percent <= 0) throw new IllegalArgumentException("invalid mission trade bonus");
+        missionTradeBonusPercent.merge(tribe.getId(), percent, Math::max);
+    }
+
+    public int getMissionTradeBonusPercent(Tribe tribe) {
+        return tribe == null ? 0 : missionTradeBonusPercent.getOrDefault(tribe.getId(), 0);
     }
 }
