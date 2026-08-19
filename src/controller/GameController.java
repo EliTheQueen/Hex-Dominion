@@ -30,6 +30,8 @@ import model.technology.ResearchStartResult;
 import model.save.*;
 import model.tribe.*;
 import model.tribe.mission.MissionActionResult;
+import model.combat.CombatReport;
+import model.military.MilitaryUnit;
 
 /** Mediates between the Swing views and the game model. */
 public class GameController {
@@ -69,6 +71,19 @@ public class GameController {
         if (hex == null) return;
 
         Player player = gameState.getPlayer();
+
+        if (selectedUnit instanceof MilitaryUnit) {
+            Tribe targetTribe = gameState.getTribeAt(coord);
+            if (targetTribe != null) {
+                CombatReport report = gameState.attackTribeCamp((MilitaryUnit) selectedUnit, targetTribe);
+                if (report != null) {
+                    statusMessage = report.isStructureAttack() ? "Structure hit for " + report.getStructureDamage()
+                            : report.getCasualty();
+                    if (mainWindow != null) mainWindow.showCombatReport(report);
+                    return;
+                }
+            }
+        }
 
         // --- Placing a building ---
         if (buildMode && pendingBuildType != null && selectedUnit instanceof Builder) {

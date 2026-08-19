@@ -147,6 +147,10 @@ public class Tribe implements java.io.Serializable {
     }
     public int getGuardCount() { return guardCount; }
     public void addGuard() { guardCount++; }
+    public int removeGuards(int amount) {
+        int removed = Math.min(Math.max(0, amount), guardCount);
+        guardCount -= removed; return removed;
+    }
     public boolean isCampUnderAttack() { return campUnderAttack; }
     public void setCampUnderAttack(boolean value) { campUnderAttack = value; }
 

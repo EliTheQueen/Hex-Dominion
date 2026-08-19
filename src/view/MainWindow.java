@@ -11,6 +11,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import controller.GameController;
+import model.combat.CombatReport;
 
 public class MainWindow extends JFrame {
     private final CardLayout cardLayout;
@@ -87,5 +88,9 @@ public class MainWindow extends JFrame {
         EndGamePanel endPanel = new EndGamePanel(score, controller.getGameState(), this);
         cardPanel.add(endPanel, "ENDGAME");
         cardLayout.show(cardPanel, "ENDGAME");
+    }
+
+    public void showCombatReport(CombatReport report) {
+        new CombatOverlay(this, report).setVisible(true);
     }
 }

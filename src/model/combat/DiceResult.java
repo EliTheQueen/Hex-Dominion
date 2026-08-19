@@ -6,10 +6,10 @@ import java.util.List;
 public class DiceResult {
     private List<Integer> diceRollerResults = new ArrayList<>();
 
-    public DiceResult(List diceRollerResults) {
+    public DiceResult(List<Integer> diceRollerResults) {
         if (diceRollerResults == null)
             throw new NullPointerException("diceRollerResults is null");
-        this.diceRollerResults = diceRollerResults;
+        this.diceRollerResults = new ArrayList<>(diceRollerResults);
     }
 
     public List<Integer> getRolls() {

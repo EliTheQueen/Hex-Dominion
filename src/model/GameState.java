@@ -27,6 +27,9 @@ import java.util.Random;
 import model.tribe.*;
 import model.tribe.mission.*;
 import model.tribe.behavior.*;
+import model.combat.CombatReport;
+import model.military.MilitaryDamageHandler;
+import model.military.MilitaryHex;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState implements java.io.Serializable {
@@ -1164,6 +1167,62 @@ public class GameState implements java.io.Serializable {
     public DiplomacyResult requestPeace(Tribe tribe) { return tribePeaceService.requestPeace(player, tribe); }
     public DiplomacyResult requestAlliance(Tribe tribe) { return tribeAllianceService.requestAlliance(tribe); }
     public boolean isAllied(Tribe tribe) { return tribeAllianceRegistry.isAlliedWith(tribe); }
+
+    public Tribe getTribeAt(HexCoordinate coordinate) {
+        for (Tribe tribe : tribes) if (!tribe.isDefeated() && tribe.getCampCoordinate().equals(coordinate)) return tribe;
+        return null;
+    }
+
+    public CombatReport attackTribeCamp(MilitaryUnit attacker, Tribe tribe) {
+        if (attacker == null || tribe == null || !tribe.isDiscovered() || tribe.isDefeated()
+                || !attacker.canAttack() || attacker.getPosition().distanceTo(tribe.getCampCoordinate()) > attacker.getRange())
+            return null;
+        attacker.spendAttackAP();
+        TribeRelationStatus before = tribe.getRelation().getStatus();
+        if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
+        else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
+        tribeAllianceService.breakAlliance(tribe);
+        tribe.getRelation().becomeEnemy();
+
+        if (tribe.getGuardCount() == 0) {
+            int damage = attacker.getStructureDamage();
+            tribe.takeDamage(damage);
+            return new CombatReport(attacker.getMilitaryUnitType().name(), tribe.getName() + " CAMP",
+                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), 0, 0,
+                    tribe.isDefeated() ? "Camp defeated" : "Camp damaged", damage);
+        }
+
+        MilitaryHex attackerHex = militaryHexAt(attacker.getPosition());
+        int attackerDice = 0;
+        for (MilitaryUnit unit : attackerHex.getAliveUnits()) if (unit.contributesCombatDie()) attackerDice++;
+        int defenderDice = Math.min(6, tribe.getGuardCount());
+        List<Integer> attackRolls = rollDice(attackerDice);
+        List<Integer> defenseRolls = rollDice(defenderDice);
+        int attackWins = 0, defenseWins = 0;
+        for (int i = 0; i < Math.min(attackRolls.size(), defenseRolls.size()); i++) {
+            if (attackRolls.get(i) > defenseRolls.get(i)) attackWins++; else defenseWins++;
+        }
+        int guardsLost = tribe.removeGuards(attackWins);
+        if (defenseWins > 0) new MilitaryDamageHandler().applyDamage(attackerHex, defenseWins);
+        player.removeDeadUnits();
+        String casualty = guardsLost + " guard" + (guardsLost == 1 ? "" : "s") + " lost";
+        if (defenseWins > 0) casualty += ", " + defenseWins + " attacker damage";
+        return new CombatReport(attacker.getMilitaryUnitType().name(), tribe.getName() + " GUARDS",
+                attackRolls, defenseRolls, attackWins, defenseWins, casualty, 0);
+    }
+
+    private MilitaryHex militaryHexAt(HexCoordinate coordinate) {
+        MilitaryHex result = new MilitaryHex(map.getHex(coordinate));
+        for (Unit unit : player.getUnits()) if (unit instanceof MilitaryUnit && unit.isAlive()
+                && unit.getPosition().equals(coordinate)) result.addUnit((MilitaryUnit) unit);
+        return result;
+    }
+
+    private List<Integer> rollDice(int count) {
+        List<Integer> values = new ArrayList<>();
+        for (int i = 0; i < count; i++) values.add(random.nextInt(6) + 1);
+        values.sort(java.util.Collections.reverseOrder()); return values;
+    }
 
     private List<Tribe> createTribes() {
         List<Tribe> result = new ArrayList<>();
