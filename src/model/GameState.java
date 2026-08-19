@@ -37,6 +37,7 @@ public class GameState {
     private final InfrastructureService infrastructureService;
 
     private final TradeService tradeService;
+    private int lastTradeTurn = -1;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
@@ -452,18 +453,45 @@ public class GameState {
 
     public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy,
                                  int quantitySold, BazaarTradeLevel level) {
+        if (!canTradeThisTurn()) {
+            return false;
+        }
+
         if (!player.hasBuildingType(Constants.BuildingType.BAZAAR)) {
             return false;
         }
 
         BazaarTradePolicy policy = new BazaarTradePolicy(level);
-        return tradeService.complete(player, policy, sell, buy, quantitySold);
+        boolean successful = tradeService.complete(player, policy, sell, buy, quantitySold);
+
+        if (successful) {
+            markTradeUsed();
+        }
+
+        return successful;
     }
 
     public boolean tradeAtTradingPost(Constants.ResourceType sell, Constants.ResourceType buy, int quantitySold) {
+        if (!canTradeThisTurn()) {
+            return false;
+        }
 
         TradingPostPolicy policy = new TradingPostPolicy();
-        return tradeService.complete(player, policy, sell, buy, quantitySold);
+        boolean successful = tradeService.complete(player, policy, sell, buy, quantitySold);
+
+        if (successful) {
+            markTradeUsed();
+        }
+
+        return successful;
+    }
+
+    public boolean canTradeThisTurn() {
+        return lastTradeTurn != currentTurn;
+    }
+
+    private void markTradeUsed() {
+        lastTradeTurn = currentTurn;
     }
 
     public GameMap getMap() { return map; }
