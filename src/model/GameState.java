@@ -39,6 +39,8 @@ public class GameState {
     private final TradeService tradeService;
     private int lastTradeTurn = -1;
 
+    private final AdjacencyBonusService adjacencyBonusService;
+
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
         map = gen.generateMap(mapWidth, mapHeight);
@@ -83,6 +85,8 @@ public class GameState {
         starving = false;
 
         this.tradeService = new TradeService();
+
+        this.adjacencyBonusService = new AdjacencyBonusService();
     }
 
     /** Doc start: 1 Explorer, 2 Builders, 2 Workers placed around the Town Hall. */
@@ -118,6 +122,14 @@ public class GameState {
                 continue;
             }
             ResourceAmount yield = b.produce(profTools);
+
+            Constants.ResourceType producedResource = Constants.PRODUCES.get(b.getType());
+            int adjacencyBonus = adjacencyBonusService.calculateBonus(b, player, map);
+
+            if (producedResource != null && adjacencyBonus > 0) {
+                yield.set(producedResource, yield.get(producedResource) + adjacencyBonus);
+            }
+
             yield = depleteForYield(b, yield);
             player.addResources(yield);
         }
@@ -372,6 +384,16 @@ public class GameState {
         for (Building b : player.getBuildings()) {
             if (!b.isActive() || b.getType() == Constants.BuildingType.TOWN_HALL) continue;
             ResourceAmount yield = b.produce(profTools);
+
+            Constants.ResourceType producedResource = Constants.PRODUCES.get(b.getType());
+            int adjacencyBonus = adjacencyBonusService.calculateBonus(b, player, map);
+
+            if (producedResource != null && adjacencyBonus > 0) {
+                yield.set(producedResource, yield.get(producedResource) + adjacencyBonus);
+            }
+
+            yield = depleteForYield(b, yield);
+            player.addResources(yield);
             Constants.NaturalResourceType nat = harvestResource(b);
             Hex hex = map.getHex(b.getPosition());
             if (nat != Constants.NaturalResourceType.NONE && hex != null) {
