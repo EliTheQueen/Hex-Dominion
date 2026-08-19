@@ -8,7 +8,7 @@ import model.disaster.area.RadiusDisasterAreaCalculator;
 
 import java.util.Random;
 
-public class DisasterGenerator {
+public class DisasterGenerator implements java.io.Serializable {
 
     private final DisasterOccurrencePolicy occurrencePolicy;
     private final DisasterSelector disasterSelector;

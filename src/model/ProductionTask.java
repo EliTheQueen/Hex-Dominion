@@ -1,6 +1,6 @@
 package model;
 //chi hast?
-public class ProductionTask {
+public class ProductionTask implements java.io.Serializable {
     public enum Kind { UNIT, TECH }
 
     private final Kind kind;

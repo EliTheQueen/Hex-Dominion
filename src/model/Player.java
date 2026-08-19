@@ -16,7 +16,7 @@ import static model.Constants.INITIAL_IRON;
 import static model.Constants.TechnologyType;
 import static model.Constants.UnitType;
 
-public class Player {
+public class Player implements java.io.Serializable {
     private final String name;
     private final ResourceStorage resources;
     private final List<Unit> units;

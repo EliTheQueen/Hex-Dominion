@@ -3,6 +3,7 @@ package controller;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.nio.file.Paths;
 
 import model.BorderExpander;
 import model.Builder;
@@ -26,6 +27,7 @@ import static model.Constants.BUILD_COST;
 import static model.Constants.UNIT_COST;
 import model.townhall.CommandStartResult;
 import model.technology.ResearchStartResult;
+import model.save.*;
 
 /** Mediates between the Swing views and the game model. */
 public class GameController {
@@ -37,6 +39,7 @@ public class GameController {
     private BuildingType pendingBuildType;
     private boolean buildMode;
     private String statusMessage = "";
+    private final SaveManager saveManager = new SaveManager(Paths.get("saves"));
 
     public GameController() {}
 
@@ -149,6 +152,7 @@ public class GameController {
         buildMode = false;
         pendingBuildType = null;
         statusMessage = "";
+        if (!gameState.isGameOver()) saveManager.save(SaveSlot.AUTOSAVE, "Autosave", gameState);
         if (gameState.isGameOver() && mainWindow != null) {
             mainWindow.showEndGame(gameState.getFinalScore());
         }
@@ -308,6 +312,27 @@ public class GameController {
         buildMode = false;
         pendingBuildType = null;
     }
+
+    public boolean saveGame(SaveSlot slot, String name) {
+        boolean saved = gameState != null && saveManager.save(slot, name, gameState);
+        statusMessage = saved ? "Game saved to " + slot.getDisplayName() : "Could not save game";
+        return saved;
+    }
+
+    public SaveLoadResult loadGame(SaveSlot slot) {
+        SaveLoadResult result = saveManager.load(slot);
+        if (result.isSuccessful()) {
+            gameState = result.getGameState();
+            deselectUnit();
+            statusMessage = "Loaded " + slot.getDisplayName();
+        } else {
+            statusMessage = result.getMessage();
+        }
+        return result;
+    }
+
+    public SavePreview getSavePreview(SaveSlot slot) { return saveManager.preview(slot); }
+    public boolean deleteSave(SaveSlot slot) { return saveManager.delete(slot); }
 
     /** Hexes the selected unit can reach this turn (used to tint the map green). */
     public List<HexCoordinate> getReachableHexes() {

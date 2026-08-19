@@ -8,7 +8,7 @@ import model.disaster.area.DisasterArea;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DisasterTargetCollector {
+public class DisasterTargetCollector implements java.io.Serializable {
 
     public List<Unit> collectUnits(Player player, DisasterArea area) {
         if (player == null || area == null) {

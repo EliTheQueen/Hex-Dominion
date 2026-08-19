@@ -6,7 +6,7 @@ import model.ResourceAmount;
 
 import java.util.Objects;
 
-public final class TradeService {
+public final class TradeService implements java.io.Serializable {
 
     public boolean complete(
             Player player,

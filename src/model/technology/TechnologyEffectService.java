@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class TechnologyEffectService {
+public class TechnologyEffectService implements java.io.Serializable {
     private final Map<TechnologyType, TechnologyEffect> technologyEffectMap = new HashMap<>();
 
     public TechnologyEffectService(List<TechnologyEffect>  technologyEffects) {

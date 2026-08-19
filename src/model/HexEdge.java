@@ -2,7 +2,7 @@ package model;
 
 import java.util.Objects;
 
-public class HexEdge {
+public class HexEdge implements java.io.Serializable {
 
     private final HexCoordinate first;
     private final HexCoordinate second;

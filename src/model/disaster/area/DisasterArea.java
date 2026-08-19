@@ -5,7 +5,7 @@ import model.HexCoordinate;
 import java.util.HashSet;
 import java.util.Set;
 
-public class DisasterArea {
+public class DisasterArea implements java.io.Serializable {
 
     private final HexCoordinate origin;
     private final Set<HexCoordinate> affectedCoordinates;

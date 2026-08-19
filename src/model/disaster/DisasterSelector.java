@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class DisasterSelector {
+public class DisasterSelector implements java.io.Serializable {
 
     public DisasterType select(
             Season season,

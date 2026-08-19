@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class DisasterOriginSelector {
+public class DisasterOriginSelector implements java.io.Serializable {
 
     public HexCoordinate select(DisasterType disasterType, GameMap map, Random random) {
         if (disasterType == null || map == null || random == null) {

@@ -3,7 +3,7 @@ package model;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Hex {
+public class Hex implements java.io.Serializable {
 
     private final HexCoordinate coordinate;
     private Map<Constants.NaturalResourceType, Integer> naturalResources = new HashMap<>();

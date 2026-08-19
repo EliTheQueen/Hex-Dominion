@@ -2,7 +2,7 @@ package model;
 
 import java.util.List;
 
-public abstract class Unit {
+public abstract class Unit implements java.io.Serializable {
 
     private static final int DEFAULT_MAX_HP = 100;
 

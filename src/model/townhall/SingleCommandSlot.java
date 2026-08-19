@@ -1,7 +1,7 @@
 package model.townhall;
 
 //مالک command فعال است و تضمین می‌کند Town Hall هم‌زمان بیشتر از یک کار نداشته باشه
-public class SingleCommandSlot {
+public class SingleCommandSlot implements java.io.Serializable {
 
     private ProductionCommand activeCommand;
 

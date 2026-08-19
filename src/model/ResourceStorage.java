@@ -1,7 +1,7 @@
 package model;
 import static model.Constants.ResourceType;
 
-public class ResourceStorage {
+public class ResourceStorage implements java.io.Serializable {
     private ResourceAmount current;
     private ResourceAmount capacity;
 

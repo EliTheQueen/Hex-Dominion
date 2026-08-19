@@ -4,7 +4,7 @@ import model.townhall.CommandStartResult;
 import model.townhall.TownHall;
 import model.townhall.TownHallCommandService;
 
-public class TechnologyResearchService {
+public class TechnologyResearchService implements java.io.Serializable {
 
     private final TownHall townHall;
     private final TechnologyRegistry registry;

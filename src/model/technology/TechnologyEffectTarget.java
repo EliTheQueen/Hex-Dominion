@@ -1,6 +1,6 @@
 package model.technology;
 
-public interface TechnologyEffectTarget {
+public interface TechnologyEffectTarget extends java.io.Serializable {
 
     void enableSailing();
 

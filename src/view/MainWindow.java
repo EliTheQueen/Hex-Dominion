@@ -70,6 +70,10 @@ public class MainWindow extends JFrame {
 
     public void startGame() {
         controller.startNewGame();
+        showCurrentGame();
+    }
+
+    public void showCurrentGame() {
         if (gamePanel != null) {
             cardPanel.remove(gamePanel);
         }

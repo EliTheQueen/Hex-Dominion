@@ -1,6 +1,6 @@
 package model.season;
 
-public class SeasonCycle {
+public class SeasonCycle implements java.io.Serializable {
 
     public static final int TURNS_PER_SEASON = 10;
 

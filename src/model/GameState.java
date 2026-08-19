@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Random;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
-public class GameState {
+public class GameState implements java.io.Serializable {
 
     private final GameMap map;
     private final Player player;

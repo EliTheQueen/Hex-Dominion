@@ -4,7 +4,7 @@ import model.ResourceAmount;
 import model.ResourceStorage;
 
 //بین منابع بازیکن، Town Hall و slot هماهنگی ایجاد می‌کند.
-public class TownHallCommandService {
+public class TownHallCommandService implements java.io.Serializable {
     private final TownHall townHall;
     private final ResourceStorage resourceStorage;
 

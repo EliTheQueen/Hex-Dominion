@@ -2,7 +2,7 @@ package model.townhall;
 
 import model.ResourceAmount;
 
-public interface ProductionCommand {
+public interface ProductionCommand extends java.io.Serializable {
 
     ResourceAmount getCost();
 

@@ -9,7 +9,7 @@ import model.Player;
 import model.Unit;
 import model.townhall.TownHallLevel;
 
-public class MilitaryRecruitmentService {
+public class MilitaryRecruitmentService implements java.io.Serializable {
 
     private final Player player;
     private final GameMap map;

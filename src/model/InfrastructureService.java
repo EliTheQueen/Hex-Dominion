@@ -1,6 +1,6 @@
 package model;
 
-public class InfrastructureService {
+public class InfrastructureService implements java.io.Serializable {
 
     private static final int ACTION_AP_COST = 1;
 

@@ -5,7 +5,7 @@ import model.trade.BazaarTradeLevel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Building {
+public class Building implements java.io.Serializable {
     private final HexCoordinate position;
     private final Constants.BuildingType type;
     private final List<Worker> workers;

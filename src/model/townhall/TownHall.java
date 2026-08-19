@@ -1,6 +1,6 @@
 package model.townhall;
 
-public class TownHall {
+public class TownHall implements java.io.Serializable {
     private TownHallLevel level;
     private int currentHp;
     private final SingleCommandSlot singleCommandSlot;

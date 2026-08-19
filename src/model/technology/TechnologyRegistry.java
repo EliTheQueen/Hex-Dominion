@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TechnologyRegistry {
+public class TechnologyRegistry implements java.io.Serializable {
 
     private final Set<TechnologyType> completed =
             new HashSet<>();

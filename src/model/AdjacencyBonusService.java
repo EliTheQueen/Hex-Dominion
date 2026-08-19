@@ -1,6 +1,6 @@
 package model;
 
-public class AdjacencyBonusService {
+public class AdjacencyBonusService implements java.io.Serializable {
 
     public int calculateBonus(Building building, Player player, GameMap map) {
         if (building == null || player == null || map == null) {

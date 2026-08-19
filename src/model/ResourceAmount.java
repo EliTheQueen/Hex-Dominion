@@ -4,7 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import static model.Constants.ResourceType;
 
-public class ResourceAmount {
+public class ResourceAmount implements java.io.Serializable {
     private final EnumMap<ResourceType,Integer> values = new EnumMap<>(ResourceType.class);
 
     public ResourceAmount(){

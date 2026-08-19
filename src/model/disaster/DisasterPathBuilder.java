@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class DisasterPathBuilder {
+public class DisasterPathBuilder implements java.io.Serializable {
 
     public List<HexCoordinate> buildRandomPath(
             HexCoordinate origin,

@@ -2,7 +2,7 @@ package model.military;
 
 import model.HexCoordinate;
 
-public class UnitFactory {
+public class UnitFactory implements java.io.Serializable {
 
     public MilitaryUnit createUnit(MilitaryUnitType militaryUnitType, HexCoordinate position) {
         if (militaryUnitType == null) {

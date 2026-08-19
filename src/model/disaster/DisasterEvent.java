@@ -7,7 +7,7 @@ import java.util.UUID;
 //چون Disaster عمومی به‌تنهایی قابل اجرا نیست.
 //باید subclass مشخص داشته باشیم
 //pas abstract
-public abstract class DisasterEvent {
+public abstract class DisasterEvent implements java.io.Serializable {
 
     private final String id;
     private final DisasterType type;

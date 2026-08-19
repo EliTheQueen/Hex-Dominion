@@ -2,7 +2,7 @@ package model.disaster;
 
 import java.util.Random;
 
-public class DisasterOccurrencePolicy {
+public class DisasterOccurrencePolicy implements java.io.Serializable {
 
     public static final double DEFAULT_PROBABILITY = 0.05;
 

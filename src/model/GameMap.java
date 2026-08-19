@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 
-public class GameMap{
+public class GameMap implements java.io.Serializable {
 
     private Map<HexCoordinate, Hex> hexes;
     private final Set<HexEdge> riverEdges;

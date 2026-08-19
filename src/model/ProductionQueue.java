@@ -3,7 +3,7 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ProductionQueue {
+public class ProductionQueue implements java.io.Serializable {
     private final List<ProductionTask> tasks = new ArrayList<>();
 
     public void enqueue(ProductionTask task) { tasks.add(task); }

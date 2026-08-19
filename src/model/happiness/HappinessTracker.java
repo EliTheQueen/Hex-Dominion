@@ -1,6 +1,6 @@
 package model.happiness;
 
-public class HappinessTracker {
+public class HappinessTracker implements java.io.Serializable {
 
     private int score;
 
