@@ -59,32 +59,33 @@ public class InfrastructureService implements java.io.Serializable {
     }
 
     public boolean buildWall(Builder builder, HexCoordinate first, HexCoordinate second) {
-        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
-            return false;
-        }
+        if (!canBuildWall(builder, first, second)) return false;
 
-        if (!builderTouchesEdge(builder, first, second)) {
-            return false;
-        }
-
-        if (!player.isInTerritory(first) && !player.isInTerritory(second)) {
-            return false;
-        }
-
-        if (!validWallTerrain(first) || !validWallTerrain(second)
-                || !map.getHex(first).getIsExplored() || !map.getHex(second).getIsExplored()) return false;
-
-        if (map.hasWallBetween(first, second)) {
-            return false;
-        }
-
+        int apBefore = builder.getCurrentAP();
         if (!builder.spendAP(ACTION_AP_COST)) {
+            return false;
+        }
+        if (!player.spend(Constants.WALL_COST)) {
+            builder.setCurrentAP(apBefore);
             return false;
         }
 
         map.buildWall(first, second);
         return true;
     }
+
+    public boolean canBuildWall(Builder builder, HexCoordinate first, HexCoordinate second) {
+        return canUseBuilder(builder)
+                && isValidEdge(first, second)
+                && builderTouchesEdge(builder, first, second)
+                && (player.isInTerritory(first) || player.isInTerritory(second))
+                && validWallTerrain(first) && validWallTerrain(second)
+                && map.getHex(first).getIsExplored() && map.getHex(second).getIsExplored()
+                && !map.hasWallBetween(first, second)
+                && player.canAfford(Constants.WALL_COST);
+    }
+
+    public ResourceAmount getWallCost() { return Constants.WALL_COST.copy(); }
 
     /** Builds a free wall for a completed technology effect, without consuming a builder action. */
     public boolean buildAutomaticWall(HexCoordinate first, HexCoordinate second) {
@@ -96,17 +97,7 @@ public class InfrastructureService implements java.io.Serializable {
     }
 
     public boolean demolishWall(Builder builder, HexCoordinate first, HexCoordinate second) {
-        if (!canUseBuilder(builder) || !isValidEdge(first, second)) {
-            return false;
-        }
-
-        if (!builderTouchesEdge(builder, first, second)) {
-            return false;
-        }
-
-        if (!map.hasWallBetween(first, second)) {
-            return false;
-        }
+        if (!canDemolishWall(builder, first, second)) return false;
 
         if (!builder.spendAP(ACTION_AP_COST)) {
             return false;
@@ -114,6 +105,12 @@ public class InfrastructureService implements java.io.Serializable {
 
         map.removeWall(first, second);
         return true;
+    }
+
+    public boolean canDemolishWall(Builder builder, HexCoordinate first, HexCoordinate second) {
+        return canUseBuilder(builder) && isValidEdge(first, second)
+                && builderTouchesEdge(builder, first, second)
+                && map.hasWallBetween(first, second);
     }
 
     public boolean buildBridge(Builder builder, HexCoordinate first, HexCoordinate second) {
@@ -138,11 +135,18 @@ public class InfrastructureService implements java.io.Serializable {
     }
 
     public boolean demolishBuilding(Builder builder, HexCoordinate coordinate) {
+        if (!canDemolishBuilding(builder, coordinate)) return false;
+        Building building = player.getBuildingAt(coordinate);
+        if (!builder.spendAP(ACTION_AP_COST)) return false;
+        if (player.destroyBuilding(map, building)) return true;
+        builder.setCurrentAP(builder.getCurrentAP() + ACTION_AP_COST);
+        return false;
+    }
+
+    public boolean canDemolishBuilding(Builder builder, HexCoordinate coordinate) {
         if (!canUseBuilder(builder) || !canReach(builder, coordinate)) return false;
         Building building = player.getBuildingAt(coordinate);
-        if (building == null || building.getType() == Constants.BuildingType.TOWN_HALL) return false;
-        if (!builder.spendAP(ACTION_AP_COST)) return false;
-        return player.destroyBuilding(map, building);
+        return building != null && building.getType() != Constants.BuildingType.TOWN_HALL;
     }
 
     public boolean demolishBridge(Builder builder, HexCoordinate first, HexCoordinate second) {

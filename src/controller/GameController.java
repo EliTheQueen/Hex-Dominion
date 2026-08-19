@@ -282,6 +282,14 @@ public class GameController {
         return ok;
     }
 
+    public boolean onDemolishWall(HexCoordinate neighbour) {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().demolishWall((Builder) selectedUnit,
+                selectedUnit.getPosition(), neighbour);
+        statusMessage = ok ? "Wall demolished (no refund)" : "No removable wall on that edge";
+        return ok;
+    }
+
     public boolean onBuildBridge(HexCoordinate neighbour) {
         if (!(selectedUnit instanceof Builder)) return false;
         boolean ok = gameState.getInfrastructureService().buildBridge((Builder) selectedUnit,
@@ -290,10 +298,22 @@ public class GameController {
         return ok;
     }
 
+    public boolean onDemolishBridge(HexCoordinate neighbour) {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().demolishBridge((Builder) selectedUnit,
+                selectedUnit.getPosition(), neighbour);
+        statusMessage = ok ? "Bridge demolished (no refund)" : "No removable bridge on that edge";
+        return ok;
+    }
+
     public boolean onDemolishBuilding() {
+        return selectedUnit == null ? false : onDemolishBuilding(selectedUnit.getPosition());
+    }
+
+    public boolean onDemolishBuilding(HexCoordinate coordinate) {
         if (!(selectedUnit instanceof Builder)) return false;
         boolean ok = gameState.getInfrastructureService().demolishBuilding((Builder) selectedUnit,
-                selectedUnit.getPosition());
+                coordinate);
         statusMessage = ok ? "Building demolished (no refund)" : "No removable building here";
         return ok;
     }

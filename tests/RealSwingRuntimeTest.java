@@ -107,8 +107,25 @@ public final class RealSwingRuntimeTest {
             controller.deselectUnit();
             controller.onHexClicked(builder.getPosition());
             require(controller.getSelectedUnit() == builder, "Builder selection failed");
+            HexCoordinate adjacentSite = null;
+            for (HexCoordinate neighbour : builder.getPosition().findNeighbours()) {
+                if (state.getMap().containsCoordinate(neighbour)
+                        && state.getPlayer().getBuildingAt(neighbour) == null) {
+                    adjacentSite = neighbour;
+                    break;
+                }
+            }
+            require(adjacentSite != null, "Builder has no adjacent demolition test site");
+            Building adjacentFarm = new Building(adjacentSite, Constants.BuildingType.FARM);
+            state.getPlayer().addBuilding(adjacentFarm);
+            state.getMap().getHex(adjacentSite).setHasBuilding(true);
+            state.getMap().buildWall(builder.getPosition(), adjacentSite);
             gamePanel.repaintAll();
             window.validate();
+            require(findButtonStartingWith(gamePanel.getSidePanel(), "Demolish FARM") != null,
+                    "adjacent building demolition control is missing");
+            require(findButtonStartingWith(gamePanel.getSidePanel(), "Demolish wall") != null,
+                    "wall-edge demolition control is missing");
             writeSnapshot(gamePanel, new File("/tmp/hex-dominion-selected-builder.png"));
             controller.deselectUnit();
             gamePanel.repaintAll();
@@ -266,6 +283,18 @@ public final class RealSwingRuntimeTest {
             }
             if (component instanceof Container) {
                 JButton nested = findButton((Container) component, text);
+                if (nested != null) return nested;
+            }
+        }
+        return null;
+    }
+
+    private static JButton findButtonStartingWith(Container root, String prefix) {
+        for (Component component : root.getComponents()) {
+            if (component instanceof JButton
+                    && ((JButton) component).getText().startsWith(prefix)) return (JButton) component;
+            if (component instanceof Container) {
+                JButton nested = findButtonStartingWith((Container) component, prefix);
                 if (nested != null) return nested;
             }
         }

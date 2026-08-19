@@ -767,8 +767,7 @@ public class GameState implements java.io.Serializable {
                 return townHall.getLevel().getLevelNumber() >= 2 && map.isCoastal(coord);
 
             case MONUMENT:
-                return (hex.getTerrainType() == Constants.TerrainType.PLAIN
-                        || hex.getTerrainType() == Constants.TerrainType.GRASSLAND)
+                return hex.getTerrainType() == Constants.TerrainType.PLAIN
                         && !hex.everHadResource();
 
             case BAZAAR:

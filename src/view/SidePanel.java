@@ -21,6 +21,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
@@ -262,23 +263,59 @@ public class SidePanel extends JPanel {
             Builder builder = (Builder) u;
             boolean roadHere = controller.getGameState().getMap().hasRoad(builder.getPosition());
             addActionBtn(roadHere ? "Demolish Road" : "Build Road", true,
-                    ev -> { if (roadHere) controller.onDemolishRoad(); else controller.onBuildRoad(); gamePanel.repaintAll(); });
-            Building ownBuilding = controller.getGameState().getPlayer().getBuildingAt(builder.getPosition());
-            addActionBtn("Demolish Building", ownBuilding != null
-                            && ownBuilding.getType() != Constants.BuildingType.TOWN_HALL,
-                    ev -> { controller.onDemolishBuilding(); gamePanel.repaintAll(); });
+                    ev -> {
+                        if (roadHere) {
+                            if (confirmDemolition("road")) controller.onDemolishRoad();
+                        } else controller.onBuildRoad();
+                        gamePanel.repaintAll();
+                    });
+            java.util.List<model.HexCoordinate> demolitionSites = new java.util.ArrayList<>();
+            demolitionSites.add(builder.getPosition());
+            demolitionSites.addAll(builder.getPosition().findNeighbours());
+            for (model.HexCoordinate site : demolitionSites) {
+                Building building = controller.getGameState().getPlayer().getBuildingAt(site);
+                if (building == null || building.getType() == Constants.BuildingType.TOWN_HALL) continue;
+                boolean enabled = controller.getGameState().getInfrastructureService()
+                        .canDemolishBuilding(builder, site);
+                String label = "Demolish " + building.getType().name().replace('_', ' ')
+                        + " " + site.getQ() + "," + site.getR();
+                addActionBtn(label, enabled, ev -> {
+                    if (confirmDemolition(building.getType().name().replace('_', ' '))) {
+                        controller.onDemolishBuilding(site);
+                    }
+                    gamePanel.repaintAll();
+                });
+            }
             for (model.HexCoordinate neighbour : builder.getPosition().findNeighbours()) {
                 if (!controller.getGameState().getMap().containsCoordinate(neighbour)) continue;
-                if (controller.getGameState().getMap().hasRiverBetween(builder.getPosition(), neighbour)
-                        && !controller.getGameState().getMap().hasBridgeBetween(builder.getPosition(), neighbour)) {
-                    addActionBtn("Bridge edge " + neighbour.getQ() + "," + neighbour.getR(), true,
-                            ev -> { controller.onBuildBridge(neighbour); gamePanel.repaintAll(); });
+                if (controller.getGameState().getMap().hasRiverBetween(builder.getPosition(), neighbour)) {
+                    boolean bridgeExists = controller.getGameState().getMap()
+                            .hasBridgeBetween(builder.getPosition(), neighbour);
+                    addActionBtn((bridgeExists ? "Demolish bridge " : "Build bridge ")
+                                    + neighbour.getQ() + "," + neighbour.getR(), true,
+                            ev -> {
+                                if (bridgeExists) {
+                                    if (confirmDemolition("bridge")) controller.onDemolishBridge(neighbour);
+                                } else controller.onBuildBridge(neighbour);
+                                gamePanel.repaintAll();
+                            });
                 }
-                if (!controller.getGameState().getMap().hasWallBetween(builder.getPosition(), neighbour)) {
-                    addActionBtn("Wall edge " + neighbour.getQ() + "," + neighbour.getR(), true,
-                            ev -> { controller.onBuildWall(neighbour); gamePanel.repaintAll(); });
+                boolean wallExists = controller.getGameState().getMap()
+                        .hasWallBetween(builder.getPosition(), neighbour);
+                boolean wallEnabled = wallExists
+                        ? controller.getGameState().getInfrastructureService()
+                        .canDemolishWall(builder, builder.getPosition(), neighbour)
+                        : controller.getGameState().getInfrastructureService()
+                        .canBuildWall(builder, builder.getPosition(), neighbour);
+                String wallLabel = wallExists ? "Demolish wall " : "Build wall (10W 10S) ";
+                addActionBtn(wallLabel + neighbour.getQ() + "," + neighbour.getR(), wallEnabled,
+                        ev -> {
+                            if (wallExists) {
+                                if (confirmDemolition("wall")) controller.onDemolishWall(neighbour);
+                            } else controller.onBuildWall(neighbour);
+                            gamePanel.repaintAll();
+                        });
                 }
-            }
         } else if (u instanceof Worker) {
             Worker w = (Worker) u;
             boolean canStation = controller.canStationHere();
@@ -294,6 +331,13 @@ public class SidePanel extends JPanel {
 
         actionPanel.add(Box.createVerticalStrut(6));
         addActionBtn("Deselect (ESC)", true, ev -> { controller.deselectUnit(); gamePanel.repaintAll(); });
+    }
+
+    private boolean confirmDemolition(String target) {
+        return JOptionPane.showConfirmDialog(this,
+                "Demolish this " + target + "? No resources will be refunded.",
+                "Confirm demolition", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
+                == JOptionPane.YES_OPTION;
     }
 
     private void addBuildBtn(String label, Constants.BuildingType type) {

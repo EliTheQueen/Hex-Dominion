@@ -62,6 +62,8 @@ public final class Constants {
 
     public static final int TOWN_HALL_FOOD = 1;
     public static final int TOWN_HALL_WOOD = 1;
+    /** Configurable Phase 2 wall material cost; automatic technology walls remain free. */
+    public static final ResourceAmount WALL_COST = ResourceAmount.of(0, 10, 10, 0);
 
     public static final int UPKEEP_GRACE_TURNS = 3;
 

@@ -191,11 +191,7 @@ public class GameMap implements java.io.Serializable {
             HexCoordinate first,
             HexCoordinate second
     ) {
-        HexEdge edge = findWallEdge(first, second);
-
-        if (edge != null) {
-            edge.removeWall();
-        }
+        wallEdges.removeIf(edge -> edge.connects(first, second));
     }
 
     private HexEdge findWallEdge(
