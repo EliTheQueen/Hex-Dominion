@@ -19,6 +19,7 @@ import javax.swing.Timer;
 import app.Main;
 import controller.GameController;
 import model.Building;
+import model.Builder;
 import model.Constants;
 import model.GameState;
 import model.Hex;
@@ -87,6 +88,9 @@ public final class RealSwingRuntimeTest {
             require(movement != null, "no starting unit has a valid movement destination");
             controller.onHexClicked(movement.unit.getPosition());
             require(controller.getSelectedUnit() == movement.unit, "unit selection failed");
+            gamePanel.repaintAll();
+            window.validate();
+            writeSnapshot(gamePanel, new File("/tmp/hex-dominion-selected-unit.png"));
             controller.onHexClicked(movement.destination);
             require(movement.destination.equals(movement.unit.getPosition()), "unit movement failed");
             movedUnitRef.set(movement.unit);
@@ -94,6 +98,20 @@ public final class RealSwingRuntimeTest {
             movedToRef.set(movement.destination);
             gamePanel.repaintAll();
             render(gamePanel.getMapPanel());
+
+            Unit builder = null;
+            for (Unit unit : state.getPlayer().getUnits()) {
+                if (unit instanceof Builder) { builder = unit; break; }
+            }
+            require(builder != null, "starting Builder was not found");
+            controller.deselectUnit();
+            controller.onHexClicked(builder.getPosition());
+            require(controller.getSelectedUnit() == builder, "Builder selection failed");
+            gamePanel.repaintAll();
+            window.validate();
+            writeSnapshot(gamePanel, new File("/tmp/hex-dominion-selected-builder.png"));
+            controller.deselectUnit();
+            gamePanel.repaintAll();
         });
 
         openAndCloseDialog(gamePanelRef.get(), "RECRUIT", RecruitPanel.class);
