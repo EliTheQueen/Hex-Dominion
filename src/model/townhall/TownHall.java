@@ -22,7 +22,7 @@ public class TownHall implements java.io.Serializable {
         return singleCommandSlot;
     }
     public int getMaxHp() {
-        return level.getMaxHp();
+        return defense >= 30 ? 350 : level.getMaxHp();
     }
     public int getStorageCapacity() {
         return level.getStorageCapacity();

@@ -4,7 +4,7 @@ public enum TownHallLevel {
 
     BASE_CAMP(1, 100, 200),
     SETTLEMENT(2, 200, 250),
-    CAPITAL(3, 350, 350);
+    CAPITAL(3, 350, 250);
 
     private final int levelNumber;
     private final int storageCapacity;

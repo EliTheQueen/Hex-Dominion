@@ -14,7 +14,30 @@ public final class PhaseTwoTownHallTest {
         researchUsesTheSameSlot();
         militaryTrainingUsesTheSameSlot();
         legacyResearchUsesTheSameSlot();
+        capitalAndDefensiveArchitecture();
         System.out.println("PhaseTwoTownHallTest passed");
+    }
+
+    private static void capitalAndDefensiveArchitecture() {
+        GameState state = fundedState();
+        require(state.startTownHallUpgrade() == CommandStartResult.STARTED, "settlement start");
+        state.endTurn(); state.endTurn(); state.endTurn();
+        state.getPlayer().addResources(ResourceAmount.of(0, 0, 100, 0));
+        require(state.startTownHallUpgrade() == CommandStartResult.STARTED, "capital start");
+        for (int i = 0; i < 5; i++) state.endTurn();
+        require(state.getTownHall().getLevel() == TownHallLevel.CAPITAL, "capital after five turns");
+        require(state.getTownHall().getMaxHp() == 250, "capital does not pre-grant defensive tech HP");
+        state.getPlayer().addResources(ResourceAmount.of(0, 0, 100, 0));
+        require(state.startPhaseTwoResearch(TechnologyType.DEFENSIVE_ARCHITECTURE) == ResearchStartResult.STARTED,
+                "defensive architecture start");
+        for (int i = 0; i < 4; i++) state.endTurn();
+        require(state.hasDefensiveArchitecture() && state.getTownHall().getDefense() == 30
+                && state.getTownHall().getMaxHp() == 350, "defensive architecture effect");
+        int walls = 0;
+        for (model.HexCoordinate neighbour : state.getTownHallPos().findNeighbours())
+            if (state.getMap().containsCoordinate(neighbour)
+                    && state.getMap().hasWallBetween(state.getTownHallPos(), neighbour)) walls++;
+        require(walls == 6, "automatic Town Hall walls");
     }
 
     private static void legacyResearchUsesTheSameSlot() {
