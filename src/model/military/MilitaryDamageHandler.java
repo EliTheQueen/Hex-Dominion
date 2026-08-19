@@ -18,7 +18,7 @@ public class MilitaryDamageHandler implements java.io.Serializable {
                 break;
             }
 
-            target.decreaseHp(1);
+            target.takeDamage(1);
 
             if (target.isDead()) {
                 targetHex.removeDeadUnits();

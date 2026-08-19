@@ -93,7 +93,7 @@ public final class BuildingDestructionLifecycleTest {
         hex.setTerrainType(Constants.TerrainType.PLAIN);
         hex.addNaturalResource(Constants.NaturalResourceType.STONE, 100);
         state.getPlayer().expandTerritory(site);
-        state.getPlayer().applyTech(Constants.TechnologyType.STONE_MINING);
+        state.getPlayer().completeLegacyTechnology(Constants.TechnologyType.STONE_MINING);
         Building mine = new Building(site, Constants.BuildingType.STONE_MINE);
         state.getPlayer().addBuilding(mine);
         hex.setHasBuilding(true);

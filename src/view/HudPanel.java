@@ -23,7 +23,6 @@ import controller.GameController;
 import model.Constants;
 import model.GameState;
 import model.Player;
-import model.ProductionTask;
 import model.ResourceStorage;
 import model.season.Season;
 import model.season.SeasonCycle;
@@ -224,10 +223,8 @@ public class HudPanel extends JPanel {
         drawInfoCard(g2, PAD + happinessW + GAP, LOWER_Y, hallW, LOWER_H,
                 "TOWN HALL", hallValue, new Color(125, 185, 230));
 
-        ProductionTask front = p.getProductionQueue().getFront();
         String commandTitle = hallCommand == null ? "COMMAND" : "COMMAND • " + hallCommand.getRemainingTurns() + " TURNS";
-        String commandValue = hallCommand != null ? commandName(hallCommand)
-                : front != null ? front.getLabel() : "Town Hall ready";
+        String commandValue = hallCommand != null ? commandName(hallCommand) : "Town Hall ready";
         int idle = gs.getIdleUnitsWithAP().size();
         String status = controller.getStatusMessage();
         String alert = gs.isStarving() ? "STARVATION"

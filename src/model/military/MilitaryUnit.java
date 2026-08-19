@@ -5,6 +5,7 @@ import model.HexCoordinate;
 import model.Unit;
 
 public abstract class MilitaryUnit extends Unit {
+    private static final long serialVersionUID = 763958483051858437L;
 
     private final int structureDamage;
     private final int range;
@@ -49,10 +50,6 @@ public abstract class MilitaryUnit extends Unit {
 
     public boolean isDead() {
         return !isAlive();
-    }
-
-    public void decreaseHp(int amount) {
-        takeDamage(amount);
     }
 
     public boolean canAttack() {

@@ -37,8 +37,11 @@ public final class ControllerGameFlowTest {
         require(!controller.getCivilianRecruitmentAvailability(Constants.UnitType.EXPLORER).isEnabled(),
                 "recruitment must observe the same occupied command slot");
         advance(state, 3);
-        require(state.getPlayer().hasResearched(Constants.TechnologyType.STORAGE_I),
+        require(state.getPlayer().hasResearchedLegacyTechnology(Constants.TechnologyType.STORAGE_I),
                 "Controller-started research must complete through endTurn");
+        require(state.getTownHall().getStorageCapacity() == 150
+                        && state.getPlayer().getResources().getCap(Constants.ResourceType.FOOD) == 150,
+                "legacy storage research must update the authoritative Town Hall capacity");
 
         int unitsBefore = state.getPlayer().getUnitCount();
         controller.onRecruitUnit(Constants.UnitType.EXPLORER);

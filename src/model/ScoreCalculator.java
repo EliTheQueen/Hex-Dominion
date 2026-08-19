@@ -14,7 +14,7 @@ public class ScoreCalculator {
 
     public static int buildingScore(Player p) { return p.getActiveBuildingCount() * 10; }
 
-    public static int techScore(Player p) { return p.getResearched().size() * 15; }
+    public static int techScore(Player p) { return p.getResearchedLegacyTechnologies().size() * 15; }
 
     public static int explorationScore(GameMap map) {
         int s = 0;

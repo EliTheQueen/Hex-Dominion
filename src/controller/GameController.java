@@ -278,15 +278,15 @@ public class GameController {
         if (!builder.isAlive()) return ActionAvailability.disabled("This Builder is no longer alive");
         if (!builder.hasCharges()) return ActionAvailability.disabled("Builder has no construction charges left");
         if (type == BuildingType.STONE_MINE
-                && !gameState.getPlayer().hasResearched(Constants.TechnologyType.STONE_MINING)) {
+                && !gameState.getPlayer().hasResearchedLegacyTechnology(Constants.TechnologyType.STONE_MINING)) {
             return ActionAvailability.disabled("Research STONE MINING before building a Stone Mine");
         }
         if (type == BuildingType.IRON_MINE
-                && !gameState.getPlayer().hasResearched(Constants.TechnologyType.IRON_MINING)) {
+                && !gameState.getPlayer().hasResearchedLegacyTechnology(Constants.TechnologyType.IRON_MINING)) {
             return ActionAvailability.disabled("Research IRON MINING before building an Iron Mine");
         }
         if (type == BuildingType.TOWNSHIP
-                && !gameState.getPlayer().hasResearched(Constants.TechnologyType.TOWNSHIP)) {
+                && !gameState.getPlayer().hasResearchedLegacyTechnology(Constants.TechnologyType.TOWNSHIP)) {
             return ActionAvailability.disabled("Research TOWNSHIP before building a Township");
         }
         if ((type == BuildingType.DOCK || type == BuildingType.BAZAAR)
@@ -384,14 +384,14 @@ public class GameController {
         if (gameState == null) return ActionAvailability.disabled("Start or load a game first");
         if (technology == null) return ActionAvailability.disabled("Choose a technology");
         Player player = gameState.getPlayer();
-        if (player.hasResearched(technology)) return ActionAvailability.disabled("Technology already researched");
-        if (player.isTechQueued(technology)) return ActionAvailability.disabled("Technology is already in progress");
+        if (player.hasResearchedLegacyTechnology(technology)) return ActionAvailability.disabled("Legacy technology already researched");
+        if (player.isLegacyTechnologyQueued(technology)) return ActionAvailability.disabled("Legacy technology is already in progress");
         String prerequisite = switch (technology) {
-            case STORAGE_II -> player.hasResearched(Constants.TechnologyType.STORAGE_I)
+            case STORAGE_II -> player.hasResearchedLegacyTechnology(Constants.TechnologyType.STORAGE_I)
                     ? null : "Research STORAGE I first";
-            case IRON_MINING -> player.hasResearched(Constants.TechnologyType.STONE_MINING)
+            case IRON_MINING -> player.hasResearchedLegacyTechnology(Constants.TechnologyType.STONE_MINING)
                     ? null : "Research STONE MINING first";
-            case PROFESSIONAL_TOOLS -> player.hasResearched(Constants.TechnologyType.IRON_MINING)
+            case PROFESSIONAL_TOOLS -> player.hasResearchedLegacyTechnology(Constants.TechnologyType.IRON_MINING)
                     ? null : "Research IRON MINING first";
             default -> null;
         };
@@ -399,7 +399,7 @@ public class GameController {
         if (gameState.getTownHall().getCommandSlot().isBusy()) {
             return ActionAvailability.disabled("Town Hall command slot is occupied");
         }
-        ResourceAmount cost = player.getTechCost(technology);
+        ResourceAmount cost = player.getLegacyTechnologyCost(technology);
         String shortage = resourceShortage(cost);
         if (shortage != null) return ActionAvailability.disabled(shortage);
         return ActionAvailability.enabled("Research for " + describe(cost)

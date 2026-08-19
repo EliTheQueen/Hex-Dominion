@@ -1,10 +1,12 @@
 package model.townhall;
 
 public class TownHall implements java.io.Serializable {
+    private static final long serialVersionUID = -861120341540814351L;
     private TownHallLevel level;
     private int currentHp;
     private final SingleCommandSlot singleCommandSlot;
     private int defense = 10;
+    private int legacyTechnologyStorageBonus;
 
     public TownHall() {
         level = TownHallLevel.BASE_CAMP;
@@ -25,7 +27,12 @@ public class TownHall implements java.io.Serializable {
         return defense >= 30 ? 350 : level.getMaxHp();
     }
     public int getStorageCapacity() {
-        return level.getStorageCapacity();
+        return level.getStorageCapacity() + legacyTechnologyStorageBonus;
+    }
+
+    public void setLegacyTechnologyStorageBonus(int bonus) {
+        if (bonus < 0) throw new IllegalArgumentException("storage bonus must not be negative");
+        legacyTechnologyStorageBonus = bonus;
     }
 
     public boolean canUpgrade() {

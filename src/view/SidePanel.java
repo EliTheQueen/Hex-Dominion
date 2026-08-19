@@ -149,18 +149,11 @@ public class SidePanel extends JPanel {
         statsPanel.add(makeCentered(makeLabel("Territory: " + p.getTerritorySize(), TEXT_COLOR, Font.PLAIN, 11)));
         statsPanel.add(makeCentered(makeLabel("Buildings: " + p.getBuildingCount(), TEXT_COLOR, Font.PLAIN, 11)));
         statsPanel.add(makeCentered(makeLabel("Units: " + p.getUnitCount() + "/" + p.getUnitCap(), TEXT_COLOR, Font.PLAIN, 11)));
-        statsPanel.add(makeCentered(makeLabel("Tech: " + p.getResearched().size() + "/6", TEXT_COLOR, Font.PLAIN, 11)));
-
-        model.ProductionQueue queue = p.getProductionQueue();
-        if (!queue.isEmpty()) {
-            statsPanel.add(Box.createVerticalStrut(6));
-            statsPanel.add(makeCentered(makeLabel("PRODUCTION QUEUE", new Color(150, 200, 240), Font.BOLD, 11)));
-            int shown = 0;
-            for (model.ProductionTask t : queue.getTasks()) {
-                if (shown++ >= 4) break;
-                statsPanel.add(makeCentered(makeLabel(t.getLabel(), TEXT_COLOR, Font.PLAIN, 10)));
-            }
-        }
+        statsPanel.add(makeCentered(makeLabel("Legacy tech: "
+                + p.getResearchedLegacyTechnologies().size() + "/6", TEXT_COLOR, Font.PLAIN, 11)));
+        statsPanel.add(makeCentered(makeLabel("Phase 2 tech: "
+                + controller.getGameState().getPhaseTwoTechnologies().getCompletedTechnologies().size()
+                + "/3", TEXT_COLOR, Font.PLAIN, 11)));
 
         statsPanel.add(Box.createVerticalStrut(7));
         statsPanel.add(makeCentered(makeLabel("Score: " + controller.getGameState().getCurrentScore(), GOLD, Font.BOLD, 13)));

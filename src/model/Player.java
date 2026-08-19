@@ -17,6 +17,8 @@ import static model.Constants.TechnologyType;
 import static model.Constants.UnitType;
 
 public class Player implements java.io.Serializable {
+    /** Preserves compatibility with saves written before the legacy queue was removed. */
+    private static final long serialVersionUID = 3342778921353409401L;
     private final String name;
     private final ResourceStorage resources;
     private final List<Unit> units;
@@ -24,7 +26,6 @@ public class Player implements java.io.Serializable {
     private final Set<HexCoordinate> territory;
     private final Set<TechnologyType> researched; //مجموعه‌ی تکنولوژی‌های تمام‌شده.
     private final Set<TechnologyType> queuedTech; //تکنولوژی‌هایی که در صف هستند
-    private final ProductionQueue productionQueue;
 
     public Player(String name) {
         this.name = name;
@@ -34,7 +35,6 @@ public class Player implements java.io.Serializable {
         this.territory = new HashSet<>();
         this.researched = new HashSet<>();
         this.queuedTech = new HashSet<>();
-        this.productionQueue = new ProductionQueue();
 
         resources.addResources(ResourceAmount.of(INITIAL_FOOD, INITIAL_WOOD, INITIAL_STONE, INITIAL_IRON));
     }
@@ -59,12 +59,8 @@ public class Player implements java.io.Serializable {
         return territory;
     }
 
-    public Set<TechnologyType> getResearched() {
+    public Set<TechnologyType> getResearchedLegacyTechnologies() {
         return researched;
-    }
-
-    public ProductionQueue getProductionQueue() {
-        return productionQueue;
     }
 
     public void addUnit(Unit u) {
@@ -111,15 +107,15 @@ public class Player implements java.io.Serializable {
         return territory.contains(coord);
     }
 
-    public boolean hasResearched(TechnologyType tech) {
+    public boolean hasResearchedLegacyTechnology(TechnologyType tech) {
         return researched.contains(tech);
     }
 
-    public boolean isTechQueued(TechnologyType tech) {
+    public boolean isLegacyTechnologyQueued(TechnologyType tech) {
         return queuedTech.contains(tech);
     }
 
-    public ResourceAmount getTechCost(TechnologyType tech) {
+    public ResourceAmount getLegacyTechnologyCost(TechnologyType tech) {
         switch (tech) {
             case STORAGE_I:
                 return ResourceAmount.of(0, 20, 10, 0);
@@ -144,7 +140,7 @@ public class Player implements java.io.Serializable {
         STONE_MINING → IRON_MINING → PROFESSIONAL_TOOLS
         TOWNSHIP (مستقل)
      */
-    public boolean prerequisitesMet(TechnologyType tech) {
+    public boolean legacyPrerequisitesMet(TechnologyType tech) {
         if (researched.contains(tech) || queuedTech.contains(tech)) return false;
         switch (tech) {
             case STORAGE_II:
@@ -160,34 +156,20 @@ public class Player implements java.io.Serializable {
 
     //آیا الان می‌توان این تکنولوژی را تحقیق کرد؟
     // دو شرط: پیش‌نیاز فراهم باشد و پولش را داشته باشیم. ترکیبِ تمیزِ دو متدِ قبلی.
-    public boolean canResearch(TechnologyType tech) {
-        return prerequisitesMet(tech) && resources.canAfford(getTechCost(tech));
+    public boolean canResearchLegacyTechnology(TechnologyType tech) {
+        return legacyPrerequisitesMet(tech) && resources.canAfford(getLegacyTechnologyCost(tech));
     }
 
-    public boolean queueTech(TechnologyType tech) {
-        if (!canResearch(tech)) return false;
-        resources.spend(getTechCost(tech));
-        queuedTech.add(tech);
-        //به صفِ تولید اضافه می‌شود تا در نوبت‌های بعد پیش برود.
-        productionQueue.enqueue(ProductionTask.forTech(tech));
-        return true;
-    }
-
-    public boolean markTechQueued(TechnologyType tech) {
-        if (!prerequisitesMet(tech)) return false;
+    public boolean markLegacyTechnologyQueued(TechnologyType tech) {
+        if (!legacyPrerequisitesMet(tech)) return false;
         queuedTech.add(tech); return true;
     }
 
-    public void cancelQueuedTech(TechnologyType tech) { queuedTech.remove(tech); }
+    public void cancelQueuedLegacyTechnology(TechnologyType tech) { queuedTech.remove(tech); }
 
-    public void applyTech(TechnologyType tech) {
+    public void completeLegacyTechnology(TechnologyType tech) {
         queuedTech.remove(tech);
         researched.add(tech);
-        if (tech == TechnologyType.STORAGE_I) {
-            resources.upgradeCapacity(ResourceAmount.of(50, 50, 50, 50));
-        } else if (tech == TechnologyType.STORAGE_II) {
-            resources.upgradeCapacity(ResourceAmount.of(100, 100, 100, 100));
-        }
     }
 
     public boolean canAfford(ResourceAmount cost) {
@@ -208,15 +190,8 @@ public class Player implements java.io.Serializable {
         return count;
     }
 
-    /**
-     * Living units in the queue count toward the cap too, so the player can't over-queue.
-     */
     public int getEffectiveUnitCount() {
-        int queued = 0;
-        for (ProductionTask t : productionQueue.getTasks()) {
-            if (t.getKind() == ProductionTask.Kind.UNIT) queued++;
-        }
-        return getUnitCount() + queued;
+        return getUnitCount();
     }
 
     public int getTownshipCount() {

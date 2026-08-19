@@ -104,7 +104,7 @@ public class TechPanel extends JDialog {
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(researched ? RESEARCHED : levelOk ? AVAILABLE : LOCKED, 2, true),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        JLabel name = new JLabel(tech.name().replace('_', ' '));
+        JLabel name = new JLabel("PHASE 2 • " + tech.name().replace('_', ' '));
         name.setForeground(researched ? RESEARCHED : Color.WHITE);
         name.setFont(new Font("Georgia", Font.BOLD, 13));
         name.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -145,7 +145,7 @@ public class TechPanel extends JDialog {
     }
 
     private JPanel buildTechCard(Constants.TechnologyType tech, Player player) {
-        boolean researched = player.hasResearched(tech);
+        boolean researched = player.hasResearchedLegacyTechnology(tech);
         ActionAvailability availabilityResult = controller.getLegacyResearchAvailability(tech);
         boolean available = availabilityResult.isEnabled();
 
@@ -170,7 +170,7 @@ public class TechPanel extends JDialog {
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 
-        JLabel nameLbl = new JLabel(tech.name().replace("_", " "));
+        JLabel nameLbl = new JLabel("LEGACY • " + tech.name().replace("_", " "));
         nameLbl.setForeground(researched ? RESEARCHED : (available ? Color.WHITE : LOCKED));
         nameLbl.setFont(new Font("Georgia", Font.BOLD, 14));
         nameLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -192,7 +192,7 @@ public class TechPanel extends JDialog {
         card.add(statusLbl);
 
         if (!researched) {
-            ResourceAmount cost = player.getTechCost(tech);
+            ResourceAmount cost = player.getLegacyTechnologyCost(tech);
             JLabel costLbl = new JLabel("Cost: " + buildCostStr(cost));
             costLbl.setForeground(TEXT);
             costLbl.setFont(new Font("SansSerif", Font.PLAIN, 10));

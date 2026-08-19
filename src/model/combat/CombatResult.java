@@ -18,11 +18,4 @@ public class CombatResult {
         return defenderWins;
     }
 
-    public boolean attackerWon() {
-        return attackerWins > defenderWins;
-    }
-
-    public boolean defenderWon() {
-        return defenderWins >= attackerWins;
-    }
 }

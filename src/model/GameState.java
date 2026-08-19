@@ -33,6 +33,8 @@ import model.combat.CombatService;
 import model.combat.DiceRoller;
 import model.military.MilitaryDamageHandler;
 import model.military.MilitaryHex;
+import model.turn.TurnCoordinator;
+import model.turn.TurnPhase;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState implements java.io.Serializable {
@@ -257,29 +259,42 @@ public class GameState implements java.io.Serializable {
     }
 
     private void processEndTurnTransaction() {
+        TurnExecutionContext context = new TurnExecutionContext();
+        new TurnCoordinator().execute(phase -> processTurnPhase(phase, context));
+    }
 
+    private void processTurnPhase(TurnPhase phase, TurnExecutionContext context) {
+        switch (phase) {
+            case BEGINNING_OF_TURN -> processBeginningOfTurn();
+            case DOMAIN_AND_COMMANDS -> processDomainAndCommands(context);
+            case PRODUCTION_AND_UPKEEP -> processProductionAndUpkeep(context);
+            case POPULATION_AND_UNITS -> processPopulationAndUnits(context);
+            case CALENDAR_AND_TRIBES -> processCalendarAndTribes();
+            case ACTIVE_EVENTS -> processActiveEvents();
+            case END_CONDITIONS -> evaluateEndConditions();
+        }
+    }
+
+    private void processBeginningOfTurn() {
         lastTurnEvents.clear();
 
-        // Beginning-of-turn phase. Expire previous terrain effects before a
-        // new event is rolled so newly blocked hexes retain their full duration.
+        // Expire previous effects before rolling so new blocks retain full duration.
         map.advanceBlockedHexes();
-
         evaluateDisasterAtTurnStart();
+    }
 
+    private void processDomainAndCommands(TurnExecutionContext context) {
         refreshAlliances();
         tribeAllianceBenefitService.applyTurnBenefits(player);
-
         townHallCommandService.advanceOneTurn();
         syncTownHallBuildingFromDomain();
-
-        boolean professionalTools = player.hasProfessionalTools() || hasSteelTools();
-
+        context.professionalTools = player.hasProfessionalTools() || hasSteelTools();
         applyRecurringHappiness();
         applyTownHallGarrisonHappiness();
+        context.happinessLevel = happinessService.getCurrentLevel();
+    }
 
-        HappinessLevel happinessLevel = happinessService.getCurrentLevel();
-
-        // 1. Production.
+    private void processProductionAndUpkeep(TurnExecutionContext context) {
         for (Building building : new ArrayList<>(player.getBuildings())) {
             if (!building.isActive()) {
                 continue;
@@ -298,7 +313,7 @@ public class GameState implements java.io.Serializable {
                 continue;
             }
 
-            ResourceAmount yield = building.produce(professionalTools);
+            ResourceAmount yield = building.produce(context.professionalTools);
 
             Constants.ResourceType producedResource =
                     Constants.PRODUCES.get(building.getType());
@@ -317,7 +332,7 @@ public class GameState implements java.io.Serializable {
                         HappinessModifiers.applyProductionModifiers(
                                 production,
                                 building.getWorkers().size(),
-                                happinessLevel
+                                context.happinessLevel
                         );
 
                 yield.set(producedResource, modifiedProduction);
@@ -332,17 +347,7 @@ public class GameState implements java.io.Serializable {
             building.advanceTurnStatus();
         }
 
-        // 2. Production queue.
-        if (!starving) {
-            ProductionTask completedTask =
-                    player.getProductionQueue().advance();
-
-            if (completedTask != null) {
-                completeTask(completedTask);
-            }
-        }
-
-        // 3. Building upkeep.
+        // The Town Hall command slot is the sole training/research queue.
         for (Building building : new ArrayList<>(player.getBuildings())) {
             if (!building.isActive()
                     || building.getType() == Constants.BuildingType.TOWN_HALL) {
@@ -374,24 +379,21 @@ public class GameState implements java.io.Serializable {
                 );
             }
         }
+    }
 
-        // 4. Food consumption and starvation.
+    private void processPopulationAndUnits(TurnExecutionContext context) {
         int unitCount = player.getUnitCount();
-
         int shortage =
                 player.getResources().forceSpendFood(
                         unitCount * Constants.FOOD_PER_UNIT
                 );
-
         starving = shortage > 0;
-
         if (starving) {
             lastTurnEvents.add("STARVATION: food ran out");
         }
 
-        // 5. Reset AP and apply penalties.
         int happinessPenalty =
-                HappinessModifiers.actionPointPenalty(happinessLevel);
+                HappinessModifiers.actionPointPenalty(context.happinessLevel);
 
         for (Unit unit : player.getUnits()) {
             if (!unit.isAlive()) {
@@ -411,7 +413,7 @@ public class GameState implements java.io.Serializable {
             }
 
             if (happinessPenalty > 0
-                    && HappinessModifiers.actionPointPenaltyAppliesTo(happinessLevel, unit)) {
+                    && HappinessModifiers.actionPointPenaltyAppliesTo(context.happinessLevel, unit)) {
                 unit.setCurrentAP(
                         Math.max(
                                 0,
@@ -425,7 +427,6 @@ public class GameState implements java.io.Serializable {
             }
         }
 
-        // 6. Auto explore.
         for (Unit unit : player.getUnits()) {
             if (unit.isAlive()
                     && unit instanceof Explorer
@@ -437,11 +438,10 @@ public class GameState implements java.io.Serializable {
 
         player.removeDeadUnits();
         if (getMilitaryUnitCount() < getMilitaryUnitCap(townHall.getLevel())) militaryCapPenaltyApplied = false;
-
-        // 7. Visibility.
         updateVisibility();
+    }
 
-        // 8. Advance turn and season.
+    private void processCalendarAndTribes() {
         currentTurn++;
         seasonCycle.advanceTurn();
 
@@ -457,8 +457,9 @@ public class GameState implements java.io.Serializable {
         }
         refreshAlliances();
         processTribeTurns();
+    }
 
-        // 9. Active bear event.
+    private void processActiveEvents() {
         if (activeBearAttack != null) {
             activeBearAttack.processTurn();
 
@@ -470,7 +471,9 @@ public class GameState implements java.io.Serializable {
                 activeBearAttack = null;
             }
         }
+    }
 
+    private void evaluateEndConditions() {
         if (player.getUnitCount() == 0
                 && player.getActiveBuildingCount() == 0) {
 
@@ -478,6 +481,11 @@ public class GameState implements java.io.Serializable {
             gameOverReason = "All units and buildings lost";
             finalScore = ScoreCalculator.calculate(player, map);
         }
+    }
+
+    private static final class TurnExecutionContext {
+        private boolean professionalTools;
+        private HappinessLevel happinessLevel;
     }
 
     private void evaluateDisasterAtTurnStart() {
@@ -754,63 +762,6 @@ public class GameState implements java.io.Serializable {
         return own;
     }
 
-    private void completeTask(ProductionTask task) {
-        if (task.getKind() == ProductionTask.Kind.TECH) {
-            player.applyTech(task.getTechType());
-
-            lastTurnEvents.add(
-                    "Researched " + task.getTechType().name()
-            );
-
-            return;
-        }
-
-        HexCoordinate position =
-                findFreeHexNearTownHall();
-
-        if (position == null) {
-            player.getProductionQueue()
-                    .getTasks()
-                    .add(
-                            0,
-                            ProductionTask.forUnit(
-                                    task.getUnitType()
-                            )
-                    );
-
-            return;
-        }
-
-        Unit unit;
-
-        switch (task.getUnitType()) {
-            case EXPLORER:
-                unit = new Explorer(position);
-                break;
-
-            case BUILDER:
-                unit = new Builder(position);
-                break;
-
-            case WORKER:
-                unit = new Worker(position);
-                break;
-
-            case BORDER_EXPANDER:
-                unit = new BorderExpander(position);
-                break;
-
-            default:
-                return;
-        }
-
-        player.addUnit(unit);
-
-        lastTurnEvents.add(
-                "Trained " + task.getUnitType().name()
-        );
-    }
-
     public HexCoordinate findFreeHexNearTownHall() {
         if (player.getUnitAt(townHallPos) == null) {
             return townHallPos;
@@ -880,7 +831,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case STONE_MINE:
-                yield player.hasResearched(
+                yield player.hasResearchedLegacyTechnology(
                         Constants.TechnologyType.STONE_MINING
                 )
                         && hex.hasResource(
@@ -888,7 +839,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case IRON_MINE:
-                yield player.hasResearched(
+                yield player.hasResearchedLegacyTechnology(
                         Constants.TechnologyType.IRON_MINING
                 )
                         && hex.hasResource(
@@ -913,7 +864,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case TOWNSHIP:
-                yield player.hasResearched(
+                yield player.hasResearchedLegacyTechnology(
                         Constants.TechnologyType.TOWNSHIP
                 )
                         && !hex.everHadResource();
@@ -940,13 +891,13 @@ public class GameState implements java.io.Serializable {
         }
         String reason = switch (type) {
             case LUMBER_MILL -> "Lumber Mill requires a WOOD resource";
-            case STONE_MINE -> !player.hasResearched(Constants.TechnologyType.STONE_MINING)
+            case STONE_MINE -> !player.hasResearchedLegacyTechnology(Constants.TechnologyType.STONE_MINING)
                     ? "Research STONE MINING first" : "Stone Mine requires a STONE resource";
-            case IRON_MINE -> !player.hasResearched(Constants.TechnologyType.IRON_MINING)
+            case IRON_MINE -> !player.hasResearchedLegacyTechnology(Constants.TechnologyType.IRON_MINING)
                     ? "Research IRON MINING first" : "Iron Mine requires an IRON resource";
             case FARM -> "Farm requires a WHEAT or RICE resource";
             case STABLE -> "Stable requires PLAIN terrain or a COW/SHEEP resource";
-            case TOWNSHIP -> !player.hasResearched(Constants.TechnologyType.TOWNSHIP)
+            case TOWNSHIP -> !player.hasResearchedLegacyTechnology(Constants.TechnologyType.TOWNSHIP)
                     ? "Research TOWNSHIP first" : "Township requires a site that never held a resource";
             case DOCK -> townHall.getLevel().getLevelNumber() < 2
                     ? "Dock requires a Settlement Town Hall" : "Dock requires a coastal land hex";
@@ -2172,7 +2123,9 @@ public class GameState implements java.io.Serializable {
     }
 
     public CommandStartResult startLegacyResearch(Constants.TechnologyType technology) {
-        if (technology == null || !player.canResearch(technology)) return CommandStartResult.INVALID_COMMAND;
+        if (technology == null || !player.canResearchLegacyTechnology(technology)) {
+            return CommandStartResult.INVALID_COMMAND;
+        }
         return townHallCommandService.startCommand(new LegacyResearchCommand(technology));
     }
 
@@ -2318,6 +2271,14 @@ public class GameState implements java.io.Serializable {
     }
 
     private void syncTownHallBuildingFromDomain() {
+        int legacyStorageBonus = 0;
+        if (player.hasResearchedLegacyTechnology(Constants.TechnologyType.STORAGE_I)) {
+            legacyStorageBonus += 50;
+        }
+        if (player.hasResearchedLegacyTechnology(Constants.TechnologyType.STORAGE_II)) {
+            legacyStorageBonus += 100;
+        }
+        townHall.setLegacyTechnologyStorageBonus(legacyStorageBonus);
         player.getResources().setCapacity(townHall.getStorageCapacity());
         Building building = player.getBuildingAt(townHallPos);
         if (building != null && building.getType() == Constants.BuildingType.TOWN_HALL) {
@@ -2420,14 +2381,6 @@ public class GameState implements java.io.Serializable {
                         "building worker reference is not bidirectional");
             }
         }
-        for (ProductionTask task : player.getProductionQueue().getTasks()) {
-            requirePersistent(task != null && task.getKind() != null
-                            && task.getTotalTurns() > 0
-                            && task.getTurnsRemaining() >= 0
-                            && task.getTurnsRemaining() <= task.getTotalTurns(),
-                    "production queue contains an invalid task");
-        }
-
         for (HexEdge edge : map.getWallEdges()) {
             requirePersistent(edge != null && map.containsCoordinate(edge.getFirst())
                             && map.containsCoordinate(edge.getSecond())
@@ -2595,17 +2548,22 @@ public class GameState implements java.io.Serializable {
     }
 
     private final class LegacyResearchCommand extends model.townhall.AbstractProductionCommand {
+        private static final int LEGACY_RESEARCH_TURNS = 3;
         private final Constants.TechnologyType technology;
         private LegacyResearchCommand(Constants.TechnologyType technology) {
-            super(player.getTechCost(technology), model.ProductionTask.forTech(technology).getTotalTurns());
+            super(player.getLegacyTechnologyCost(technology), LEGACY_RESEARCH_TURNS);
             this.technology = technology;
         }
         @Override public void onStarted() {
-            if (!player.markTechQueued(technology)) throw new IllegalStateException("Technology cannot be queued");
+            if (!player.markLegacyTechnologyQueued(technology)) {
+                throw new IllegalStateException("Legacy technology cannot be queued");
+            }
         }
-        @Override public void onCancelled() { player.cancelQueuedTech(technology); }
+        @Override public void onCancelled() { player.cancelQueuedLegacyTechnology(technology); }
         @Override protected void executeEffect() {
-            player.applyTech(technology); lastTurnEvents.add("Researched " + technology.name());
+            player.completeLegacyTechnology(technology);
+            syncTownHallBuildingFromDomain();
+            lastTurnEvents.add("Researched legacy technology " + technology.name());
         }
     }
 }
