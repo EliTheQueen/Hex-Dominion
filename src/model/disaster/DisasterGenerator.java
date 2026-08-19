@@ -5,6 +5,7 @@ import model.HexCoordinate;
 import model.Player;
 import model.season.Season;
 import model.disaster.area.RadiusDisasterAreaCalculator;
+import model.combat.CombatService;
 
 import java.util.Random;
 
@@ -30,9 +31,10 @@ public class DisasterGenerator implements java.io.Serializable {
             boolean bearAttackAllowed,
             GameMap map,
             Player player,
-            Random random
+            Random random,
+            CombatService combatService
     ) {
-        if (season == null || map == null || player == null || random == null) {
+        if (season == null || map == null || player == null || random == null || combatService == null) {
             throw new IllegalArgumentException("arguments must not be null");
         }
 
@@ -72,7 +74,8 @@ public class DisasterGenerator implements java.io.Serializable {
                 return new BearAttackEvent(
                         origin,
                         map,
-                        player
+                        player,
+                        combatService
                 );
 
             case TORNADO:

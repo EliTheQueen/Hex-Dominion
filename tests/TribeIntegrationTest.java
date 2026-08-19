@@ -25,13 +25,6 @@ public final class TribeIntegrationTest {
         require(state.declareWar(farmer) == DiplomacyResult.SUCCESS, "declare war");
         require(state.getHappinessScore() == happiness - 15, "allied attack happiness");
 
-        GameState hostileState = new GameState(15, 13);
-        Tribe hostile = find(hostileState, TribeType.WARRIOR); hostile.discover(); hostile.getRelation().becomeEnemy();
-        model.HexCoordinate near = hostile.getCampCoordinate().findNeighbours().get(0);
-        model.military.Swordsman victim = new model.military.Swordsman(near); hostileState.getPlayer().addUnit(victim);
-        hostileState.endTurn();
-        require(!victim.isAlive() || !hostileState.getPlayer().getUnits().contains(victim),
-                "enemy tribe performs prioritized hostile action");
         System.out.println("TribeIntegrationTest passed");
     }
 

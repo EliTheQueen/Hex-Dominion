@@ -6,6 +6,10 @@ import model.HexCoordinate;
 import model.Player;
 import model.Unit;
 import model.military.MilitaryUnit;
+import model.military.MilitaryHex;
+import model.combat.CombatRequest;
+import model.combat.CombatService;
+import model.combat.CombatReport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,22 +20,26 @@ public class BearAttackEvent extends DisasterEvent {
 
     private final GameMap map;
     private final Player player;
+    private final CombatService combatService;
 
     private final List<Bear> bears = new ArrayList<>();
+    private CombatReport lastCombatReport;
 
     public BearAttackEvent(
             HexCoordinate origin,
             GameMap map,
-            Player player
+            Player player,
+            CombatService combatService
     ) {
         super(DisasterType.BEAR_ATTACK, origin);
 
-        if (map == null || player == null) {
+        if (map == null || player == null || combatService == null) {
             throw new IllegalArgumentException("dependencies must not be null");
         }
 
         this.map = map;
         this.player = player;
+        this.combatService = combatService;
     }
 
     @Override
@@ -107,8 +115,18 @@ public class BearAttackEvent extends DisasterEvent {
 
             if (bear.getCurrentAP() > 0
                     && bear.canAttack(target)) {
-
-                bear.attack(target);
+                MilitaryHex militaryDefenders = null;
+                if (target instanceof MilitaryUnit) {
+                    militaryDefenders = new MilitaryHex(map.getHex(target.getPosition()));
+                    for (Unit unit : player.getUnits()) {
+                        if (unit instanceof MilitaryUnit && unit.isAlive()
+                                && unit.getPosition().equals(target.getPosition())) {
+                            militaryDefenders.addUnit((MilitaryUnit) unit);
+                        }
+                    }
+                }
+                lastCombatReport = combatService.resolve(
+                        CombatRequest.bearAttack(bear, target, militaryDefenders));
             }
         }
 
@@ -199,4 +217,6 @@ public class BearAttackEvent extends DisasterEvent {
     public List<Bear> getBears() {
         return new ArrayList<>(bears);
     }
+
+    public CombatReport getLastCombatReport() { return lastCombatReport; }
 }

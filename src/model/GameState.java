@@ -28,6 +28,9 @@ import model.tribe.*;
 import model.tribe.mission.*;
 import model.tribe.behavior.*;
 import model.combat.CombatReport;
+import model.combat.CombatRequest;
+import model.combat.CombatService;
+import model.combat.DiceRoller;
 import model.military.MilitaryDamageHandler;
 import model.military.MilitaryHex;
 
@@ -67,6 +70,7 @@ public class GameState implements java.io.Serializable {
     private final java.util.Set<MilitaryUnit> rewardedTownHallGarrisons = new java.util.HashSet<>();
 
     private final MilitaryRecruitmentService militaryRecruitmentService;
+    private final CombatService combatService;
 
     private final TownHall townHall;
     private final TownHallCommandService townHallCommandService;
@@ -96,6 +100,8 @@ public class GameState implements java.io.Serializable {
         infrastructureService = new InfrastructureService(map, player);
 
         random = new Random();
+        combatService = new CombatService(map, player, new DiceRoller(random),
+                new MilitaryDamageHandler());
 
         disasterGenerator = new DisasterGenerator(
                 new DisasterOccurrencePolicy(),
@@ -401,7 +407,8 @@ public class GameState implements java.io.Serializable {
                             bearAttackCooldown == 0,
                             map,
                             player,
-                            random
+                            random,
+                            combatService
                     );
 
             if (disaster != null) {
@@ -1199,7 +1206,15 @@ public class GameState implements java.io.Serializable {
         if (attacker == null || tribe == null || !tribe.isDiscovered() || tribe.isDefeated()
                 || !attacker.canAttack() || attacker.getPosition().distanceTo(tribe.getCampCoordinate()) > attacker.getRange())
             return null;
-        attacker.spendAttackAP();
+        MilitaryHex attackerHex = militaryHexAt(attacker.getPosition());
+        CombatReport report;
+        try {
+            report = combatService.resolve(tribe.getGuardCount() == 0
+                    ? CombatRequest.tribeCamp(attacker, attackerHex, tribe)
+                    : CombatRequest.tribeGuards(attacker, attackerHex, tribe));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
         tribe.setCampUnderAttack(true);
         TribeRelationStatus before = tribe.getRelation().getStatus();
         if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
@@ -1207,32 +1222,7 @@ public class GameState implements java.io.Serializable {
         tribeAllianceService.breakAlliance(tribe);
         if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
         tribe.getRelation().becomeEnemy();
-
-        if (tribe.getGuardCount() == 0) {
-            int damage = attacker.getStructureDamage();
-            tribe.takeDamage(damage);
-            return new CombatReport(attacker.getMilitaryUnitType().name(), tribe.getName() + " CAMP",
-                    java.util.Collections.emptyList(), java.util.Collections.emptyList(), 0, 0,
-                    tribe.isDefeated() ? "Camp defeated" : "Camp damaged", damage);
-        }
-
-        MilitaryHex attackerHex = militaryHexAt(attacker.getPosition());
-        int attackerDice = 0;
-        for (MilitaryUnit unit : attackerHex.getAliveUnits()) if (unit.contributesCombatDie()) attackerDice++;
-        int defenderDice = Math.min(6, tribe.getGuardCount());
-        List<Integer> attackRolls = rollDice(attackerDice);
-        List<Integer> defenseRolls = rollDice(defenderDice);
-        int attackWins = 0, defenseWins = 0;
-        for (int i = 0; i < Math.min(attackRolls.size(), defenseRolls.size()); i++) {
-            if (attackRolls.get(i) > defenseRolls.get(i)) attackWins++; else defenseWins++;
-        }
-        int guardsLost = tribe.removeGuards(attackWins);
-        if (defenseWins > 0) new MilitaryDamageHandler().applyDamage(attackerHex, defenseWins);
-        player.removeDeadUnits();
-        String casualty = guardsLost + " guard" + (guardsLost == 1 ? "" : "s") + " lost";
-        if (defenseWins > 0) casualty += ", " + defenseWins + " attacker damage";
-        return new CombatReport(attacker.getMilitaryUnitType().name(), tribe.getName() + " GUARDS",
-                attackRolls, defenseRolls, attackWins, defenseWins, casualty, 0);
+        return report;
     }
 
     public Bear getBearAt(HexCoordinate coordinate) {
@@ -1245,17 +1235,61 @@ public class GameState implements java.io.Serializable {
     public CombatReport attackBear(MilitaryUnit attacker, Bear bear) {
         if (attacker == null || bear == null || !bear.isAlive() || !attacker.canAttack()
                 || attacker.getPosition().distanceTo(bear.getPosition()) > attacker.getRange()) return null;
-        attacker.spendAttackAP();
-        List<Integer> attackRolls = attacker.contributesCombatDie() ? rollDice(1) : new ArrayList<>();
-        List<Integer> bearRolls = rollDice(1); int attackWins = 0, defenseWins = 0;
-        if (!attackRolls.isEmpty()) {
-            if (attackRolls.get(0) > bearRolls.get(0)) { attackWins = 1; bear.takeDamage(40); }
-            else { defenseWins = 1; attacker.takeDamage(1); }
+        CombatReport report;
+        try {
+            report = combatService.resolve(CombatRequest.wildAnimal(
+                    attacker, militaryHexAt(attacker.getPosition()), bear));
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
-        player.removeDeadUnits();
         if (!bear.isAlive()) recordMissionKillNear(bear.getPosition());
-        return new CombatReport(attacker.getMilitaryUnitType().name(), "BEAR", attackRolls, bearRolls,
-                attackWins, defenseWins, !bear.isAlive() ? "Bear defeated" : defenseWins > 0 ? "Attacker wounded" : "No effective hit", 0);
+        return report;
+    }
+
+    public CombatReport attackMilitaryHex(MilitaryUnit attacker, MilitaryHex defenderHex) {
+        if (attacker == null || defenderHex == null) return null;
+        try {
+            return combatService.resolve(CombatRequest.military(attacker,
+                    militaryHexAt(attacker.getPosition()), defenderHex));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    public CombatReport attackBuilding(MilitaryUnit attacker, Building target,
+                                       MilitaryHex defenders) {
+        if (attacker == null || target == null) return null;
+        try {
+            return combatService.resolve(CombatRequest.building(attacker,
+                    militaryHexAt(attacker.getPosition()), target, defenders));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    public CombatReport attackWall(MilitaryUnit attacker, HexCoordinate defenderCoordinate,
+                                   MilitaryHex defenders) {
+        if (attacker == null || defenderCoordinate == null) return null;
+        Wall wall = map.getWallBetween(attacker.getPosition(), defenderCoordinate);
+        if (wall == null) return null;
+        try {
+            return combatService.resolve(CombatRequest.wall(attacker,
+                    militaryHexAt(attacker.getPosition()), defenderCoordinate, wall, defenders));
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    public CombatReport captureEmptyHex(MilitaryUnit attacker, HexCoordinate defenderCoordinate) {
+        if (attacker == null || defenderCoordinate == null) return null;
+        try {
+            CombatReport report = combatService.resolve(CombatRequest.emptyHex(attacker,
+                    militaryHexAt(attacker.getPosition()), defenderCoordinate));
+            updateVisibility();
+            return report;
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     private void recordMissionKillNear(HexCoordinate coordinate) {
@@ -1272,12 +1306,6 @@ public class GameState implements java.io.Serializable {
         for (Unit unit : player.getUnits()) if (unit instanceof MilitaryUnit && unit.isAlive()
                 && unit.getPosition().equals(coordinate)) result.addUnit((MilitaryUnit) unit);
         return result;
-    }
-
-    private List<Integer> rollDice(int count) {
-        List<Integer> values = new ArrayList<>();
-        for (int i = 0; i < count; i++) values.add(random.nextInt(6) + 1);
-        values.sort(java.util.Collections.reverseOrder()); return values;
     }
 
     private List<Tribe> createTribes() {
@@ -1323,39 +1351,7 @@ public class GameState implements java.io.Serializable {
                     tribe.isCampUnderAttack(), tribe.getGuardCount(), tribeMissionService.getActiveMission(tribe) != null));
             if (action == TribeTurnAction.PRODUCE_GUARD) tribe.addGuard();
             else if (action == TribeTurnAction.DEFEND_CAMP) tribe.addGuard();
-            else if (action == TribeTurnAction.HOSTILE_ATTACK) performTribeAttack(tribe);
             tribe.setCampUnderAttack(false);
-        }
-    }
-
-    private void performTribeAttack(Tribe tribe) {
-        Unit target = null; int bestPriority = Integer.MAX_VALUE, bestDistance = Integer.MAX_VALUE;
-        for (Unit unit : player.getUnits()) {
-            if (!unit.isAlive()) continue;
-            int distance = unit.getPosition().distanceTo(tribe.getCampCoordinate());
-            if (distance > 3) continue;
-            int priority = distance == 1 ? 0 : unit instanceof MilitaryUnit ? 10
-                    : unit instanceof Worker || unit instanceof Builder ? 20 : 25;
-            if (priority < bestPriority || priority == bestPriority && distance < bestDistance) {
-                target = unit; bestPriority = priority; bestDistance = distance;
-            }
-        }
-        if (target != null) {
-            target.takeDamage(target instanceof MilitaryUnit ? 1 : 25);
-            player.removeDeadUnits();
-            lastTurnEvents.add(tribe.getName() + " attacked " + target.getUnitType().name());
-            return;
-        }
-        Building borderTarget = null; int farthest = -1;
-        for (Building building : player.getBuildings()) {
-            if (!building.isActive() || building.getType() == Constants.BuildingType.TOWN_HALL) continue;
-            int distance = building.getPosition().distanceTo(tribe.getCampCoordinate());
-            if (distance <= 3 && distance > farthest) { borderTarget = building; farthest = distance; }
-        }
-        if (borderTarget != null) {
-            borderTarget.takeDamage(10);
-            if (!borderTarget.isActive()) player.destroyBuilding(map, borderTarget);
-            lastTurnEvents.add(tribe.getName() + " raided " + borderTarget.getType().name());
         }
     }
 

@@ -1,6 +1,6 @@
 package model.military;
 
-public class MilitaryDamageHandler {
+public class MilitaryDamageHandler implements java.io.Serializable {
 
     public void applyDamage(MilitaryHex targetHex, int damageCount) {
         if (targetHex == null) {
@@ -15,7 +15,7 @@ public class MilitaryDamageHandler {
             MilitaryUnit target = targetHex.getNextDamageTarget();
 
             if (target == null) {
-                throw new IllegalArgumentException("Target Hex is null");
+                break;
             }
 
             target.decreaseHp(1);
@@ -24,5 +24,16 @@ public class MilitaryDamageHandler {
                 targetHex.removeDeadUnits();
             }
         }
+    }
+
+    /** Applies one raw hit to the normal priority target (used by high-damage wildlife). */
+    public void applyHitPointDamage(MilitaryHex targetHex, int hitPointDamage) {
+        if (targetHex == null || hitPointDamage < 0) {
+            throw new IllegalArgumentException("invalid military damage target or amount");
+        }
+        MilitaryUnit target = targetHex.getNextDamageTarget();
+        if (target == null || hitPointDamage == 0) return;
+        target.takeDamage(hitPointDamage);
+        targetHex.removeDeadUnits();
     }
 }

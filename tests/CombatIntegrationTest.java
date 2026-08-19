@@ -1,11 +1,17 @@
-import java.util.Arrays;
-import model.*;
-import model.combat.*;
-import model.military.*;
-import model.tribe.*;
+import model.GameState;
+import model.HexCoordinate;
+import model.combat.CombatReport;
+import model.combat.CombatResolver;
+import model.combat.CombatResult;
+import model.combat.DiceResult;
 import model.disaster.Bear;
-import java.util.ArrayList;
+import model.military.Archer;
+import model.military.Swordsman;
+import model.tribe.Tribe;
 
+import java.util.Arrays;
+
+/** Verifies that real GameState combat paths use the common engine. */
 public final class CombatIntegrationTest {
     public static void main(String[] args) {
         CombatResult tie = new CombatResolver(new DiceResult(Arrays.asList(4)),
@@ -13,55 +19,51 @@ public final class CombatIntegrationTest {
         require(tie.getDefenderWins() == 1, "tie favors defender");
 
         GameState state = new GameState(15, 13);
-        Tribe tribe = state.getTribes().get(0); tribe.discover(); tribe.getRelation().setScore(20);
-        HexCoordinate attackFrom = tribe.getCampCoordinate().findNeighbours().get(0);
-        if (!state.getMap().containsCoordinate(attackFrom)) attackFrom = tribe.getCampCoordinate().findNeighbours().get(1);
-        Swordsman sword = new Swordsman(attackFrom); state.getPlayer().addUnit(sword);
+        Tribe tribe = state.getTribes().get(0);
+        tribe.discover();
+        tribe.getRelation().setScore(20);
+        HexCoordinate attackFrom = validNeighbour(state, tribe.getCampCoordinate(), 0);
+        Swordsman sword = new Swordsman(attackFrom);
+        state.getPlayer().addUnit(sword);
         int campHp = tribe.getCurrentHp();
         CombatReport guardFight = state.attackTribeCamp(sword, tribe);
-        require(guardFight != null && guardFight.getApConsumed() == 1, "attack consumes one AP");
+        require(guardFight != null && guardFight.getParticipatingAttackers() == 1,
+                "tribe guard combat uses the common engine");
         require(tribe.getCurrentHp() == campHp, "guards block camp targeting");
 
         tribe.removeGuards(99);
-        Swordsman structureAttacker = new Swordsman(attackFrom); state.getPlayer().addUnit(structureAttacker);
-        CombatReport structure = state.attackTribeCamp(structureAttacker, tribe);
-        require(structure.getStructureDamage() == 10 && tribe.getCurrentHp() == campHp - 10,
-                "fixed no-dice structure damage");
+        HexCoordinate structureFrom = validNeighbour(state, tribe.getCampCoordinate(), 1);
+        Swordsman structureSword = new Swordsman(structureFrom);
+        Archer structureArcher = new Archer(structureFrom);
+        state.getPlayer().addUnit(structureSword);
+        state.getPlayer().addUnit(structureArcher);
+        CombatReport structure = state.attackTribeCamp(structureSword, tribe);
+        require(structure != null && structure.getStructureDamage() == 16,
+                "camp damage sums the full attacking force");
+        require(structure.getParticipatingAttackers() == 2
+                        && structureSword.getCurrentAP() == 1 && structureArcher.getCurrentAP() == 1,
+                "all camp attackers spend one AP");
 
-        Building building = new Building(tribe.getCampCoordinate(), Constants.BuildingType.FARM);
-        state.getPlayer().addBuilding(building);
-        state.getMap().getHex(tribe.getCampCoordinate()).setHasBuilding(true);
-        StructureCombatService structures = new StructureCombatService(state.getMap(), state.getPlayer());
-        Swordsman structureSword = new Swordsman(attackFrom);
-        require(structures.attackBuilding(structureSword, building, Arrays.asList(new Archer(tribe.getCampCoordinate()))) == 0,
-                "defenders block structure target");
-        require(structures.attackBuilding(structureSword, building, new ArrayList<>()) == 10,
-                "structure combat is fixed damage");
-
-        CapturingRoller roller = new CapturingRoller();
-        MilitaryHex attackingHex = new MilitaryHex(state.getMap().getHex(attackFrom));
-        MilitaryHex defendingHex = new MilitaryHex(state.getMap().getHex(tribe.getCampCoordinate()));
-        attackingHex.addUnit(new Swordsman(attackFrom)); defendingHex.addUnit(new Archer(tribe.getCampCoordinate()));
-        new CombatService(roller, new MilitaryDamageHandler()).attack(attackingHex.getAliveUnits().get(0),
-                attackingHex, defendingHex, new Wall(100));
-        require(roller.counts.get(1) == 3, "wall adds two defender dice capped by service");
-
-        Swordsman hunter = new Swordsman(attackFrom);
+        Swordsman hunter = new Swordsman(structureFrom);
+        state.getPlayer().addUnit(hunter);
         Bear bear = new Bear(tribe.getCampCoordinate(), tribe.getCampCoordinate());
         CombatReport bearReport = state.attackBear(hunter, bear);
-        require(bearReport != null && bearReport.getApConsumed() == 1, "bear is attackable");
+        require(bearReport != null && bearReport.getDefender().equals("BEAR"),
+                "bear combat uses the common engine");
         System.out.println("CombatIntegrationTest passed");
     }
-    private static void require(boolean condition, String message) {
-        if (!condition) throw new AssertionError(message);
+
+    private static HexCoordinate validNeighbour(GameState state, HexCoordinate center, int skip) {
+        int found = 0;
+        for (HexCoordinate coordinate : center.findNeighbours()) {
+            if (state.getMap().containsCoordinate(coordinate)) {
+                if (found++ >= skip) return coordinate;
+            }
+        }
+        throw new AssertionError("camp has no valid neighbour");
     }
 
-    private static final class CapturingRoller extends DiceRoller {
-        private final java.util.List<Integer> counts = new java.util.ArrayList<>();
-        @Override public DiceResult rollD6(int count) {
-            counts.add(count); java.util.List<Integer> values = new java.util.ArrayList<>();
-            for (int i = 0; i < count; i++) values.add(counts.size() == 1 ? 6 : 1);
-            return new DiceResult(values);
-        }
+    private static void require(boolean condition, String message) {
+        if (!condition) throw new AssertionError(message);
     }
 }

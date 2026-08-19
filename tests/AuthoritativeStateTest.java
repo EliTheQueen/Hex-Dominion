@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,7 +9,11 @@ import model.Hex;
 import model.HexCoordinate;
 import model.Player;
 import model.Worker;
-import model.combat.StructureCombatService;
+import model.combat.CombatRequest;
+import model.combat.CombatService;
+import model.combat.DiceRoller;
+import model.military.MilitaryDamageHandler;
+import model.military.MilitaryHex;
 import model.military.Swordsman;
 import model.townhall.CommandStartResult;
 import model.townhall.TownHallLevel;
@@ -64,8 +67,12 @@ public final class AuthoritativeStateTest {
         targetHex.setHasBuilding(true);
 
         Swordsman attacker = new Swordsman(attackerPosition);
-        int damage = new StructureCombatService(map, player)
-                .attackBuilding(attacker, farm, new ArrayList<>());
+        player.addUnit(attacker);
+        MilitaryHex attackers = new MilitaryHex(map.getHex(attackerPosition));
+        attackers.addUnit(attacker);
+        int damage = new CombatService(map, player, new DiceRoller(), new MilitaryDamageHandler())
+                .resolve(CombatRequest.building(attacker, attackers, farm, null))
+                .getStructureDamage();
         require(damage == 10, "structure attack applies fixed damage");
         require(player.getBuildingAt(targetPosition) == null, "combat removes destroyed building");
         require(!targetHex.getHasBuilding(), "combat clears structure occupancy");

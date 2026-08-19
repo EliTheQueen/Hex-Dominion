@@ -1,6 +1,8 @@
 package model.military;
 
 import model.combat.CombatResult;
+import model.combat.CombatReport;
+import model.combat.CombatRequest;
 import model.combat.CombatService;
 
 import java.util.List;
@@ -25,7 +27,9 @@ public class MilitaryService {
             MilitaryHex defenderHex
     ) {
 
-        return combatService.attack(attacker, attackerHex, defenderHex);
+        CombatReport report = combatService.resolve(
+                CombatRequest.military(attacker, attackerHex, defenderHex));
+        return new CombatResult(report.getAttackerWins(), report.getDefenderWins());
     }
 
     public void recruit(MilitaryHex militaryHex, MilitaryUnit militaryUnit) {

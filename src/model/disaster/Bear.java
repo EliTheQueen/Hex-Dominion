@@ -51,18 +51,6 @@ public class Bear extends Unit {
         return getPosition().distanceTo(target.getPosition()) <= ATTACK_RANGE;
     }
 
-    public void attack(Unit target) {
-        if (!canAttack(target)) {
-            throw new IllegalArgumentException("target is not in attack range");
-        }
-
-        if (!spendAP(1)) {
-            throw new IllegalStateException("bear has no AP");
-        }
-
-        target.takeDamage(ATTACK_DAMAGE);
-    }
-
     public boolean moveOneStepToward(
             Unit target,
             GameMap map
