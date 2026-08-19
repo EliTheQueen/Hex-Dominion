@@ -1,7 +1,7 @@
 package model.tribe;
 
 //این Service تصمیم می‌گیرد اتحاد شکل بگیرد یا نه.
-public class TribeAllianceService {
+public class TribeAllianceService implements java.io.Serializable {
 
     private static final int REQUIRED_RELATION = 70;
 

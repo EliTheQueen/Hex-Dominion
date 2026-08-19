@@ -28,6 +28,8 @@ import static model.Constants.UNIT_COST;
 import model.townhall.CommandStartResult;
 import model.technology.ResearchStartResult;
 import model.save.*;
+import model.tribe.*;
+import model.tribe.mission.MissionActionResult;
 
 /** Mediates between the Swing views and the game model. */
 public class GameController {
@@ -383,6 +385,22 @@ public class GameController {
         statusMessage = ok ? "Trading Post exchange completed" : "Trading Post trade unavailable or invalid";
         return ok;
     }
+
+    public boolean giftTribe(Tribe tribe, Constants.ResourceType resource, int amount) {
+        boolean ok = gameState.giftTribe(tribe, resource, amount);
+        statusMessage = ok ? "Gift sent to " + tribe.getName() : "Gift unavailable"; return ok;
+    }
+    public boolean tradeWithTribe(Tribe tribe, Constants.ResourceType sell,
+                                  Constants.ResourceType buy, int amount) {
+        boolean ok = gameState.tradeWithTribe(tribe, sell, buy, amount);
+        statusMessage = ok ? "Tribe trade completed" : "Tribe trade unavailable"; return ok;
+    }
+    public MissionActionResult requestMission(Tribe tribe) { return gameState.requestMission(tribe); }
+    public MissionActionResult turnInMission(Tribe tribe) { return gameState.turnInMission(tribe); }
+    public MissionActionResult cancelMission(Tribe tribe) { return gameState.cancelMission(tribe); }
+    public DiplomacyResult declareWar(Tribe tribe) { return gameState.declareWar(tribe); }
+    public DiplomacyResult requestPeace(Tribe tribe) { return gameState.requestPeace(tribe); }
+    public DiplomacyResult requestAlliance(Tribe tribe) { return gameState.requestAlliance(tribe); }
 
     /** Hexes the selected unit can reach this turn (used to tint the map green). */
     public List<HexCoordinate> getReachableHexes() {

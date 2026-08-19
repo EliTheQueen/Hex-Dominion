@@ -4,7 +4,7 @@ import model.Constants;
 import model.Player;
 import model.ResourceAmount;
 
-public class TribeGiftService {
+public class TribeGiftService implements java.io.Serializable {
 
     public boolean sendGift(
             Player player,

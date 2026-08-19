@@ -7,7 +7,7 @@ import model.trade.TradePolicy;
 
 import java.util.EnumSet;
 
-public class TribeTradePolicyFactory {
+public class TribeTradePolicyFactory implements java.io.Serializable {
 
     public TradePolicy create(TribeType type) {
         if (type == null) {

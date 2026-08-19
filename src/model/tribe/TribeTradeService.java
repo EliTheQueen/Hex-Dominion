@@ -5,7 +5,7 @@ import model.Player;
 import model.trade.TradePolicy;
 import model.trade.TradeService;
 
-public class TribeTradeService {
+public class TribeTradeService implements java.io.Serializable {
 
     private final TradeService tradeService;
 

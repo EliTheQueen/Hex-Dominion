@@ -2,7 +2,7 @@ package model.tribe.behavior;
 
 import model.tribe.Tribe;
 
-public class TribeTurnService {
+public class TribeTurnService implements java.io.Serializable {
 
     private final TribeBehaviorStrategy behaviorStrategy;
 

@@ -39,6 +39,7 @@ import model.disaster.DisasterEvent;
 import model.disaster.DisasterType;
 import model.military.MilitaryUnit;
 import model.season.Season;
+import model.tribe.Tribe;
 
 /** The main hexagonal battle map. Renders terrain, fog of war, territory, buildings and units. */
 public class MapPanel extends JPanel
@@ -161,6 +162,11 @@ public class MapPanel extends JPanel
             if (hex != null && hex.getIsExplored()) {
                 drawTradingPost(g2, hexToPixel(post), hex.isVisible());
             }
+        }
+
+        for (Tribe tribe : gs.getTribes()) {
+            Hex camp = map.getHex(tribe.getCampCoordinate());
+            if (camp != null && camp.getIsExplored()) drawTribeCamp(g2, tribe, hexToPixel(tribe.getCampCoordinate()), camp.isVisible());
         }
 
         for (Unit u : player.getUnits()) {
@@ -1224,6 +1230,29 @@ public class MapPanel extends JPanel
         g2.setColor(new Color(215, 205, 172)); g2.setFont(new Font("Georgia", Font.BOLD, 9));
         g2.drawString("POST", cx - 12, cy + 6);
         g2.setColor(new Color(90, 90, 95)); g2.drawRoundRect(cx - 15, cy - 7, 30, 20, 5, 5);
+    }
+
+    private void drawTribeCamp(Graphics2D g2, Tribe tribe, Point2D center, boolean vis) {
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        Color accent;
+        switch (tribe.getType()) {
+            case FARMER: accent = new Color(112, 181, 88); break;
+            case WARRIOR: accent = new Color(196, 70, 62); break;
+            case MERCHANT: accent = new Color(215, 166, 66); break;
+            case MOUNTAIN: accent = new Color(155, 163, 176); break;
+            case COASTAL: accent = new Color(70, 157, 190); break;
+            default: accent = Color.GRAY;
+        }
+        if (!vis) accent = accent.darker();
+        g2.setColor(new Color(0, 0, 0, 100)); g2.fillOval(cx - 21, cy + 12, 42, 9);
+        java.awt.geom.Path2D tent = new java.awt.geom.Path2D.Double();
+        tent.moveTo(cx, cy - 22); tent.lineTo(cx + 20, cy + 14); tent.lineTo(cx - 20, cy + 14); tent.closePath();
+        g2.setPaint(new GradientPaint(cx - 18, cy, accent.brighter(), cx + 18, cy, accent.darker()));
+        g2.fill(tent); g2.setColor(new Color(58, 42, 36)); g2.setStroke(new BasicStroke(2f)); g2.draw(tent);
+        g2.drawLine(cx, cy - 20, cx, cy + 14);
+        g2.setColor(new Color(35, 27, 25)); g2.fillArc(cx - 6, cy + 2, 12, 18, 0, 180);
+        g2.setColor(accent.brighter()); g2.fillOval(cx - 3, cy - 14, 6, 6);
+        drawHealthBar(g2, cx, cy + 21, tribe.getCurrentHp(), tribe.getMaxHp());
     }
 
     private void drawRuinedOverlay(Graphics2D g2, int cx, int cy) {

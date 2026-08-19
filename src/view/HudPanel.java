@@ -40,6 +40,7 @@ public class HudPanel extends JPanel {
     private final JButton settingsBtn;
     private final JButton saveBtn;
     private final JButton tradeBtn;
+    private final JButton tribesBtn;
 
     private static final Color BG = new Color(15, 17, 35);
     private static final Color BORDER_COLOR = new Color(80, 70, 30);
@@ -62,6 +63,7 @@ public class HudPanel extends JPanel {
         settingsBtn = createBtn("⚙", new Color(45, 50, 70), new Color(70, 78, 105));
         saveBtn = createBtn("SAVE / LOAD", new Color(45, 65, 78), new Color(65, 92, 108));
         tradeBtn = createBtn("TRADE", new Color(83, 62, 34), new Color(115, 88, 48));
+        tribesBtn = createBtn("TRIBES", new Color(63, 50, 83), new Color(89, 70, 116));
 
         endTurnBtn.addActionListener(e -> {
             controller.onEndTurnClicked();
@@ -80,6 +82,10 @@ public class HudPanel extends JPanel {
         });
         tradeBtn.addActionListener(e -> {
             new TradePanel(controller, (JFrame) SwingUtilities.getWindowAncestor(this)).setVisible(true);
+            gamePanel.repaintAll();
+        });
+        tribesBtn.addActionListener(e -> {
+            new TribePanel(controller, (JFrame) SwingUtilities.getWindowAncestor(this)).setVisible(true);
             gamePanel.repaintAll();
         });
     }
@@ -129,6 +135,7 @@ public class HudPanel extends JPanel {
         settingsBtn.setBounds(getWidth() - 428, 14, 40, 40);
         saveBtn.setBounds(getWidth() - 548, 14, 112, 40);
         tradeBtn.setBounds(getWidth() - 660, 14, 104, 40);
+        tribesBtn.setBounds(getWidth() - 772, 14, 104, 40);
     }
 
     public void update() { repaint(); }

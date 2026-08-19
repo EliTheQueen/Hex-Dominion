@@ -30,4 +30,6 @@ public class ResourcePaymentObjective implements TribeMissionObjective {
     public ResourceAmount getRequiredResources() {
         return requiredResources.copy();
     }
+
+    @Override public boolean fulfill(Player player) { return player.spend(requiredResources); }
 }

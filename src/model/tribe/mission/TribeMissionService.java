@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 //این Service کل Missionها را مدیریت می‌کند.
-public class TribeMissionService {
+public class TribeMissionService implements java.io.Serializable {
 
     private static final int REQUIRED_RELATION = 20;
     private static final int FAILURE_RELATION_PENALTY = 10;
@@ -64,7 +64,7 @@ public class TribeMissionService {
 
         mission.refreshCompletionState();
 
-        if (mission.getStatus() != TribeMissionStatus.READY_TO_CLAIM) {
+        if (mission.getStatus() != TribeMissionStatus.READY_TO_TURN_IN) {
             return MissionActionResult.MISSION_NOT_COMPLETED;
         }
 
@@ -73,6 +73,8 @@ public class TribeMissionService {
         if (!player.canStore(rewardResources)) {
             return MissionActionResult.INSUFFICIENT_STORAGE;
         }
+
+        if (!mission.getObjective().fulfill(player)) return MissionActionResult.MISSION_NOT_COMPLETED;
 
         player.addResources(rewardResources);
 
@@ -94,7 +96,7 @@ public class TribeMissionService {
             return MissionActionResult.INVALID_REQUEST;
         }
 
-        if (mission.getStatus() != TribeMissionStatus.ACTIVE && mission.getStatus() != TribeMissionStatus.READY_TO_CLAIM) {
+        if (mission.getStatus() != TribeMissionStatus.ACTIVE && mission.getStatus() != TribeMissionStatus.READY_TO_TURN_IN) {
             return MissionActionResult.MISSION_NOT_ACTIVE;
         }
 
@@ -107,7 +109,8 @@ public class TribeMissionService {
         return MissionActionResult.SUCCESS;
     }
 
-    public void advanceOneTurn() {
+    public int advanceOneTurn() {
+        int failures = 0;
         Map<String, TribeMission> snapshot = new HashMap<>(activeMissionsByTribeId);
 
         for (TribeMission mission : snapshot.values()) {
@@ -121,8 +124,10 @@ public class TribeMissionService {
                 mission.getTribe().getRelation().decrease(FAILURE_RELATION_PENALTY);
 
                 activeMissionsByTribeId.remove(mission.getTribe().getId());
+                failures++;
             }
         }
+        return failures;
     }
 
     public TribeMission getActiveMission(Tribe tribe) {

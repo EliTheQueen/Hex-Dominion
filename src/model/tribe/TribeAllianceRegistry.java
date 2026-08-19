@@ -6,7 +6,7 @@ import java.util.Set;
 
 //فقط وضعیت نگه می‌دارد.
 //هیچ تصمیمی نمی‌گیرد.
-public class TribeAllianceRegistry {
+public class TribeAllianceRegistry implements java.io.Serializable {
 
     private final Set<Tribe> alliedTribes = new HashSet<Tribe>();
 

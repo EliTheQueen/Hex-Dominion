@@ -3,7 +3,7 @@ package model.tribe;
 import model.Player;
 import model.ResourceAmount;
 
-public class TribePeaceService {
+public class TribePeaceService implements java.io.Serializable {
 
     private static final ResourceAmount PEACE_COST = ResourceAmount.of(30, 30, 0, 30);
 

@@ -5,7 +5,7 @@ import model.tribe.Tribe;
 import java.util.UUID;
 
 //این کلاس Aggregate اصلی Mission است.
-public class TribeMission {
+public class TribeMission implements java.io.Serializable {
 
     private final String id;
     private final String title;
@@ -71,7 +71,7 @@ public class TribeMission {
         }
 
         if (objective.isCompleted()) {
-            status = TribeMissionStatus.READY_TO_CLAIM;
+            status = TribeMissionStatus.READY_TO_TURN_IN;
             return;
         }
 
@@ -85,12 +85,12 @@ public class TribeMission {
 
     public void refreshCompletionState() {
         if (status == TribeMissionStatus.ACTIVE && objective.isCompleted()) {
-            status = TribeMissionStatus.READY_TO_CLAIM;
+            status = TribeMissionStatus.READY_TO_TURN_IN;
         }
     }
 
     public void complete() {
-        if (status != TribeMissionStatus.READY_TO_CLAIM) {
+        if (status != TribeMissionStatus.READY_TO_TURN_IN) {
             throw new IllegalStateException("mission is not ready to claim");
         }
 
@@ -98,7 +98,7 @@ public class TribeMission {
     }
 
     public void cancel() {
-        if (status != TribeMissionStatus.ACTIVE && status != TribeMissionStatus.READY_TO_CLAIM) {
+        if (status != TribeMissionStatus.ACTIVE && status != TribeMissionStatus.READY_TO_TURN_IN) {
             return;
         }
 

@@ -1,6 +1,6 @@
 package model.tribe;
 
-public final class TribeRelation {
+public final class TribeRelation implements java.io.Serializable {
 
     public static final int MIN_SCORE = -100;
     public static final int MAX_SCORE = 100;

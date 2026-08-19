@@ -1,6 +1,6 @@
 package model.tribe;
 
-public class TribeWarService {
+public class TribeWarService implements java.io.Serializable {
 
     public DiplomacyResult declareWar(Tribe tribe) {
         if (tribe == null) {

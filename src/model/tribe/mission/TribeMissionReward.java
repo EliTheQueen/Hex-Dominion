@@ -2,7 +2,7 @@ package model.tribe.mission;
 
 import model.ResourceAmount;
 
-public class TribeMissionReward {
+public class TribeMissionReward implements java.io.Serializable {
 
     private final ResourceAmount resources;
     private final int relationReward;

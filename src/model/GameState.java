@@ -24,6 +24,9 @@ import model.trade.TradingPostPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import model.tribe.*;
+import model.tribe.mission.*;
+import model.tribe.behavior.*;
 
 /** Central game state: holds the map, the player and the turn-by-turn progression. */
 public class GameState implements java.io.Serializable {
@@ -66,6 +69,15 @@ public class GameState implements java.io.Serializable {
     private final TechnologyRegistry phaseTwoTechnologies;
     private final TechnologyResearchService technologyResearchService;
     private final PhaseTwoTechnologyTarget phaseTwoTechnologyTarget;
+    private final List<Tribe> tribes;
+    private final TribeMissionService tribeMissionService;
+    private final TribeGiftService tribeGiftService;
+    private final TribeTradeService tribeTradeService;
+    private final TribeAllianceRegistry tribeAllianceRegistry;
+    private final TribeAllianceService tribeAllianceService;
+    private final TribeWarService tribeWarService;
+    private final TribePeaceService tribePeaceService;
+    private final TribeTurnService tribeTurnService;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator generator = new MapGenerator();
@@ -134,6 +146,16 @@ public class GameState implements java.io.Serializable {
         technologyResearchService = new TechnologyResearchService(
                 townHall, phaseTwoTechnologies, effects, phaseTwoTechnologyTarget,
                 townHallCommandService);
+        tribes = createTribes();
+        tribeMissionService = new TribeMissionService(player);
+        tribeGiftService = new TribeGiftService();
+        tribeTradeService = new TribeTradeService(tradeService, new TribeTradePolicyFactory());
+        tribeAllianceRegistry = new TribeAllianceRegistry();
+        tribeAllianceService = new TribeAllianceService(tribeAllianceRegistry);
+        tribeWarService = new TribeWarService();
+        tribePeaceService = new TribePeaceService();
+        tribeTurnService = new TribeTurnService(new DefaultTribeBehaviorStrategy());
+        updateVisibility();
     }
 
     /** Doc start: 1 Explorer, 2 Builders, 2 Workers placed around the Town Hall. */
@@ -343,6 +365,11 @@ public class GameState implements java.io.Serializable {
         // 8. Advance turn and season.
         currentTurn++;
         seasonCycle.advanceTurn();
+
+        int missionFailures = tribeMissionService.advanceOneTurn();
+        for (int i = 0; i < missionFailures; i++)
+            happinessService.applyEvent(HappinessEventType.MISSION_FAILED);
+        processTribeTurns();
 
         // 9. Active bear event.
         if (activeBearAttack != null) {
@@ -994,6 +1021,12 @@ public class GameState implements java.io.Serializable {
                 hex.setVisible(true);
             }
         }
+        if (tribes != null) {
+            for (Tribe tribe : tribes) {
+                Hex camp = map.getHex(tribe.getCampCoordinate());
+                if (camp != null && camp.getIsExplored()) tribe.discover();
+            }
+        }
     }
 
     public boolean tradeAtBazaar(
@@ -1086,6 +1119,96 @@ public class GameState implements java.io.Serializable {
         for (HexCoordinate coordinate : map.getTradingPosts())
             if (player.isInTerritory(coordinate)) result.add(coordinate);
         return result;
+    }
+
+    public List<Tribe> getTribes() { return java.util.Collections.unmodifiableList(tribes); }
+    public TribeMission getMission(Tribe tribe) { return tribeMissionService.getActiveMission(tribe); }
+
+    public boolean giftTribe(Tribe tribe, Constants.ResourceType resource, int amount) {
+        return tribeGiftService.sendGift(player, tribe, resource, amount);
+    }
+
+    public boolean tradeWithTribe(Tribe tribe, Constants.ResourceType sell,
+                                  Constants.ResourceType buy, int amount) {
+        return tribeTradeService.trade(player, tribe, sell, buy, amount, currentTurn);
+    }
+
+    public MissionActionResult requestMission(Tribe tribe) {
+        if (tribe == null) return MissionActionResult.INVALID_REQUEST;
+        TribeMission mission = createMissionFor(tribe);
+        return tribeMissionService.acceptMission(mission);
+    }
+
+    public MissionActionResult turnInMission(Tribe tribe) {
+        return tribeMissionService.claimMission(tribeMissionService.getActiveMission(tribe));
+    }
+
+    public MissionActionResult cancelMission(Tribe tribe) {
+        MissionActionResult result = tribeMissionService.cancelMission(tribeMissionService.getActiveMission(tribe));
+        if (result == MissionActionResult.SUCCESS) happinessService.applyEvent(HappinessEventType.MISSION_CANCELLED);
+        return result;
+    }
+
+    public DiplomacyResult declareWar(Tribe tribe) {
+        TribeRelationStatus before = tribe == null ? null : tribe.getRelation().getStatus();
+        DiplomacyResult result = tribeWarService.declareWar(tribe);
+        if (result == DiplomacyResult.SUCCESS) {
+            if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
+            else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
+            tribeAllianceService.breakAlliance(tribe);
+            if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
+        }
+        return result;
+    }
+
+    public DiplomacyResult requestPeace(Tribe tribe) { return tribePeaceService.requestPeace(player, tribe); }
+    public DiplomacyResult requestAlliance(Tribe tribe) { return tribeAllianceService.requestAlliance(tribe); }
+    public boolean isAllied(Tribe tribe) { return tribeAllianceRegistry.isAlliedWith(tribe); }
+
+    private List<Tribe> createTribes() {
+        List<Tribe> result = new ArrayList<>();
+        TribeType[] types = TribeType.values();
+        int index = 0;
+        for (Hex hex : map.getAllHexes()) {
+            if (index >= types.length) break;
+            if (hex.getCoordinate().distanceTo(townHallPos) < 4
+                    || hex.getTerrainType() == Constants.TerrainType.SEA
+                    || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE
+                    || map.hasTradingPost(hex.getCoordinate())) continue;
+            TribeType type = types[index];
+            result.add(new Tribe(type.name().charAt(0) + type.name().substring(1).toLowerCase()
+                    + " Clan", type, hex.getCoordinate(), type == TribeType.WARRIOR ? 180 : 140));
+            index++;
+        }
+        return result;
+    }
+
+    private TribeMission createMissionFor(Tribe tribe) {
+        TribeMissionObjective objective;
+        switch (tribe.getType()) {
+            case FARMER:
+                objective = new ResourcePaymentObjective(player, ResourceAmount.of(0, 20, 0, 0)); break;
+            case WARRIOR:
+                objective = new KillCountObjective(2); break;
+            case MERCHANT:
+                objective = new RoadConnectionObjective(map, townHallPos, tribe.getCampCoordinate()); break;
+            case MOUNTAIN:
+                objective = new BuildingNearCampObjective(player, tribe.getCampCoordinate(), Constants.BuildingType.STONE_MINE); break;
+            case COASTAL:
+                objective = new BuildingNearCampObjective(player, tribe.getCampCoordinate(), Constants.BuildingType.DOCK); break;
+            default: throw new IllegalStateException("Unknown tribe type");
+        }
+        return new TribeMission(tribe.getType().name() + " Accord", objective.getDescription(), tribe,
+                objective, new TribeMissionReward(ResourceAmount.of(15, 15, 10, 5), 12), 8);
+    }
+
+    private void processTribeTurns() {
+        for (Tribe tribe : tribes) {
+            TribeTurnAction action = tribeTurnService.processTurn(tribe, new TribeTurnContext(currentTurn,
+                    tribe.isCampUnderAttack(), tribe.getGuardCount(), tribeMissionService.getActiveMission(tribe) != null));
+            if (action == TribeTurnAction.PRODUCE_GUARD) tribe.addGuard();
+            tribe.setCampUnderAttack(false);
+        }
     }
 
     public boolean canRecruitMilitaryUnit(

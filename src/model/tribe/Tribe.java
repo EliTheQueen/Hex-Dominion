@@ -5,7 +5,7 @@ import model.HexCoordinate;
 import java.util.Objects;
 import java.util.UUID;
 
-public class Tribe {
+public class Tribe implements java.io.Serializable {
 
     private final String id;
     private final String name;
@@ -21,6 +21,8 @@ public class Tribe {
     private boolean defeated;
 
     private int lastTradeTurn = -1;
+    private int guardCount = 2;
+    private boolean campUnderAttack;
 
     public Tribe(
             String name,
@@ -143,6 +145,10 @@ public class Tribe {
     public int getLastTradeTurn() {
         return lastTradeTurn;
     }
+    public int getGuardCount() { return guardCount; }
+    public void addGuard() { guardCount++; }
+    public boolean isCampUnderAttack() { return campUnderAttack; }
+    public void setCampUnderAttack(boolean value) { campUnderAttack = value; }
 
     @Override
     public boolean equals(Object other) {
