@@ -76,6 +76,7 @@ public class SeaStormEvent extends DisasterEvent implements AffectedAreaDisaster
             if (building.getType() == Constants.BuildingType.DOCK) {
 
                 building.takeDamage(DOCK_DAMAGE);
+                if (!building.isActive()) player.destroyBuilding(map, building);
             }
         }
     }

@@ -20,9 +20,12 @@ public final class DisasterRulesTest {
         require(explorer.getCurrentHp() == 90, "earthquake unit damage");
 
         Building farm = new Building(next, Constants.BuildingType.FARM); player.addBuilding(farm);
+        cells.get(next).setHasBuilding(true);
         map.buildRoad(next); explorer.resetAP();
         FloodEvent flood = new FloodEvent(center, map, player, new DisasterTargetCollector()); flood.start();
-        require(farm.isRuined() && !map.hasRoad(next), "flood destroys farm and road");
+        require(farm.isRuined() && player.getBuildingAt(next) == null
+                && !cells.get(next).getHasBuilding() && !map.hasRoad(next),
+                "flood fully destroys farm and road");
         require(explorer.getCurrentAP() == 0 && explorer.getCurrentHp() == 70, "flood damage and AP");
         System.out.println("DisasterRulesTest passed");
     }

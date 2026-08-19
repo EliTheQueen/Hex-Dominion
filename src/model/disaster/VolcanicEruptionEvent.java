@@ -139,10 +139,10 @@ public class VolcanicEruptionEvent extends DisasterEvent implements AffectedArea
 
     private void destroyLavaBuildings(List<HexCoordinate> lavaPath) {
 
-        for (Building building : player.getBuildings()) {
+        for (Building building : new java.util.ArrayList<>(player.getBuildings())) {
 
             if (lavaPath.contains(building.getPosition())) {
-                building.ruin();
+                player.destroyBuilding(map, building);
             }
         }
     }

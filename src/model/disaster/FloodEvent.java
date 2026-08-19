@@ -101,7 +101,7 @@ public class FloodEvent extends DisasterEvent implements AffectedAreaDisaster{
         for (Building building : affectedBuildings) {
 
             if (building.getType() == Constants.BuildingType.FARM) {
-                building.ruin();
+                player.destroyBuilding(map, building);
                 continue;
             }
 
@@ -112,7 +112,9 @@ public class FloodEvent extends DisasterEvent implements AffectedAreaDisaster{
 
             building.takeDamage(BUILDING_DAMAGE);
 
-            if (building.isActive()) {
+            if (!building.isActive()) {
+                player.destroyBuilding(map, building);
+            } else {
                 building.blockProductionForTurns(1);
             }
         }

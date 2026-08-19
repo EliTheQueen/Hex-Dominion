@@ -2,6 +2,8 @@ package model;
 
 import java.util.ArrayList;
 import java.util.List;
+import model.townhall.TownHall;
+import model.townhall.TownHallLevel;
 
 public class Building implements java.io.Serializable {
     private final HexCoordinate position;
@@ -9,6 +11,12 @@ public class Building implements java.io.Serializable {
     private final List<Worker> workers;
     private int maxHp;
     private int currentHp;
+
+    /*
+     * A TOWN_HALL Building is only the map/read-model projection.  The Phase 2
+     * TownHall aggregate owns its level and health once this reference is bound.
+     */
+    private TownHall authoritativeTownHall;
 
     private int unpaidTurns = 0;
     private boolean ruined = false;
@@ -37,20 +45,19 @@ public class Building implements java.io.Serializable {
     public int getWorkerCount() { return workers.size(); }
     public int getWorkerCap() { return Constants.WORKER_CAP.getOrDefault(type, 0); }
 
-    public int getMaxHp() {
-        return maxHp;
-    }
+    public int getMaxHp() { return authoritativeTownHall == null
+            ? maxHp : authoritativeTownHall.getMaxHp(); }
 
-    public int getCurrentHp() {
-        return currentHp;
-    }
+    public int getCurrentHp() { return authoritativeTownHall == null
+            ? currentHp : authoritativeTownHall.getCurrentHp(); }
 
-    public boolean isRuined() { return ruined; }
-    public boolean isActive() { return !ruined; }
+    public boolean isRuined() { return ruined
+            || authoritativeTownHall != null && authoritativeTownHall.isDestroyed(); }
+    public boolean isActive() { return !isRuined(); }
     public int getUnpaidTurns() { return unpaidTurns; }
 
     public boolean addWorker(Worker w) {
-        if (ruined) return false;
+        if (isRuined()) return false;
         int cap = Constants.WORKER_CAP.getOrDefault(type, 0);
         if (workers.size() >= cap) return false;
         workers.add(w);
@@ -63,7 +70,7 @@ public class Building implements java.io.Serializable {
 
     public boolean missUpkeep() {
         unpaidTurns++;
-        if (unpaidTurns >= Constants.UPKEEP_GRACE_TURNS && !ruined) {
+        if (unpaidTurns >= Constants.UPKEEP_GRACE_TURNS && !isRuined()) {
             ruin();
             return true;
         }
@@ -78,12 +85,16 @@ public class Building implements java.io.Serializable {
        ساختنِ یک کپی، روی نسخه‌ی کپی حلقه می‌زند و حذف روی نسخه‌ی
         اصلی انجام می‌شود — امن. این یک تله‌ی کلاسیک جاواست؛ خوب در ذهن نگه‌دار.
      */
-    public void ruin() {
+    void ruin() {
         if (ruined) {
             return;
         }
 
         ruined = true;
+
+        if (authoritativeTownHall != null && !authoritativeTownHall.isDestroyed()) {
+            authoritativeTownHall.takeDamage(authoritativeTownHall.getCurrentHp());
+        }
 
         for (Worker w : new ArrayList<>(workers)) {
             w.unstation();
@@ -93,7 +104,7 @@ public class Building implements java.io.Serializable {
     }
 
     public ResourceAmount produce(boolean professionalTools) {
-        if (ruined
+        if (isRuined()
                 || productionBlockedTurns > 0
                 || workers.isEmpty()
                 || type == Constants.BuildingType.TOWN_HALL) {
@@ -119,7 +130,7 @@ public class Building implements java.io.Serializable {
     }
 
     public ResourceAmount getUpkeepCost() {
-        if (ruined)
+        if (isRuined())
             return ResourceAmount.zero();
         return Constants.UPKEEP.getOrDefault(type, ResourceAmount.zero());
     }
@@ -129,17 +140,39 @@ public class Building implements java.io.Serializable {
             throw new IllegalArgumentException("damage must not be negative");
         }
 
-        currentHp = Math.max(0, currentHp - amount);
+        if (authoritativeTownHall != null) {
+            authoritativeTownHall.takeDamage(amount);
+        } else {
+            currentHp = Math.max(0, currentHp - amount);
+        }
 
-        if (currentHp == 0) {
+        if (getCurrentHp() == 0) {
             ruin();
         }
     }
 
     public void synchronizeHealth(int hp, int maximum) {
         if (maximum <= 0 || hp < 0 || hp > maximum) throw new IllegalArgumentException("invalid health");
+        if (authoritativeTownHall != null) {
+            if (hp != authoritativeTownHall.getCurrentHp()
+                    || maximum != authoritativeTownHall.getMaxHp()) {
+                throw new IllegalStateException("Town Hall projection cannot overwrite authoritative state");
+            }
+            return;
+        }
         this.maxHp = maximum; this.currentHp = hp;
         if (hp == 0) ruin();
+    }
+
+    public void bindTownHallProjection(TownHall townHall) {
+        if (type != Constants.BuildingType.TOWN_HALL || townHall == null) {
+            throw new IllegalArgumentException("only a Town Hall building can bind the Town Hall aggregate");
+        }
+        authoritativeTownHall = townHall;
+    }
+
+    public TownHallLevel getTownHallLevel() {
+        return authoritativeTownHall == null ? null : authoritativeTownHall.getLevel();
     }
 
     public void blockProductionForTurns(int turns) {

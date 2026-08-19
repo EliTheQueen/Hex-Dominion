@@ -96,6 +96,7 @@ public class AvalancheEvent extends DisasterEvent implements AffectedAreaDisaste
 
         for (Building building : buildings) {
             building.takeDamage(BUILDING_DAMAGE);
+            if (!building.isActive()) player.destroyBuilding(map, building);
         }
     }
 

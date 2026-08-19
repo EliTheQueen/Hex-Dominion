@@ -44,6 +44,15 @@ public class ResourceStorage implements java.io.Serializable {
         }
     }
 
+    /** Sets the capacity of every resource to the Town Hall's authoritative capacity. */
+    public void setCapacity(int cap) {
+        if (cap < 0) throw new IllegalArgumentException("capacity must not be negative");
+        for (ResourceType r : ResourceType.values()) {
+            capacity.set(r, cap);
+            if (current.get(r) > cap) current.set(r, cap);
+        }
+    }
+
     public ResourceAmount getCurrent() { return current.copy(); }
     public ResourceAmount getCapacity() { return capacity.copy(); }
 

@@ -94,7 +94,7 @@ public class TsunamiEvent extends DisasterEvent implements AffectedAreaDisaster 
         List<Building> buildings = targetCollector.collectBuildings(player, affectedArea);
 
         for (Building building : buildings) {
-            building.ruin();
+            player.destroyBuilding(map, building);
         }
     }
 

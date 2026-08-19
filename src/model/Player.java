@@ -79,8 +79,28 @@ public class Player implements java.io.Serializable {
         buildings.add(b);
     }
 
-    public void removeBuilding(Building b) {
-        buildings.remove(b);
+    /**
+     * Authoritative building destruction lifecycle.  All gameplay systems that
+     * permanently destroy a building must use this method rather than merely
+     * marking the Building as ruined.
+     */
+    public boolean destroyBuilding(GameMap map, Building building) {
+        if (map == null || building == null || !buildings.contains(building)) {
+            return false;
+        }
+
+        building.ruin(); // releases every stationed worker safely
+        buildings.remove(building); // invalidates production, upkeep and effects
+
+        Hex hex = map.getHex(building.getPosition());
+        if (hex != null) {
+            hex.setHasBuilding(false);
+        }
+        return true;
+    }
+
+    public boolean destroyBuilding(GameMap map, HexCoordinate coordinate) {
+        return destroyBuilding(map, getBuildingAt(coordinate));
     }
 
     public void expandTerritory(HexCoordinate coord) {
@@ -251,7 +271,7 @@ public class Player implements java.io.Serializable {
 
     public Building getBuildingAt(HexCoordinate coord) {
         for (Building b : buildings) {
-            if (b.getPosition().equals(coord)) return b;
+            if (b.isActive() && b.getPosition().equals(coord)) return b;
         }
         return null;
     }

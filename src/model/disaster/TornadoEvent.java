@@ -134,6 +134,7 @@ public class TornadoEvent extends DisasterEvent implements AffectedAreaDisaster 
 
         for (Building building : buildings) {
             building.takeDamage(BUILDING_DAMAGE);
+            if (!building.isActive()) player.destroyBuilding(map, building);
         }
     }
 

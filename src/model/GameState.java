@@ -89,6 +89,7 @@ public class GameState implements java.io.Serializable {
         map = generator.generateMap(mapWidth, mapHeight);
 
         player = new Player("Player");
+        townHall = new TownHall();
 
         seasonCycle = new SeasonCycle();
 
@@ -106,6 +107,7 @@ public class GameState implements java.io.Serializable {
         townHallPos = center;
 
         Building townHallBuilding = new Building(center, Constants.BuildingType.TOWN_HALL);
+        townHallBuilding.bindTownHallProjection(townHall);
         player.addBuilding(townHallBuilding);
 
         Hex centerHex = map.getHex(center);
@@ -141,7 +143,6 @@ public class GameState implements java.io.Serializable {
 
         militaryRecruitmentService = new MilitaryRecruitmentService(player, map);
 
-        townHall = new TownHall();
         townHallCommandService = new TownHallCommandService(townHall, player.getResources());
         phaseTwoTechnologies = new TechnologyRegistry();
         phaseTwoTechnologyTarget = new PhaseTwoTechnologyTarget();
@@ -204,7 +205,7 @@ public class GameState implements java.io.Serializable {
         HappinessLevel happinessLevel = happinessService.getCurrentLevel();
 
         // 1. Production.
-        for (Building building : player.getBuildings()) {
+        for (Building building : new ArrayList<>(player.getBuildings())) {
             if (!building.isActive()) {
                 continue;
             }
@@ -267,7 +268,7 @@ public class GameState implements java.io.Serializable {
         }
 
         // 3. Building upkeep.
-        for (Building building : player.getBuildings()) {
+        for (Building building : new ArrayList<>(player.getBuildings())) {
             if (!building.isActive()
                     || building.getType() == Constants.BuildingType.TOWN_HALL) {
 
@@ -290,11 +291,7 @@ public class GameState implements java.io.Serializable {
                 player.spend(upkeep);
                 building.payUpkeep();
             } else if (building.missUpkeep()) {
-                Hex hex = map.getHex(building.getPosition());
-
-                if (hex != null) {
-                    hex.setHasBuilding(false);
-                }
+                player.destroyBuilding(map, building);
 
                 lastTurnEvents.add(
                         building.getType().name()
@@ -408,13 +405,7 @@ public class GameState implements java.io.Serializable {
                     );
 
             if (disaster != null) {
-                Building hallBuilding = player.getBuildingAt(townHallPos);
-                int hallHpBefore = hallBuilding == null ? townHall.getCurrentHp() : hallBuilding.getCurrentHp();
                 disaster.start();
-
-                if (hallBuilding != null && hallBuilding.getCurrentHp() < hallHpBefore) {
-                    townHall.takeDamage(hallHpBefore - hallBuilding.getCurrentHp());
-                }
                 syncTownHallBuildingFromDomain();
 
                 lastDisasterEvent = disaster;
@@ -1363,6 +1354,7 @@ public class GameState implements java.io.Serializable {
         }
         if (borderTarget != null) {
             borderTarget.takeDamage(10);
+            if (!borderTarget.isActive()) player.destroyBuilding(map, borderTarget);
             lastTurnEvents.add(tribe.getName() + " raided " + borderTarget.getType().name());
         }
     }
@@ -1585,9 +1577,11 @@ public class GameState implements java.io.Serializable {
     }
 
     private void syncTownHallBuildingFromDomain() {
+        player.getResources().setCapacity(townHall.getStorageCapacity());
         Building building = player.getBuildingAt(townHallPos);
-        if (building != null && building.getType() == Constants.BuildingType.TOWN_HALL)
-            building.synchronizeHealth(townHall.getCurrentHp(), townHall.getMaxHp());
+        if (building != null && building.getType() == Constants.BuildingType.TOWN_HALL) {
+            building.bindTownHallProjection(townHall);
+        }
     }
 
     private final class TrainingCommand extends model.townhall.AbstractProductionCommand {

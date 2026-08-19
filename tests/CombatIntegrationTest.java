@@ -29,7 +29,9 @@ public final class CombatIntegrationTest {
                 "fixed no-dice structure damage");
 
         Building building = new Building(tribe.getCampCoordinate(), Constants.BuildingType.FARM);
-        StructureCombatService structures = new StructureCombatService();
+        state.getPlayer().addBuilding(building);
+        state.getMap().getHex(tribe.getCampCoordinate()).setHasBuilding(true);
+        StructureCombatService structures = new StructureCombatService(state.getMap(), state.getPlayer());
         Swordsman structureSword = new Swordsman(attackFrom);
         require(structures.attackBuilding(structureSword, building, Arrays.asList(new Archer(tribe.getCampCoordinate()))) == 0,
                 "defenders block structure target");

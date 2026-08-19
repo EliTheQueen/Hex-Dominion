@@ -142,11 +142,7 @@ public class InfrastructureService implements java.io.Serializable {
         Building building = player.getBuildingAt(coordinate);
         if (building == null || building.getType() == Constants.BuildingType.TOWN_HALL) return false;
         if (!builder.spendAP(ACTION_AP_COST)) return false;
-        building.ruin();
-        player.removeBuilding(building);
-        Hex hex = map.getHex(coordinate);
-        if (hex != null) hex.setHasBuilding(false);
-        return true;
+        return player.destroyBuilding(map, building);
     }
 
     public boolean demolishBridge(Builder builder, HexCoordinate first, HexCoordinate second) {
