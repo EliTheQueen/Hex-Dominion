@@ -53,11 +53,7 @@ public class FloodEvent extends DisasterEvent implements AffectedAreaDisaster{
     }
 
     private void destroyRoads() {
-        for (HexCoordinate coordinate : affectedArea.getAffectedCoordinates()) {
-            if (map.hasRoad(coordinate)) {
-                map.removeRoad(coordinate);
-            }
-        }
+        map.removeRoads(affectedArea.getAffectedCoordinates());
     }
 
     private DisasterArea calculateAffectedArea() {

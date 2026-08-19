@@ -72,6 +72,7 @@ public class TornadoEvent extends DisasterEvent implements AffectedAreaDisaster 
 
         damageUnits();
         damageBuildings();
+        map.removeRoads(path);
 
         player.removeDeadUnits();
     }

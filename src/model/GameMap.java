@@ -143,6 +143,20 @@ public class GameMap implements java.io.Serializable {
         hex.removeRoad();
     }
 
+    /** Removes every road touched by a map effect such as a disaster. */
+    public void removeRoads(Iterable<HexCoordinate> coordinates) {
+        if (coordinates == null) {
+            throw new IllegalArgumentException("coordinates must not be null");
+        }
+
+        for (HexCoordinate coordinate : coordinates) {
+            Hex hex = getHex(coordinate);
+            if (hex != null) {
+                hex.removeRoad();
+            }
+        }
+    }
+
     public boolean hasRoad(HexCoordinate coordinate) {
         Hex hex = getHex(coordinate);
         return hex != null && hex.hasRoad();

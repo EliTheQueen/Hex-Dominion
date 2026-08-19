@@ -96,6 +96,33 @@ public class GameState implements java.io.Serializable {
     private int discountedDockBuilds;
 
     public GameState(int mapWidth, int mapHeight) {
+        this(
+                mapWidth,
+                mapHeight,
+                new Random(),
+                new DisasterGenerator(
+                        new DisasterOccurrencePolicy(),
+                        new DisasterSelector(),
+                        new DisasterOriginSelector()
+                )
+        );
+    }
+
+    /**
+     * Deterministic construction seam used by rule tests and save restoration.
+     * The same random stream drives combat and disasters, so callers can replay
+     * the simulation without changing normal game construction.
+     */
+    public GameState(
+            int mapWidth,
+            int mapHeight,
+            Random random,
+            DisasterGenerator disasterGenerator
+    ) {
+        if (random == null || disasterGenerator == null) {
+            throw new IllegalArgumentException("random and disasterGenerator must not be null");
+        }
+
         MapGenerator generator = new MapGenerator();
         map = generator.generateMap(mapWidth, mapHeight);
 
@@ -106,15 +133,11 @@ public class GameState implements java.io.Serializable {
 
         infrastructureService = new InfrastructureService(map, player);
 
-        random = new Random();
-        combatService = new CombatService(map, player, new DiceRoller(random),
+        this.random = random;
+        combatService = new CombatService(map, player, new DiceRoller(this.random),
                 new MilitaryDamageHandler());
 
-        disasterGenerator = new DisasterGenerator(
-                new DisasterOccurrencePolicy(),
-                new DisasterSelector(),
-                new DisasterOriginSelector()
-        );
+        this.disasterGenerator = disasterGenerator;
 
         HexCoordinate center = new HexCoordinate(mapWidth / 2, mapHeight / 2);
         townHallPos = center;
@@ -205,15 +228,21 @@ public class GameState implements java.io.Serializable {
 
         lastTurnEvents.clear();
 
+        // Beginning-of-turn phase. Expire previous terrain effects before a
+        // new event is rolled so newly blocked hexes retain their full duration.
+        map.advanceBlockedHexes();
+
+        if (bearAttackCooldown > 0) {
+            bearAttackCooldown--;
+        }
+
+        evaluateDisasterAtTurnStart();
+
         refreshAlliances();
         tribeAllianceBenefitService.applyTurnBenefits(player);
 
         townHallCommandService.advanceOneTurn();
         syncTownHallBuildingFromDomain();
-
-        if (bearAttackCooldown > 0) {
-            bearAttackCooldown--;
-        }
 
         boolean professionalTools = player.hasProfessionalTools() || hasSteelTools();
 
@@ -384,8 +413,6 @@ public class GameState implements java.io.Serializable {
         // 7. Visibility.
         updateVisibility();
 
-        map.advanceBlockedHexes();
-
         // 8. Advance turn and season.
         currentTurn++;
         seasonCycle.advanceTurn();
@@ -416,38 +443,6 @@ public class GameState implements java.io.Serializable {
             }
         }
 
-        // 10. Disaster generation.
-        if (activeBearAttack == null) {
-            DisasterEvent disaster =
-                    disasterGenerator.generate(
-                            seasonCycle.getCurrentSeason(),
-                            false,
-                            bearAttackCooldown == 0,
-                            map,
-                            player,
-                            random,
-                            combatService
-                    );
-
-            if (disaster != null) {
-                disaster.start();
-                syncTownHallBuildingFromDomain();
-
-                lastDisasterEvent = disaster;
-
-                lastTurnEvents.add(
-                        "Disaster: " + disaster.getType().name()
-                );
-
-                if (disaster instanceof BearAttackEvent) {
-                    activeBearAttack = (BearAttackEvent) disaster;
-                    bearAttackCooldown = 5;
-                } else {
-                    disaster.complete();
-                }
-            }
-        }
-
         if (player.getUnitCount() == 0
                 && player.getActiveBuildingCount() == 0) {
 
@@ -455,6 +450,50 @@ public class GameState implements java.io.Serializable {
             gameOverReason = "All units and buildings lost";
             finalScore = ScoreCalculator.calculate(player, map);
         }
+    }
+
+    private void evaluateDisasterAtTurnStart() {
+        if (activeBearAttack != null) {
+            return;
+        }
+
+        DisasterEvent disaster = disasterGenerator.generate(
+                seasonCycle.getCurrentSeason(),
+                false,
+                bearAttackCooldown == 0,
+                map,
+                player,
+                random,
+                combatService
+        );
+
+        if (disaster == null) {
+            return;
+        }
+
+        disaster.start();
+        syncTownHallBuildingFromDomain();
+        lastDisasterEvent = disaster;
+        lastTurnEvents.add(describeDisaster(disaster));
+
+        if (disaster instanceof BearAttackEvent) {
+            activeBearAttack = (BearAttackEvent) disaster;
+            bearAttackCooldown = 5;
+        } else {
+            disaster.complete();
+        }
+    }
+
+    private String describeDisaster(DisasterEvent disaster) {
+        String name = disaster.getType().name().replace('_', ' ');
+        Hex origin = map.getHex(disaster.getOrigin());
+
+        if (origin != null && origin.isVisible()) {
+            return "Disaster: " + name + " at " + disaster.getOrigin();
+        }
+
+        return "Distant disaster reported: " + name
+                + " struck beyond current visibility";
     }
 
     private void applyRecurringHappiness() {

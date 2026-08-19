@@ -83,6 +83,7 @@ public class VolcanicEruptionEvent extends DisasterEvent implements AffectedArea
         damageNeighbourUnits(lavaPath);
 
         destroyLavaBuildings(lavaPath);
+        map.removeRoads(lavaPath);
         blockLavaPath(lavaPath);
 
         player.removeDeadUnits();

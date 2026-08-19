@@ -68,6 +68,7 @@ public class AvalancheEvent extends DisasterEvent implements AffectedAreaDisaste
 
         damageUnits();
         damageBuildings();
+        map.removeRoads(path);
         blockPath(path);
 
         player.removeDeadUnits();
