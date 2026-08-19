@@ -34,6 +34,8 @@ public final class PhaseTwoTownHallTest {
         require(state.getTownHall().getLevel() == TownHallLevel.BASE_CAMP, "not early");
         state.endTurn();
         require(state.getTownHall().getLevel() == TownHallLevel.SETTLEMENT, "finishes on third turn");
+        require(state.getPlayer().getBuildingAt(state.getTownHallPos()).getMaxHp() == 250,
+                "map building synchronized with domain Town Hall");
     }
 
     private static void cancellationDoesNotRefund() {

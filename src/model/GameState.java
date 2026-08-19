@@ -188,6 +188,7 @@ public class GameState implements java.io.Serializable {
         lastTurnEvents.clear();
 
         townHallCommandService.advanceOneTurn();
+        syncTownHallBuildingFromDomain();
 
         if (bearAttackCooldown > 0) {
             bearAttackCooldown--;
@@ -400,7 +401,14 @@ public class GameState implements java.io.Serializable {
                     );
 
             if (disaster != null) {
+                Building hallBuilding = player.getBuildingAt(townHallPos);
+                int hallHpBefore = hallBuilding == null ? townHall.getCurrentHp() : hallBuilding.getCurrentHp();
                 disaster.start();
+
+                if (hallBuilding != null && hallBuilding.getCurrentHp() < hallHpBefore) {
+                    townHall.takeDamage(hallHpBefore - hallBuilding.getCurrentHp());
+                }
+                syncTownHallBuildingFromDomain();
 
                 lastDisasterEvent = disaster;
 
@@ -1472,6 +1480,7 @@ public class GameState implements java.io.Serializable {
         public boolean isSteelToolsEnabled() { return steelTools; }
         public void enableDefensiveArchitecture() {
             defensiveArchitecture = true;
+            townHall.enableDefensiveArchitecture();
             for (HexCoordinate neighbour : townHallPos.findNeighbours()) {
                 if (map.containsCoordinate(neighbour)) {
                     infrastructureService.buildAutomaticWall(townHallPos, neighbour);
@@ -1479,6 +1488,12 @@ public class GameState implements java.io.Serializable {
             }
         }
         public boolean isDefensiveArchitectureEnabled() { return defensiveArchitecture; }
+    }
+
+    private void syncTownHallBuildingFromDomain() {
+        Building building = player.getBuildingAt(townHallPos);
+        if (building != null && building.getType() == Constants.BuildingType.TOWN_HALL)
+            building.synchronizeHealth(townHall.getCurrentHp(), townHall.getMaxHp());
     }
 
     private final class TrainingCommand extends model.townhall.AbstractProductionCommand {

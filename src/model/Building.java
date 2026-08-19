@@ -9,7 +9,7 @@ public class Building implements java.io.Serializable {
     private final HexCoordinate position;
     private final Constants.BuildingType type;
     private final List<Worker> workers;
-    private final int maxHp;
+    private int maxHp;
     private int currentHp;
 
     private int unpaidTurns = 0;
@@ -140,6 +140,12 @@ public class Building implements java.io.Serializable {
         if (currentHp == 0) {
             ruin();
         }
+    }
+
+    public void synchronizeHealth(int hp, int maximum) {
+        if (maximum <= 0 || hp < 0 || hp > maximum) throw new IllegalArgumentException("invalid health");
+        this.maxHp = maximum; this.currentHp = hp;
+        if (hp == 0) ruin();
     }
 
     public void blockProductionForTurns(int turns) {

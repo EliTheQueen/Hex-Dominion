@@ -4,6 +4,7 @@ public class TownHall implements java.io.Serializable {
     private TownHallLevel level;
     private int currentHp;
     private final SingleCommandSlot singleCommandSlot;
+    private int defense = 10;
 
     public TownHall() {
         level = TownHallLevel.BASE_CAMP;
@@ -56,4 +57,6 @@ public class TownHall implements java.io.Serializable {
     public boolean isDestroyed() {
         return currentHp == 0;
     }
+    public int getDefense() { return defense; }
+    public void enableDefensiveArchitecture() { defense = 30; }
 }
