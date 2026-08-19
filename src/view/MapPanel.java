@@ -40,6 +40,7 @@ import model.disaster.DisasterType;
 import model.military.MilitaryUnit;
 import model.season.Season;
 import model.tribe.Tribe;
+import model.tribe.TribeMilitaryUnit;
 
 /** The main hexagonal battle map. Renders terrain, fog of war, territory, buildings and units. */
 public class MapPanel extends JPanel
@@ -169,6 +170,12 @@ public class MapPanel extends JPanel
         for (Tribe tribe : gs.getTribes()) {
             Hex camp = map.getHex(tribe.getCampCoordinate());
             if (camp != null && camp.getIsExplored()) drawTribeCamp(g2, tribe, hexToPixel(tribe.getCampCoordinate()), camp.isVisible());
+            for (TribeMilitaryUnit unit : tribe.getMilitaryUnits()) {
+                Hex unitHex = map.getHex(unit.getPosition());
+                if (unitHex != null && unitHex.isVisible()) {
+                    drawTribeMilitaryUnit(g2, unit, hexToPixel(unit.getPosition()));
+                }
+            }
         }
 
         for (Unit u : player.getUnits()) {
@@ -1448,6 +1455,10 @@ public class MapPanel extends JPanel
 
     private void drawTribeCamp(Graphics2D g2, Tribe tribe, Point2D center, boolean vis) {
         int cx = (int) center.getX(), cy = (int) center.getY();
+        if (tribe.isOutpost()) {
+            drawOutpost(g2, cx, cy, vis);
+            return;
+        }
         Color accent;
         switch (tribe.getType()) {
             case FARMER: accent = new Color(112, 181, 88); break;
@@ -1467,6 +1478,40 @@ public class MapPanel extends JPanel
         g2.setColor(new Color(35, 27, 25)); g2.fillArc(cx - 6, cy + 2, 12, 18, 0, 180);
         g2.setColor(accent.brighter()); g2.fillOval(cx - 3, cy - 14, 6, 6);
         drawHealthBar(g2, cx, cy + 21, tribe.getCurrentHp(), tribe.getMaxHp());
+    }
+
+    private void drawOutpost(Graphics2D g2, int cx, int cy, boolean vis) {
+        Color timber = vis ? new Color(176, 131, 75) : new Color(98, 80, 59);
+        g2.setColor(new Color(0, 0, 0, 95));
+        g2.fillOval(cx - 19, cy + 12, 38, 8);
+        g2.setColor(timber);
+        g2.fillRect(cx - 15, cy - 9, 30, 22);
+        g2.setColor(timber.darker());
+        g2.drawRect(cx - 15, cy - 9, 30, 22);
+        g2.drawLine(cx, cy - 22, cx, cy + 13);
+        g2.setColor(new Color(212, 175, 55));
+        g2.fillPolygon(new int[]{cx, cx + 14, cx}, new int[]{cy - 22, cy - 16, cy - 10}, 3);
+        g2.setColor(new Color(35, 28, 24));
+        g2.fillRect(cx - 4, cy + 2, 8, 11);
+    }
+
+    private void drawTribeMilitaryUnit(Graphics2D g2, TribeMilitaryUnit unit, Point2D center) {
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        Color color = switch (unit.getMilitaryUnitType()) {
+            case SWORDSMAN -> new Color(204, 86, 72);
+            case ARCHER -> new Color(112, 175, 91);
+            case CAVALRY -> new Color(190, 145, 64);
+            case CATAPULT -> Color.GRAY;
+        };
+        g2.setColor(new Color(0, 0, 0, 100));
+        g2.fillOval(cx - 10, cy + 7, 20, 6);
+        g2.setColor(color);
+        g2.fillOval(cx - 8, cy - 8, 16, 16);
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
+        g2.drawString(unit.getMilitaryUnitType().name().substring(0, 1), cx - 3, cy + 4);
+        g2.setColor(color.darker());
+        g2.drawOval(cx - 8, cy - 8, 16, 16);
     }
 
     private void drawRuinedOverlay(Graphics2D g2, int cx, int cy) {

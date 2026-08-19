@@ -29,7 +29,9 @@ public class DefaultTribeBehaviorStrategy implements TribeBehaviorStrategy {
                 return TribeTurnAction.PRODUCE_GUARD;
             }
 
-            return TribeTurnAction.HOSTILE_ATTACK;
+            // Proactive raids are optional; mandatory enemy behavior is camp defense
+            // plus capped guard production, so no disconnected direct-damage action remains.
+            return TribeTurnAction.NONE;
         }
 
         if (status == TribeRelationStatus.FRIENDLY || status == TribeRelationStatus.ALLIED) {

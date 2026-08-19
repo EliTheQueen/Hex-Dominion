@@ -1,7 +1,11 @@
 package model.tribe;
 
 import model.HexCoordinate;
+import model.military.MilitaryUnitType;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -19,10 +23,13 @@ public class Tribe implements java.io.Serializable {
     private int currentHp;
     private boolean discovered;
     private boolean defeated;
+    private boolean outpost;
 
     private int lastTradeTurn = -1;
-    private int guardCount = 2;
+    private final List<TribeMilitaryUnit> militaryUnits = new ArrayList<>();
+    private int guardsCreated;
     private boolean campUnderAttack;
+    private HexCoordinate lastAttackerCoordinate;
 
     public Tribe(
             String name,
@@ -61,6 +68,8 @@ public class Tribe implements java.io.Serializable {
         this.maxHp = maxHp;
         this.currentHp = maxHp;
         this.relation = new TribeRelation();
+        addGuard();
+        addGuard();
     }
 
     public String getId() {
@@ -98,6 +107,8 @@ public class Tribe implements java.io.Serializable {
     public boolean isDefeated() {
         return defeated;
     }
+
+    public boolean isOutpost() { return outpost; }
 
     public void discover() {
         discovered = true;
@@ -145,14 +156,90 @@ public class Tribe implements java.io.Serializable {
     public int getLastTradeTurn() {
         return lastTradeTurn;
     }
-    public int getGuardCount() { return guardCount; }
-    public void addGuard() { guardCount++; }
-    public int removeGuards(int amount) {
-        int removed = Math.min(Math.max(0, amount), guardCount);
-        guardCount -= removed; return removed;
+    public int getGuardCount() {
+        removeDeadUnits();
+        return militaryUnits.size();
     }
+
+    public TribeMilitaryUnit addGuard() {
+        if (defeated) return null;
+        MilitaryUnitType[] roster = guardRoster(type);
+        MilitaryUnitType category = roster[guardsCreated % roster.length];
+        guardsCreated++;
+        TribeMilitaryUnit unit = new TribeMilitaryUnit(id, category, campCoordinate);
+        militaryUnits.add(unit);
+        return unit;
+    }
+
+    public int removeGuards(int amount) {
+        int removed = Math.min(Math.max(0, amount), getGuardCount());
+        for (int i = 0; i < removed; i++) militaryUnits.get(i).kill();
+        removeDeadUnits();
+        return removed;
+    }
+
+    public List<TribeMilitaryUnit> getMilitaryUnits() {
+        removeDeadUnits();
+        return Collections.unmodifiableList(new ArrayList<>(militaryUnits));
+    }
+
+    public List<TribeMilitaryUnit> getMilitaryUnitsAt(HexCoordinate coordinate) {
+        List<TribeMilitaryUnit> result = new ArrayList<>();
+        if (coordinate == null) return result;
+        for (TribeMilitaryUnit unit : getMilitaryUnits()) {
+            if (unit.getPosition().equals(coordinate)) result.add(unit);
+        }
+        return result;
+    }
+
+    public void removeDeadUnits() { militaryUnits.removeIf(unit -> !unit.isAlive()); }
+
+    public void resetMilitaryActionPoints() {
+        for (TribeMilitaryUnit unit : getMilitaryUnits()) unit.resetAP();
+    }
+
+    public void disbandMilitary() {
+        for (TribeMilitaryUnit unit : militaryUnits) unit.kill();
+        militaryUnits.clear();
+    }
+
     public boolean isCampUnderAttack() { return campUnderAttack; }
-    public void setCampUnderAttack(boolean value) { campUnderAttack = value; }
+    public void setCampUnderAttack(boolean value) {
+        campUnderAttack = value;
+        if (!value) lastAttackerCoordinate = null;
+    }
+
+    public void recordCampAttack(HexCoordinate attackerCoordinate) {
+        if (attackerCoordinate == null) throw new IllegalArgumentException("attacker coordinate is required");
+        campUnderAttack = true;
+        lastAttackerCoordinate = attackerCoordinate;
+    }
+
+    public HexCoordinate getLastAttackerCoordinate() { return lastAttackerCoordinate; }
+
+    public void convertToOutpost() {
+        if (!defeated) throw new IllegalStateException("only a defeated camp can become an Outpost");
+        outpost = true;
+        campUnderAttack = false;
+        lastAttackerCoordinate = null;
+        disbandMilitary();
+    }
+
+    private static MilitaryUnitType[] guardRoster(TribeType type) {
+        return switch (type) {
+            case FARMER -> new MilitaryUnitType[]{MilitaryUnitType.SWORDSMAN,
+                    MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER};
+            case WARRIOR -> new MilitaryUnitType[]{MilitaryUnitType.SWORDSMAN,
+                    MilitaryUnitType.ARCHER, MilitaryUnitType.CAVALRY,
+                    MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER};
+            case MERCHANT -> new MilitaryUnitType[]{MilitaryUnitType.ARCHER,
+                    MilitaryUnitType.ARCHER, MilitaryUnitType.SWORDSMAN};
+            case MOUNTAIN -> new MilitaryUnitType[]{MilitaryUnitType.CAVALRY,
+                    MilitaryUnitType.SWORDSMAN, MilitaryUnitType.ARCHER};
+            case COASTAL -> new MilitaryUnitType[]{MilitaryUnitType.ARCHER,
+                    MilitaryUnitType.SWORDSMAN, MilitaryUnitType.CAVALRY};
+        };
+    }
 
     @Override
     public boolean equals(Object other) {

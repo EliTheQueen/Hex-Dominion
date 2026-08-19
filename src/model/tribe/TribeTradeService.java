@@ -77,4 +77,8 @@ public class TribeTradeService implements java.io.Serializable {
     public int getMissionTradeBonusPercent(Tribe tribe) {
         return tribe == null ? 0 : missionTradeBonusPercent.getOrDefault(tribe.getId(), 0);
     }
+
+    public void clearTribeState(Tribe tribe) {
+        if (tribe != null) missionTradeBonusPercent.remove(tribe.getId());
+    }
 }

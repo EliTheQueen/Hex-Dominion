@@ -66,22 +66,26 @@ public final class CombatService implements Serializable {
         spendAttackAp(participants);
         damageHandler.applyDamage(defenders, battle.result.getAttackerWins());
         damageHandler.applyDamage(request.getAttackerHex(), battle.result.getDefenderWins());
-        cleanupDeadUnits();
+        cleanupDeadUnits(request);
         return report(request, participants, battle, "Military casualties resolved", 0, false);
     }
 
     private CombatReport resolveTribeGuards(CombatRequest request) {
         Tribe tribe = request.getTribe();
-        if (tribe == null || tribe.isDefeated() || tribe.getGuardCount() <= 0) {
+        MilitaryHex defenders = request.getDefenderMilitaryHex();
+        if (tribe == null || tribe.isDefeated() || defenders == null
+                || defenders.getAliveUnits().isEmpty()) {
             throw new IllegalArgumentException("tribe has no defending guards");
         }
         List<MilitaryUnit> participants = unitCombatParticipants(request);
+        int guardsBefore = defenders.getAliveUnits().size();
         DiceBattle battle = rollBattle(distinctDice(participants),
-                Math.min(6, tribe.getGuardCount()), defendingWall(request));
+                distinctDice(defenders.getAliveUnits()), defendingWall(request));
         spendAttackAp(participants);
-        int guardsLost = tribe.removeGuards(battle.result.getAttackerWins());
+        damageHandler.applyDamage(defenders, battle.result.getAttackerWins());
         damageHandler.applyDamage(request.getAttackerHex(), battle.result.getDefenderWins());
-        cleanupDeadUnits();
+        cleanupDeadUnits(request);
+        int guardsLost = Math.max(0, guardsBefore - defenders.getAliveUnits().size());
         String casualty = guardsLost + " guard" + (guardsLost == 1 ? "" : "s") + " lost";
         if (battle.result.getDefenderWins() > 0) {
             casualty += ", " + battle.result.getDefenderWins() + " attacker damage";
@@ -97,7 +101,7 @@ public final class CombatService implements Serializable {
         spendAttackAp(participants);
         bear.takeDamage(battle.result.getAttackerWins() * BEAR_DAMAGE_PER_WIN);
         damageHandler.applyDamage(request.getAttackerHex(), battle.result.getDefenderWins());
-        cleanupDeadUnits();
+        cleanupDeadUnits(request);
         String casualty = !bear.isAlive() ? "Bear defeated"
                 : battle.result.getDefenderWins() > 0 ? "Attacker wounded" : "No effective hit";
         return report(request, participants, battle, casualty, 0, false);
@@ -124,7 +128,7 @@ public final class CombatService implements Serializable {
             if (battle.result.getDefenderWins() > 0) {
                 bear.takeDamage(battle.result.getDefenderWins() * BEAR_DAMAGE_PER_WIN);
             }
-            cleanupDeadUnits();
+            cleanupDeadUnits(request);
             return new CombatReport("BEAR", "MILITARY", battle.attack.getRolls(),
                     battle.defense.getRolls(), battle.result.getAttackerWins(),
                     battle.result.getDefenderWins(), target.isAlive() ? "Military defended"
@@ -134,7 +138,7 @@ public final class CombatService implements Serializable {
 
         bear.spendAP(1);
         target.takeDamage(bear.getAttackDamage());
-        cleanupDeadUnits();
+        cleanupDeadUnits(request);
         return new CombatReport("BEAR", target.getUnitType().name(), Collections.emptyList(),
                 Collections.emptyList(), 0, 0, target.isAlive() ? "Civilian damaged"
                 : "Civilian defeated", 0, 1, CombatTargetType.WILD_ANIMAL_ATTACK,
@@ -149,7 +153,7 @@ public final class CombatService implements Serializable {
         List<MilitaryUnit> participants = unitCombatParticipants(request);
         spendAttackAp(participants);
         civilian.kill();
-        cleanupDeadUnits();
+        cleanupDeadUnits(request);
         return directReport(request, participants, "Civilian defeated", 0, false);
     }
 
@@ -182,7 +186,9 @@ public final class CombatService implements Serializable {
     private CombatReport resolveTribeCamp(CombatRequest request) {
         Tribe tribe = request.getTribe();
         if (tribe == null || tribe.isDefeated()) throw new IllegalArgumentException("tribe camp is defeated");
-        if (tribe.getGuardCount() > 0) throw new IllegalArgumentException("guards block direct camp targeting");
+        if (!tribe.getMilitaryUnitsAt(tribe.getCampCoordinate()).isEmpty()) {
+            throw new IllegalArgumentException("guards block direct camp targeting");
+        }
         List<MilitaryUnit> participants = structureParticipants(request);
         int damage = totalStructureDamage(participants);
         spendAttackAp(participants);
@@ -331,7 +337,10 @@ public final class CombatService implements Serializable {
         for (MilitaryUnit unit : participants) unit.spendAttackAP();
     }
 
-    private void cleanupDeadUnits() { player.removeDeadUnits(); }
+    private void cleanupDeadUnits(CombatRequest request) {
+        player.removeDeadUnits();
+        if (request != null && request.getTribe() != null) request.getTribe().removeDeadUnits();
+    }
 
     private CombatReport report(CombatRequest request, List<MilitaryUnit> participants,
                                 DiceBattle battle, String casualty, int structureDamage,

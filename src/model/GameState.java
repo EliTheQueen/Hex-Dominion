@@ -88,6 +88,11 @@ public class GameState implements java.io.Serializable {
     private final TribeTurnService tribeTurnService;
     private final java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
     private final java.util.Map<String, Integer> tribeMissionFailureTurn = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> tribeForbiddenZoneTurns = new java.util.HashMap<>();
+    private final java.util.Map<String, TribeMission> offeredMissions = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> tribeTradeOfferTurn = new java.util.HashMap<>();
+    private final java.util.List<TribeNotification> tribeNotifications = new java.util.ArrayList<>();
+    private CombatReport lastTribeCombatReport;
     private int discountedDockBuilds;
 
     public GameState(int mapWidth, int mapHeight) {
@@ -1185,8 +1190,11 @@ public class GameState implements java.io.Serializable {
     public MissionActionResult requestMission(Tribe tribe) {
         if (tribe == null) return MissionActionResult.INVALID_REQUEST;
         if (currentTurn < tribeMissionCooldownUntil.getOrDefault(tribe.getId(), 0)) return MissionActionResult.COOLDOWN;
-        TribeMission mission = createMissionFor(tribe);
-        return tribeMissionService.acceptMission(mission);
+        TribeMission mission = offeredMissions.get(tribe.getId());
+        if (mission == null) mission = createMissionFor(tribe);
+        MissionActionResult result = tribeMissionService.acceptMission(mission);
+        if (result == MissionActionResult.SUCCESS) offeredMissions.remove(tribe.getId());
+        return result;
     }
 
     public MissionActionResult turnInMission(Tribe tribe) {
@@ -1262,6 +1270,24 @@ public class GameState implements java.io.Serializable {
         return tribe == null ? -1 : tribeMissionFailureTurn.getOrDefault(tribe.getId(), -1);
     }
 
+    public TribeMission getOfferedMission(Tribe tribe) {
+        return tribe == null ? null : offeredMissions.get(tribe.getId());
+    }
+
+    public boolean hasTradeOffer(Tribe tribe) {
+        return tribe != null && tribeTradeOfferTurn.getOrDefault(tribe.getId(), -1) == currentTurn;
+    }
+
+    public int getForbiddenZoneIntrusionTurns(Tribe tribe) {
+        return tribe == null ? 0 : tribeForbiddenZoneTurns.getOrDefault(tribe.getId(), 0);
+    }
+
+    public java.util.List<TribeNotification> getTribeNotifications() {
+        return java.util.Collections.unmodifiableList(new java.util.ArrayList<>(tribeNotifications));
+    }
+
+    public CombatReport getLastTribeCombatReport() { return lastTribeCombatReport; }
+
     private void refreshAllianceState(Tribe tribe) {
         if (tribe != null) tribeAllianceService.refreshAllianceState(tribe);
     }
@@ -1280,26 +1306,58 @@ public class GameState implements java.io.Serializable {
                 || !attacker.canAttack() || attacker.getPosition().distanceTo(tribe.getCampCoordinate()) > attacker.getRange())
             return null;
         MilitaryHex attackerHex = militaryHexAt(attacker.getPosition());
+        MilitaryHex tribeDefenders = tribeMilitaryHexAt(tribe.getCampCoordinate(), tribe);
         int guardsBefore = tribe.getGuardCount();
         CombatReport report;
         try {
-            report = combatService.resolve(tribe.getGuardCount() == 0
+            report = combatService.resolve(tribeDefenders.getAliveUnits().isEmpty()
                     ? CombatRequest.tribeCamp(attacker, attackerHex, tribe)
-                    : CombatRequest.tribeGuards(attacker, attackerHex, tribe));
+                    : CombatRequest.tribeGuards(attacker, attackerHex, tribe, tribeDefenders));
         } catch (IllegalArgumentException ex) {
             return null;
         }
-        tribe.setCampUnderAttack(true);
-        tribePeaceService.recordAttack(tribe);
-        TribeRelationStatus before = tribe.getRelation().getStatus();
-        if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
-        else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
-        tribeAllianceService.breakAlliance(tribe);
-        if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
-        tribe.getRelation().becomeEnemy();
+        applyPlayerAttackDiplomacy(tribe, attacker.getPosition());
         int guardsDefeated = Math.max(0, guardsBefore - tribe.getGuardCount());
         if (guardsDefeated > 0) recordMissionKillsNear(tribe.getCampCoordinate(), guardsDefeated);
+        if (tribe.isDefeated()) handleTribeDefeat(tribe);
         return report;
+    }
+
+    public CombatReport attackTribeUnit(MilitaryUnit attacker, TribeMilitaryUnit defender) {
+        if (attacker == null || defender == null || !defender.isAlive()) return null;
+        Tribe tribe = null;
+        for (Tribe candidate : tribes) {
+            if (candidate.getId().equals(defender.getTribeId())) { tribe = candidate; break; }
+        }
+        if (tribe == null || tribe.isDefeated()) return null;
+        MilitaryHex defenders = tribeMilitaryHexAt(defender.getPosition(), tribe);
+        int before = tribe.getGuardCount();
+        try {
+            CombatReport report = combatService.resolve(CombatRequest.tribeGuards(attacker,
+                    militaryHexAt(attacker.getPosition()), tribe, defenders));
+            applyPlayerAttackDiplomacy(tribe, attacker.getPosition());
+            int defeated = Math.max(0, before - tribe.getGuardCount());
+            if (defeated > 0) recordMissionKillsNear(defender.getPosition(), defeated);
+            return report;
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private void applyPlayerAttackDiplomacy(Tribe tribe, HexCoordinate attackerCoordinate) {
+        tribe.recordCampAttack(attackerCoordinate);
+        tribePeaceService.recordAttack(tribe);
+        TribeRelationStatus before = tribe.getRelation().getStatus();
+        if (before == TribeRelationStatus.ALLIED) {
+            happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
+        } else if (before == TribeRelationStatus.FRIENDLY) {
+            happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);
+        }
+        tribeAllianceService.breakAlliance(tribe);
+        if (tribeMissionService.getActiveMission(tribe) != null) cancelMission(tribe);
+        offeredMissions.remove(tribe.getId());
+        tribeTradeOfferTurn.remove(tribe.getId());
+        tribe.getRelation().becomeEnemy();
     }
 
     public Bear getBearAt(HexCoordinate coordinate) {
@@ -1393,6 +1451,13 @@ public class GameState implements java.io.Serializable {
         MilitaryHex result = new MilitaryHex(map.getHex(coordinate));
         for (Unit unit : player.getUnits()) if (unit instanceof MilitaryUnit && unit.isAlive()
                 && unit.getPosition().equals(coordinate)) result.addUnit((MilitaryUnit) unit);
+        return result;
+    }
+
+    private MilitaryHex tribeMilitaryHexAt(HexCoordinate coordinate, Tribe tribe) {
+        MilitaryHex result = new MilitaryHex(map.getHex(coordinate));
+        if (tribe == null) return result;
+        for (TribeMilitaryUnit unit : tribe.getMilitaryUnitsAt(coordinate)) result.addUnit(unit);
         return result;
     }
 
@@ -1499,12 +1564,214 @@ public class GameState implements java.io.Serializable {
 
     private void processTribeTurns() {
         for (Tribe tribe : tribes) {
+            if (tribe.isDefeated()) continue;
+            tribe.resetMilitaryActionPoints();
+            updateForbiddenZone(tribe);
             TribeTurnAction action = tribeTurnService.processTurn(tribe, new TribeTurnContext(currentTurn,
                     tribe.isCampUnderAttack(), tribe.getGuardCount(), tribeMissionService.getActiveMission(tribe) != null));
-            if (action == TribeTurnAction.PRODUCE_GUARD) tribe.addGuard();
-            else if (action == TribeTurnAction.DEFEND_CAMP) tribe.addGuard();
+            switch (action) {
+                case PRODUCE_GUARD -> produceTribeGuard(tribe);
+                case DEFEND_CAMP -> defendTribeCamp(tribe);
+                case OFFER_MISSION -> offerTribeMission(tribe);
+                case OFFER_TRADE -> offerTribeTrade(tribe);
+                case NONE -> { }
+            }
             tribe.setCampUnderAttack(false);
         }
+    }
+
+    private void updateForbiddenZone(Tribe tribe) {
+        TribeRelationStatus status = tribe.getRelation().getStatus();
+        if (status != TribeRelationStatus.NEUTRAL && status != TribeRelationStatus.DISPLEASED) {
+            tribeForbiddenZoneTurns.remove(tribe.getId());
+            return;
+        }
+        Unit intruder = nearestPlayerUnit(tribe.getCampCoordinate(), 2);
+        if (intruder == null) {
+            tribeForbiddenZoneTurns.remove(tribe.getId());
+            return;
+        }
+
+        int previousTurns = tribeForbiddenZoneTurns.getOrDefault(tribe.getId(), 0);
+        tribeForbiddenZoneTurns.put(tribe.getId(), previousTurns + 1);
+        if (previousTurns == 0) {
+            notifyTribe(tribe, TribeNotificationType.FORBIDDEN_ZONE_WARNING,
+                    tribe.getName() + " warns: leave the two-hex forbidden zone");
+            return;
+        }
+
+        int penalty = status == TribeRelationStatus.DISPLEASED ? 4 : 2;
+        tribe.getRelation().decrease(penalty);
+        refreshAllianceState(tribe);
+        notifyTribe(tribe, TribeNotificationType.RELATION_CHANGED,
+                tribe.getName() + " relation fell by " + penalty + " for continued trespass");
+    }
+
+    private Unit nearestPlayerUnit(HexCoordinate origin, int maximumDistance) {
+        Unit nearest = null;
+        int best = Integer.MAX_VALUE;
+        for (Unit unit : player.getUnits()) {
+            if (!unit.isAlive()) continue;
+            int distance = origin.distanceTo(unit.getPosition());
+            if (distance <= maximumDistance && distance < best) {
+                nearest = unit;
+                best = distance;
+            }
+        }
+        return nearest;
+    }
+
+    private Unit nearestPlayerUnit(HexCoordinate origin) {
+        return nearestPlayerUnit(origin, Integer.MAX_VALUE);
+    }
+
+    private void produceTribeGuard(Tribe tribe) {
+        int cap = tribe.getType() == TribeType.WARRIOR ? 5 : 3;
+        if (tribe.getGuardCount() >= cap) return;
+        TribeMilitaryUnit guard = tribe.addGuard();
+        if (guard != null) {
+            notifyTribe(tribe, TribeNotificationType.MILITARY_ACTION,
+                    tribe.getName() + " recruited a " + guard.getMilitaryUnitType().name());
+        }
+    }
+
+    private void offerTribeMission(Tribe tribe) {
+        if (tribeMissionService.getActiveMission(tribe) != null
+                || offeredMissions.containsKey(tribe.getId())) return;
+        offeredMissions.put(tribe.getId(), createMissionFor(tribe));
+        notifyTribe(tribe, TribeNotificationType.MISSION_OFFER,
+                tribe.getName() + " offered a new mission");
+    }
+
+    private void offerTribeTrade(Tribe tribe) {
+        tribeTradeOfferTurn.put(tribe.getId(), currentTurn);
+        notifyTribe(tribe, TribeNotificationType.TRADE_OFFER,
+                tribe.getName() + " offered a trade this turn");
+    }
+
+    private void defendTribeCamp(Tribe tribe) {
+        HexCoordinate threatCoordinate = tribe.getLastAttackerCoordinate();
+        Unit target = threatCoordinate == null ? null : player.getUnitAt(threatCoordinate);
+        if (target == null) target = nearestPlayerUnit(tribe.getCampCoordinate());
+        if (target == null || tribe.getMilitaryUnits().isEmpty()) return;
+
+        TribeMilitaryUnit defender = null;
+        int nearestDistance = Integer.MAX_VALUE;
+        for (TribeMilitaryUnit candidate : tribe.getMilitaryUnits()) {
+            int distance = candidate.getPosition().distanceTo(target.getPosition());
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                defender = candidate;
+            }
+        }
+        if (defender == null) return;
+
+        HexCoordinate before = defender.getPosition();
+        if (nearestDistance > defender.getRange()) moveTribeDefenderToward(defender, tribe, target.getPosition());
+        boolean moved = !before.equals(defender.getPosition());
+
+        if (defender.canAttack()
+                && defender.getPosition().distanceTo(target.getPosition()) <= defender.getRange()) {
+            try {
+                MilitaryHex attackers = tribeMilitaryHexAt(defender.getPosition(), tribe);
+                lastTribeCombatReport = target instanceof MilitaryUnit
+                        ? combatService.resolve(CombatRequest.tribeMilitaryAttack(tribe, defender,
+                        attackers, militaryHexAt(target.getPosition())))
+                        : combatService.resolve(CombatRequest.tribeCivilianAttack(tribe, defender,
+                        attackers, target));
+                notifyTribe(tribe, TribeNotificationType.MILITARY_ACTION,
+                        tribe.getName() + " defenders attacked at " + target.getPosition());
+                return;
+            } catch (IllegalArgumentException ignored) {
+                // Movement still remains the tribe's one defensive action this turn.
+            }
+        }
+        if (moved) {
+            notifyTribe(tribe, TribeNotificationType.MILITARY_ACTION,
+                    tribe.getName() + " moved a defender toward the attacker");
+        }
+    }
+
+    private void moveTribeDefenderToward(TribeMilitaryUnit defender, Tribe tribe,
+                                         HexCoordinate target) {
+        int movementBudget = defender.getCurrentAP() - 1;
+        if (movementBudget <= 0) return;
+        MovementPolicy policy = new MovementPolicy(false, seasonCycle.getCurrentSeason());
+        HexCoordinate best = null;
+        int bestDistance = defender.getPosition().distanceTo(target);
+        for (HexCoordinate candidate : PathFinder.reachable(map, defender.getPosition(), movementBudget, policy)) {
+            if (candidate.equals(target) || !canTribeUnitStackAt(tribe, defender, candidate)) continue;
+            int distance = candidate.distanceTo(target);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+        if (best != null) defender.moveTo(map, best, policy);
+    }
+
+    private boolean canTribeUnitStackAt(Tribe tribe, TribeMilitaryUnit moving,
+                                        HexCoordinate destination) {
+        int sameType = 0;
+        for (TribeMilitaryUnit existing : tribe.getMilitaryUnitsAt(destination)) {
+            if (existing != moving && existing.getMilitaryUnitType() == moving.getMilitaryUnitType()) sameType++;
+        }
+        int cap = switch (moving.getMilitaryUnitType()) {
+            case SWORDSMAN, ARCHER -> 2;
+            case CAVALRY, CATAPULT -> 1;
+        };
+        return sameType < cap;
+    }
+
+    private void notifyTribe(Tribe tribe, TribeNotificationType type, String message) {
+        TribeNotification notification = new TribeNotification(currentTurn, tribe, type, message);
+        tribeNotifications.add(notification);
+        while (tribeNotifications.size() > 50) tribeNotifications.remove(0);
+        lastTurnEvents.add(message);
+    }
+
+    private void handleTribeDefeat(Tribe tribe) {
+        if (tribe == null || !tribe.isDefeated() || tribe.isOutpost()) return;
+        tribe.convertToOutpost();
+        for (Hex hex : map.getHexesInRadius(tribe.getCampCoordinate(), 1)) {
+            if (hex.getTerrainType() != Constants.TerrainType.SEA
+                    && hex.getTerrainType() != Constants.TerrainType.MOUNTAIN_RANGE) {
+                player.expandTerritory(hex.getCoordinate());
+                hex.expand(true);
+            }
+        }
+        ResourceAmount loot = getTribeDefeatLoot(tribe.getType());
+        player.addResources(loot);
+        tribeAllianceService.breakAlliance(tribe);
+        tribePeaceService.cancel(tribe);
+        tribeMissionService.invalidateMission(tribe);
+        tribeTradeService.clearTribeState(tribe);
+        offeredMissions.remove(tribe.getId());
+        tribeTradeOfferTurn.remove(tribe.getId());
+        tribeForbiddenZoneTurns.remove(tribe.getId());
+        tribeMissionCooldownUntil.remove(tribe.getId());
+        tribeMissionFailureTurn.remove(tribe.getId());
+        tribe.getRelation().becomeEnemy();
+        notifyTribe(tribe, TribeNotificationType.CAMP_DEFEATED,
+                tribe.getName() + " camp became an Outpost; loot: " + describeResources(loot));
+    }
+
+    public ResourceAmount getTribeDefeatLoot(TribeType type) {
+        if (type == null) throw new IllegalArgumentException("tribe type is required");
+        return switch (type) {
+            case FARMER -> ResourceAmount.of(30, 0, 0, 0);
+            case WARRIOR -> ResourceAmount.of(0, 0, 0, 20);
+            case MERCHANT -> ResourceAmount.of(10, 10, 10, 10);
+            case MOUNTAIN -> ResourceAmount.of(0, 0, 30, 0);
+            case COASTAL -> ResourceAmount.of(20, 20, 0, 0);
+        };
+    }
+
+    private String describeResources(ResourceAmount amount) {
+        return amount.get(Constants.ResourceType.FOOD) + "F/"
+                + amount.get(Constants.ResourceType.WOOD) + "W/"
+                + amount.get(Constants.ResourceType.STONE) + "S/"
+                + amount.get(Constants.ResourceType.IRON) + "I";
     }
 
     public boolean canRecruitMilitaryUnit(

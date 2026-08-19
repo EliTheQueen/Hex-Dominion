@@ -158,4 +158,11 @@ public class TribeMissionService implements java.io.Serializable {
     public Map<String, TribeMission> getActiveMissions() {
         return Collections.unmodifiableMap(new HashMap<>(activeMissionsByTribeId));
     }
+
+    /** Removes mission state after camp defeat without applying another diplomacy penalty. */
+    public void invalidateMission(Tribe tribe) {
+        if (tribe == null) return;
+        TribeMission mission = activeMissionsByTribeId.remove(tribe.getId());
+        if (mission != null) mission.cancel();
+    }
 }

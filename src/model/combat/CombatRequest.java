@@ -56,9 +56,22 @@ public final class CombatRequest {
                 CombatTargetType.MILITARY_UNITS, defender, null, null, null, null, null, null);
     }
 
-    public static CombatRequest tribeGuards(MilitaryUnit initiator, MilitaryHex attacker, Tribe tribe) {
-        return new CombatRequest(initiator, attacker, tribe.getCampCoordinate(),
-                CombatTargetType.TRIBE_GUARDS, null, null, null, tribe, null, null, null);
+    public static CombatRequest tribeGuards(MilitaryUnit initiator, MilitaryHex attacker, Tribe tribe,
+                                             MilitaryHex defenders) {
+        return new CombatRequest(initiator, attacker, defenders.getCoordinate(),
+                CombatTargetType.TRIBE_GUARDS, defenders, null, null, tribe, null, null, null);
+    }
+
+    public static CombatRequest tribeMilitaryAttack(Tribe tribe, MilitaryUnit initiator,
+                                                     MilitaryHex attacker, MilitaryHex defender) {
+        return new CombatRequest(initiator, attacker, defender.getCoordinate(),
+                CombatTargetType.MILITARY_UNITS, defender, null, null, tribe, null, null, null);
+    }
+
+    public static CombatRequest tribeCivilianAttack(Tribe tribe, MilitaryUnit initiator,
+                                                     MilitaryHex attacker, Unit civilian) {
+        return new CombatRequest(initiator, attacker, civilian.getPosition(),
+                CombatTargetType.CIVILIAN, null, null, null, tribe, null, null, civilian);
     }
 
     public static CombatRequest wildAnimal(MilitaryUnit initiator, MilitaryHex attacker, Bear bear) {
