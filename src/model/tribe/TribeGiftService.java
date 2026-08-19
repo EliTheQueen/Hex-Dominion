@@ -32,15 +32,15 @@ public class TribeGiftService implements java.io.Serializable {
             return false;
         }
 
-        ResourceAmount gift = toResourceAmount(resourceType, amount);
-
-        if (!player.spend(gift)) {
-            return false;
-        }
-
         int relationGain = calculateRelationGain(resourceType, amount);
 
         if (relationGain == 0) {
+            return false;
+        }
+
+        ResourceAmount gift = toResourceAmount(resourceType, amount);
+
+        if (!player.canAfford(gift) || !player.spend(gift)) {
             return false;
         }
 

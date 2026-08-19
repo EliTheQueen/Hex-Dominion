@@ -82,10 +82,12 @@ public class GameState implements java.io.Serializable {
     private final TribeTradeService tribeTradeService;
     private final TribeAllianceRegistry tribeAllianceRegistry;
     private final TribeAllianceService tribeAllianceService;
+    private final TribeAllianceBenefitService tribeAllianceBenefitService;
     private final TribeWarService tribeWarService;
     private final TribePeaceService tribePeaceService;
     private final TribeTurnService tribeTurnService;
     private final java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
+    private final java.util.Map<String, Integer> tribeMissionFailureTurn = new java.util.HashMap<>();
     private int discountedDockBuilds;
 
     public GameState(int mapWidth, int mapHeight) {
@@ -164,6 +166,7 @@ public class GameState implements java.io.Serializable {
         tribeMissionService = new TribeMissionService(player, new MissionRewardApplier());
         tribeAllianceRegistry = new TribeAllianceRegistry();
         tribeAllianceService = new TribeAllianceService(tribeAllianceRegistry);
+        tribeAllianceBenefitService = new TribeAllianceBenefitService(tribeAllianceRegistry);
         tribeWarService = new TribeWarService();
         tribePeaceService = new TribePeaceService();
         tribeTurnService = new TribeTurnService(new DefaultTribeBehaviorStrategy());
@@ -196,6 +199,9 @@ public class GameState implements java.io.Serializable {
         }
 
         lastTurnEvents.clear();
+
+        refreshAlliances();
+        tribeAllianceBenefitService.applyTurnBenefits(player);
 
         townHallCommandService.advanceOneTurn();
         syncTownHallBuildingFromDomain();
@@ -379,11 +385,17 @@ public class GameState implements java.io.Serializable {
         currentTurn++;
         seasonCycle.advanceTurn();
 
+        for (Tribe peacefulTribe : tribePeaceService.advanceOneTurn(tribes)) {
+            lastTurnEvents.add("Peace completed with " + peacefulTribe.getName());
+        }
+
         java.util.List<Tribe> missionFailures = tribeMissionService.advanceOneTurn();
         for (Tribe failedTribe : missionFailures) {
             happinessService.applyEvent(HappinessEventType.MISSION_FAILED);
             tribeMissionCooldownUntil.put(failedTribe.getId(), currentTurn + 5);
+            tribeMissionFailureTurn.put(failedTribe.getId(), currentTurn);
         }
+        refreshAlliances();
         processTribeTurns();
 
         // 9. Active bear event.
@@ -1160,7 +1172,9 @@ public class GameState implements java.io.Serializable {
     public TribeMission getMission(Tribe tribe) { return tribeMissionService.getActiveMission(tribe); }
 
     public boolean giftTribe(Tribe tribe, Constants.ResourceType resource, int amount) {
-        return tribeGiftService.sendGift(player, tribe, resource, amount);
+        boolean sent = tribeGiftService.sendGift(player, tribe, resource, amount);
+        if (sent) refreshAllianceState(tribe);
+        return sent;
     }
 
     public boolean tradeWithTribe(Tribe tribe, Constants.ResourceType sell,
@@ -1178,6 +1192,7 @@ public class GameState implements java.io.Serializable {
     public MissionActionResult turnInMission(Tribe tribe) {
         MissionActionResult result = tribeMissionService.claimMission(tribeMissionService.getActiveMission(tribe));
         if (result == MissionActionResult.SUCCESS) tribeMissionCooldownUntil.put(tribe.getId(), currentTurn + 3);
+        if (result == MissionActionResult.SUCCESS) refreshAllianceState(tribe);
         return result;
     }
 
@@ -1185,6 +1200,7 @@ public class GameState implements java.io.Serializable {
         MissionActionResult result = tribeMissionService.cancelMission(tribeMissionService.getActiveMission(tribe));
         if (result == MissionActionResult.SUCCESS) happinessService.applyEvent(HappinessEventType.MISSION_CANCELLED);
         if (result == MissionActionResult.SUCCESS) tribeMissionCooldownUntil.put(tribe.getId(), currentTurn + 3);
+        if (result == MissionActionResult.SUCCESS) refreshAllianceState(tribe);
         return result;
     }
 
@@ -1201,8 +1217,58 @@ public class GameState implements java.io.Serializable {
     }
 
     public DiplomacyResult requestPeace(Tribe tribe) { return tribePeaceService.requestPeace(player, tribe); }
-    public DiplomacyResult requestAlliance(Tribe tribe) { return tribeAllianceService.requestAlliance(tribe); }
-    public boolean isAllied(Tribe tribe) { return tribeAllianceRegistry.isAlliedWith(tribe); }
+
+    public DiplomacyResult requestAlliance(Tribe tribe) {
+        if (tribe == null) return DiplomacyResult.INVALID_REQUEST;
+        refreshAlliances();
+        Integer failureTurn = tribeMissionFailureTurn.get(tribe.getId());
+        if (failureTurn != null && currentTurn - failureTurn < 5) {
+            return DiplomacyResult.RECENT_MISSION_FAILURE;
+        }
+        return tribeAllianceService.requestAlliance(tribe);
+    }
+
+    public boolean isAllied(Tribe tribe) {
+        if (tribe == null) return false;
+        refreshAllianceState(tribe);
+        return tribeAllianceRegistry.isAlliedWith(tribe);
+    }
+
+    public TribeAllianceBenefit getAllianceBenefit(Tribe tribe) {
+        refreshAllianceState(tribe);
+        return tribeAllianceBenefitService.getBenefit(tribe);
+    }
+
+    public boolean isAllianceBenefitActive(Tribe tribe) {
+        refreshAllianceState(tribe);
+        return tribeAllianceBenefitService.isBenefitActive(tribe);
+    }
+
+    public String getAllianceBenefitDescription(Tribe tribe) {
+        refreshAllianceState(tribe);
+        return tribeAllianceBenefitService.getDisplayText(tribe);
+    }
+
+    public ResourceAmount getActiveAllianceTurnIncome() {
+        refreshAlliances();
+        return tribeAllianceBenefitService.getActiveTurnIncome();
+    }
+
+    public boolean isPeacePending(Tribe tribe) { return tribePeaceService.isPeacePending(tribe); }
+    public int getPeaceProgress(Tribe tribe) { return tribePeaceService.getPeacefulTurns(tribe); }
+    public int getRequiredPeaceTurns() { return tribePeaceService.getRequiredPeacefulTurns(); }
+
+    public int getMissionFailureTurn(Tribe tribe) {
+        return tribe == null ? -1 : tribeMissionFailureTurn.getOrDefault(tribe.getId(), -1);
+    }
+
+    private void refreshAllianceState(Tribe tribe) {
+        if (tribe != null) tribeAllianceService.refreshAllianceState(tribe);
+    }
+
+    private void refreshAlliances() {
+        for (Tribe tribe : tribes) refreshAllianceState(tribe);
+    }
 
     public Tribe getTribeAt(HexCoordinate coordinate) {
         for (Tribe tribe : tribes) if (!tribe.isDefeated() && tribe.getCampCoordinate().equals(coordinate)) return tribe;
@@ -1224,6 +1290,7 @@ public class GameState implements java.io.Serializable {
             return null;
         }
         tribe.setCampUnderAttack(true);
+        tribePeaceService.recordAttack(tribe);
         TribeRelationStatus before = tribe.getRelation().getStatus();
         if (before == TribeRelationStatus.ALLIED) happinessService.applyEvent(HappinessEventType.ALLIED_TRIBE_ATTACKED);
         else if (before == TribeRelationStatus.FRIENDLY) happinessService.applyEvent(HappinessEventType.FRIENDLY_TRIBE_ATTACKED);

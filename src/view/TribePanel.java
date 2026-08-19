@@ -46,7 +46,11 @@ public final class TribePanel extends JDialog {
         TribeMission mission = controller.getGameState().getMission(tribe);
         String info = "<html>Relation: <b>" + tribe.getRelation().getScore() + "  " + tribe.getRelation().getStatus()
                 + "</b> • Camp HP " + tribe.getCurrentHp() + "/" + tribe.getMaxHp() + " • Guards " + tribe.getGuardCount()
-                + "<br>Benefit: " + benefit(tribe.getType())
+                + "<br>Trade: " + tradeBenefit(tribe.getType())
+                + "<br>Alliance benefit: " + controller.getGameState().getAllianceBenefitDescription(tribe)
+                + (controller.getGameState().isPeacePending(tribe)
+                ? "<br>Peace: <b>pending " + controller.getGameState().getPeaceProgress(tribe) + "/"
+                + controller.getGameState().getRequiredPeaceTurns() + " peaceful turns</b>" : "")
                 + (mission == null ? "<br>Mission: none" : "<br>Mission: <b>" + mission.getTitle() + "</b> — "
                 + mission.getDescription() + " • " + mission.getStatus() + " • " + mission.getRemainingTurns() + " turns")
                 + "</html>";
@@ -87,7 +91,7 @@ public final class TribePanel extends JDialog {
             case COASTAL: return new Color(75, 165, 195); default: return Color.GRAY;
         }
     }
-    private String benefit(TribeType type) {
+    private String tradeBenefit(TribeType type) {
         switch (type) {
             case FARMER: return "Food trade at 75%"; case WARRIOR: return "Military counsel";
             case MERCHANT: return "Any resource trade at 80%"; case MOUNTAIN: return "Stone/Iron trade at 75%";
