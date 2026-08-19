@@ -866,7 +866,8 @@ public class GameState {
                             map,
                             explorer.getPosition(),
                             target,
-                            explorer.getCurrentAP()
+                            explorer.getCurrentAP(),
+                            getMovementPolicy()
                     );
 
             if (path == null
@@ -878,7 +879,7 @@ public class GameState {
             HexCoordinate next =
                     path.get(1);
 
-            if (!explorer.moveTo(map, next)) {
+            if (!explorer.moveTo(map, next, getMovementPolicy())) {
                 break;
             }
 
@@ -1252,6 +1253,10 @@ public class GameState {
     public boolean hasSailing() { return phaseTwoTechnologyTarget.isSailingEnabled(); }
     public boolean hasSteelTools() { return phaseTwoTechnologyTarget.isSteelToolsEnabled(); }
     public boolean hasDefensiveArchitecture() { return phaseTwoTechnologyTarget.isDefensiveArchitectureEnabled(); }
+
+    public MovementPolicy getMovementPolicy() {
+        return new MovementPolicy(hasSailing(), seasonCycle.getCurrentSeason());
+    }
 
     private final class PhaseTwoTechnologyTarget implements TechnologyEffectTarget {
         private boolean sailing;

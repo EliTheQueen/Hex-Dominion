@@ -78,10 +78,10 @@ public class GameController {
                 selectedHex = coord;
                 return;
             }
-            if (selectedUnit.canMoveTo(gameState.getMap(), coord)) {
+            if (selectedUnit.canMoveTo(gameState.getMap(), coord, gameState.getMovementPolicy())) {
                 Unit existing = player.getUnitAt(coord);
                 if (existing == null || existing == selectedUnit) {
-                    selectedUnit.moveTo(gameState.getMap(), coord);
+                    selectedUnit.moveTo(gameState.getMap(), coord, gameState.getMovementPolicy());
                     gameState.updateVisibility();
                     statusMessage = "";
                 } else {
@@ -313,6 +313,7 @@ public class GameController {
     public List<HexCoordinate> getReachableHexes() {
         if (selectedUnit == null || !selectedUnit.canAct()) return Collections.emptyList();
         return new ArrayList<>(PathFinder.reachable(
-                gameState.getMap(), selectedUnit.getPosition(), selectedUnit.getCurrentAP()));
+                gameState.getMap(), selectedUnit.getPosition(), selectedUnit.getCurrentAP(),
+                gameState.getMovementPolicy()));
     }
 }

@@ -192,6 +192,10 @@ public abstract class Unit {
     }
 
     public boolean canMoveTo(GameMap map, HexCoordinate destination) {
+        return canMoveTo(map, destination, MovementPolicy.basic());
+    }
+
+    public boolean canMoveTo(GameMap map, HexCoordinate destination, MovementPolicy policy) {
         if (map == null || destination == null || destination.equals(position)) {
             return false;
         }
@@ -204,32 +208,17 @@ public abstract class Unit {
                 map,
                 position,
                 destination,
-                currentAP
+                currentAP, policy
         );
 
         return path != null && path.size() > 1;
     }
 
-    private int pathCost(GameMap map, List<HexCoordinate> path) {
-        int cost = 0;
-
-        for (int i = 1; i < path.size(); i++) {
-            Hex hex = map.getHex(path.get(i));
-
-            if (hex == null) {
-                return Integer.MAX_VALUE;
-            }
-
-            cost += Constants.MOVE_COST.getOrDefault(
-                    hex.getTerrainType(),
-                    1
-            );
-        }
-
-        return cost;
+    public boolean moveTo(GameMap map, HexCoordinate destination) {
+        return moveTo(map, destination, MovementPolicy.basic());
     }
 
-    public boolean moveTo(GameMap map, HexCoordinate destination) {
+    public boolean moveTo(GameMap map, HexCoordinate destination, MovementPolicy policy) {
         if (!alive || map == null || destination == null || destination.equals(position)) {
             return false;
         }
@@ -238,14 +227,14 @@ public abstract class Unit {
                 map,
                 position,
                 destination,
-                currentAP
+                currentAP, policy
         );
 
         if (path == null || path.size() < 2) {
             return false;
         }
 
-        int cost = pathCost(map, path);
+        int cost = PathFinder.pathCost(map, position, destination, currentAP, policy);
 
         if (cost > currentAP) {
             return false;
@@ -255,7 +244,9 @@ public abstract class Unit {
             return false;
         }
 
+        boolean enteredWater = policy.enteringWater(map, position, destination);
         position = destination;
+        if (enteredWater) currentAP = 0;
         state = Constants.UnitState.MOVING;
 
         return true;

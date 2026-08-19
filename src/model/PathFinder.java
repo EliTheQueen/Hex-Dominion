@@ -18,6 +18,13 @@ public class PathFinder {
             HexCoordinate to,
             int maxAP
     ) {
+        return findPath(map, from, to, maxAP, MovementPolicy.basic());
+    }
+
+    public static List<HexCoordinate> findPath(
+            GameMap map, HexCoordinate from, HexCoordinate to, int maxAP,
+            MovementPolicy policy
+    ) {
         if (from.equals(to)) {
             return Collections.singletonList(from);
         }
@@ -60,11 +67,11 @@ public class PathFinder {
 
                 Hex hex = map.getHex(neighbor);
 
-                if (!canEnter(hex)) {
+                if (!policy.canEnter(hex)) {
                     continue;
                 }
 
-                int moveCost = getMoveCost(map, curr, neighbor, hex);
+                int moveCost = policy.edgeCost(map, curr, neighbor);
 
                 int newDist = currDist + moveCost;
 
@@ -81,7 +88,8 @@ public class PathFinder {
                     );
 
                     queue.remove(neighbor);
-                    queue.add(neighbor);
+                    // Entering water ends movement, so a path cannot sail onward on that action.
+                    if (!policy.enteringWater(map, curr, neighbor)) queue.add(neighbor);
                 }
             }
         }
@@ -107,6 +115,12 @@ public class PathFinder {
             GameMap map,
             HexCoordinate from,
             int maxAP
+    ) {
+        return reachable(map, from, maxAP, MovementPolicy.basic());
+    }
+
+    public static Set<HexCoordinate> reachable(
+            GameMap map, HexCoordinate from, int maxAP, MovementPolicy policy
     ) {
         Map<HexCoordinate, Integer> dist =
                 new HashMap<>();
@@ -148,11 +162,11 @@ public class PathFinder {
                 Hex hex =
                         map.getHex(neighbor);
 
-                if (!canEnter(hex)) {
+                if (!policy.canEnter(hex)) {
                     continue;
                 }
 
-                int moveCost = getMoveCost(map, curr, neighbor, hex);
+                int moveCost = policy.edgeCost(map, curr, neighbor);
 
                 int newDist =
                         currDist + moveCost;
@@ -171,7 +185,7 @@ public class PathFinder {
                     result.add(neighbor);
 
                     queue.remove(neighbor);
-                    queue.add(neighbor);
+                    if (!policy.enteringWater(map, curr, neighbor)) queue.add(neighbor);
                 }
             }
         }
@@ -185,12 +199,17 @@ public class PathFinder {
             HexCoordinate to,
             int maxAP
     ) {
+        return pathCost(map, from, to, maxAP, MovementPolicy.basic());
+    }
+
+    public static int pathCost(GameMap map, HexCoordinate from, HexCoordinate to,
+                               int maxAP, MovementPolicy policy) {
         List<HexCoordinate> path =
                 findPath(
                         map,
                         from,
                         to,
-                        maxAP
+                        maxAP, policy
                 );
 
         if (path == null) {
@@ -202,45 +221,10 @@ public class PathFinder {
         for (int i = 1; i < path.size(); i++) {
             HexCoordinate fromm = path.get(i - 1);
             HexCoordinate tto = path.get(i);
-            Hex hex = map.getHex(to);
-
-            cost += getMoveCost(map, fromm, tto, hex);
+            cost += policy.edgeCost(map, fromm, tto);
         }
 
         return cost;
     }
 
-    private static boolean canEnter(Hex hex) {
-
-        if (hex == null) {
-            return false;
-        }
-
-        if (hex.isBlocked()) {
-            return false;
-        }
-
-        if (hex.getTerrainType() == Constants.TerrainType.SEA) {
-            return false;
-        }
-
-        return hex.getTerrainType()
-                != Constants.TerrainType.MOUNTAIN_RANGE;
-    }
-
-    private static int getMoveCost(GameMap map, HexCoordinate from, HexCoordinate to, Hex hex) {
-        int moveCost;
-
-        if (hex.hasRoad()) {
-            moveCost = 1;
-        } else {
-            moveCost = Constants.MOVE_COST.getOrDefault(hex.getTerrainType(), 1);
-        }
-
-        if (map.hasRiverBetween(from, to) && !map.hasBridgeBetween(from, to)) {
-            moveCost++;
-        }
-
-        return moveCost;
-    }
 }
