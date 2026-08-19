@@ -132,6 +132,7 @@ public class GameController {
             Building b = new Building(coord, pendingBuildType);
             player.addBuilding(b);
             gameState.getMap().getHex(coord).setHasBuilding(true);
+            gameState.onBuildingConstructed(b);
             builder.useCharge();
             statusMessage = "Built " + pendingBuildType.name();
             if (!builder.hasCharges()) {
@@ -232,6 +233,44 @@ public class GameController {
         boolean cancelled = gameState.cancelTownHallCommand();
         statusMessage = cancelled ? "Town Hall command cancelled (no refund)" : "No active command";
         return cancelled;
+    }
+
+    public boolean onBuildRoad() {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().buildRoad((Builder) selectedUnit, selectedUnit.getPosition());
+        statusMessage = ok ? "Road built" : "Cannot build road here";
+        return ok;
+    }
+
+    public boolean onDemolishRoad() {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().demolishRoad((Builder) selectedUnit, selectedUnit.getPosition());
+        statusMessage = ok ? "Road demolished" : "No removable road here";
+        return ok;
+    }
+
+    public boolean onBuildWall(HexCoordinate neighbour) {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().buildWall((Builder) selectedUnit,
+                selectedUnit.getPosition(), neighbour);
+        statusMessage = ok ? "Wall built" : "Cannot build wall on that edge";
+        return ok;
+    }
+
+    public boolean onBuildBridge(HexCoordinate neighbour) {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().buildBridge((Builder) selectedUnit,
+                selectedUnit.getPosition(), neighbour);
+        statusMessage = ok ? "Bridge built" : "A bridge requires a river edge";
+        return ok;
+    }
+
+    public boolean onDemolishBuilding() {
+        if (!(selectedUnit instanceof Builder)) return false;
+        boolean ok = gameState.getInfrastructureService().demolishBuilding((Builder) selectedUnit,
+                selectedUnit.getPosition());
+        statusMessage = ok ? "Building demolished (no refund)" : "No removable building here";
+        return ok;
     }
 
     /** Whether the selected builder could place this building on some adjacent valid hex now. */

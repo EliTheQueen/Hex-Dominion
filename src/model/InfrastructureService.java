@@ -23,7 +23,9 @@ public class InfrastructureService implements java.io.Serializable {
 
         Hex hex = map.getHex(coordinate);
 
-        if (hex == null || !hex.getIsExplored() || !player.isInTerritory(coordinate)) {
+        if (hex == null || !hex.getIsExplored() || !player.isInTerritory(coordinate)
+                || hex.getTerrainType() == Constants.TerrainType.SEA
+                || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) {
             return false;
         }
 
@@ -69,6 +71,9 @@ public class InfrastructureService implements java.io.Serializable {
             return false;
         }
 
+        if (!validWallTerrain(first) || !validWallTerrain(second)
+                || !map.getHex(first).getIsExplored() || !map.getHex(second).getIsExplored()) return false;
+
         if (map.hasWallBetween(first, second)) {
             return false;
         }
@@ -85,6 +90,7 @@ public class InfrastructureService implements java.io.Serializable {
     public boolean buildAutomaticWall(HexCoordinate first, HexCoordinate second) {
         if (!isValidEdge(first, second) || map.hasWallBetween(first, second)) return false;
         if (!player.isInTerritory(first) && !player.isInTerritory(second)) return false;
+        if (!validWallTerrain(first) || !validWallTerrain(second)) return false;
         map.buildWall(first, second);
         return true;
     }
@@ -128,6 +134,18 @@ public class InfrastructureService implements java.io.Serializable {
         }
 
         map.buildBridge(first, second);
+        return true;
+    }
+
+    public boolean demolishBuilding(Builder builder, HexCoordinate coordinate) {
+        if (!canUseBuilder(builder) || !canReach(builder, coordinate)) return false;
+        Building building = player.getBuildingAt(coordinate);
+        if (building == null || building.getType() == Constants.BuildingType.TOWN_HALL) return false;
+        if (!builder.spendAP(ACTION_AP_COST)) return false;
+        building.ruin();
+        player.removeBuilding(building);
+        Hex hex = map.getHex(coordinate);
+        if (hex != null) hex.setHasBuilding(false);
         return true;
     }
 
@@ -179,5 +197,11 @@ public class InfrastructureService implements java.io.Serializable {
 
     private boolean builderTouchesEdge(Builder builder, HexCoordinate first, HexCoordinate second) {
         return builder.getPosition().equals(first) || builder.getPosition().equals(second);
+    }
+
+    private boolean validWallTerrain(HexCoordinate coordinate) {
+        Hex hex = map.getHex(coordinate);
+        return hex != null && hex.getTerrainType() != Constants.TerrainType.SEA
+                && hex.getTerrainType() != Constants.TerrainType.MOUNTAIN_RANGE;
     }
 }

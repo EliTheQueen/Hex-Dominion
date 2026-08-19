@@ -651,6 +651,9 @@ public class GameState implements java.io.Serializable {
             return false;
         }
 
+        if (hex.getTerrainType() == Constants.TerrainType.SEA
+                || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) return false;
+
         switch (type) {
             case LUMBER_MILL:
                 return hex.hasResource(
@@ -682,7 +685,8 @@ public class GameState implements java.io.Serializable {
                 );
 
             case STABLE:
-                return hex.hasResource(
+                return hex.getTerrainType() == Constants.TerrainType.PLAIN
+                        || hex.hasResource(
                         Constants.NaturalResourceType.COW
                 )
                         || hex.hasResource(
@@ -696,16 +700,16 @@ public class GameState implements java.io.Serializable {
                         && !hex.everHadResource();
 
             case DOCK:
-                return map.isCoastal(coord);
+                return townHall.getLevel().getLevelNumber() >= 2 && map.isCoastal(coord);
 
             case MONUMENT:
-                return !player.hasBuildingType(
-                        Constants.BuildingType.MONUMENT
-                )
+                return (hex.getTerrainType() == Constants.TerrainType.PLAIN
+                        || hex.getTerrainType() == Constants.TerrainType.GRASSLAND)
                         && !hex.everHadResource();
 
             case BAZAAR:
-                return !player.hasBuildingType(
+                return townHall.getLevel().getLevelNumber() >= 2
+                        && !player.hasBuildingType(
                         Constants.BuildingType.BAZAAR
                 )
                         && !hex.everHadResource();

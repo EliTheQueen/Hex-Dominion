@@ -233,6 +233,29 @@ public class SidePanel extends JPanel {
             addBuildBtn("Stone Mine", Constants.BuildingType.STONE_MINE);
             addBuildBtn("Iron Mine", Constants.BuildingType.IRON_MINE);
             addBuildBtn("Township", Constants.BuildingType.TOWNSHIP);
+            addBuildBtn("Dock", Constants.BuildingType.DOCK);
+            addBuildBtn("Monument", Constants.BuildingType.MONUMENT);
+            addBuildBtn("Bazaar", Constants.BuildingType.BAZAAR);
+            Builder builder = (Builder) u;
+            boolean roadHere = controller.getGameState().getMap().hasRoad(builder.getPosition());
+            addActionBtn(roadHere ? "Demolish Road" : "Build Road", true,
+                    ev -> { if (roadHere) controller.onDemolishRoad(); else controller.onBuildRoad(); gamePanel.repaintAll(); });
+            Building ownBuilding = controller.getGameState().getPlayer().getBuildingAt(builder.getPosition());
+            addActionBtn("Demolish Building", ownBuilding != null
+                            && ownBuilding.getType() != Constants.BuildingType.TOWN_HALL,
+                    ev -> { controller.onDemolishBuilding(); gamePanel.repaintAll(); });
+            for (model.HexCoordinate neighbour : builder.getPosition().findNeighbours()) {
+                if (!controller.getGameState().getMap().containsCoordinate(neighbour)) continue;
+                if (controller.getGameState().getMap().hasRiverBetween(builder.getPosition(), neighbour)
+                        && !controller.getGameState().getMap().hasBridgeBetween(builder.getPosition(), neighbour)) {
+                    addActionBtn("Bridge edge " + neighbour.getQ() + "," + neighbour.getR(), true,
+                            ev -> { controller.onBuildBridge(neighbour); gamePanel.repaintAll(); });
+                }
+                if (!controller.getGameState().getMap().hasWallBetween(builder.getPosition(), neighbour)) {
+                    addActionBtn("Wall edge " + neighbour.getQ() + "," + neighbour.getR(), true,
+                            ev -> { controller.onBuildWall(neighbour); gamePanel.repaintAll(); });
+                }
+            }
         } else if (u instanceof Worker) {
             Worker w = (Worker) u;
             boolean canStation = controller.canStationHere();
