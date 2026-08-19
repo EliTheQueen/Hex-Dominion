@@ -35,6 +35,7 @@ import model.Unit;
 import model.disaster.AffectedAreaDisaster;
 import model.disaster.Bear;
 import model.disaster.BearAttackEvent;
+import model.disaster.BearActivity;
 import model.disaster.DisasterEvent;
 import model.disaster.DisasterType;
 import model.military.MilitaryUnit;
@@ -77,6 +78,8 @@ public class MapPanel extends JPanel
 
     // Smooth movement animation: each unit's displayed position eases toward its hex (no teleport).
     private final Map<Unit, Point2D> animatedRaw = new HashMap<>();
+    private final Map<Bear, Long> bearDamageRevision = new HashMap<>();
+    private final Map<Bear, Long> bearDamageStartedAt = new HashMap<>();
 
     // Minimap geometry (bottom-right corner).
     private static final int MINI_W = 188, MINI_H = 150, MINI_PAD = 12;
@@ -101,7 +104,18 @@ public class MapPanel extends JPanel
     /** Eases every unit's displayed position toward its true hex, in zoom-independent raw space. */
     private void stepAnimations() {
         if (controller.getGameState() == null) return;
-        for (Unit u : controller.getGameState().getPlayer().getUnits()) {
+        Set<Unit> animatedUnits = new HashSet<>(controller.getGameState().getPlayer().getUnits());
+        Set<Bear> activeBears = new HashSet<>();
+        BearAttackEvent bearAttack = controller.getGameState().getActiveBearAttack();
+        if (bearAttack != null) {
+            activeBears.addAll(bearAttack.getBears());
+            animatedUnits.addAll(activeBears);
+        }
+        animatedRaw.keySet().removeIf(unit -> !animatedUnits.contains(unit));
+        bearDamageRevision.keySet().removeIf(bear -> !activeBears.contains(bear));
+        bearDamageStartedAt.keySet().removeIf(bear -> !activeBears.contains(bear));
+
+        for (Unit u : animatedUnits) {
             if (!u.isAlive()) continue;
             Point2D target = hexToPixelRaw(u.getPosition());
             Point2D cur = animatedRaw.get(u);
@@ -912,9 +926,58 @@ public class MapPanel extends JPanel
         if (attack == null) return;
         for (Bear bear : attack.getBears()) {
             Hex hex = map.getHex(bear.getPosition());
-            if (!bear.isAlive() || hex == null || !hex.isVisible()) continue;
-            drawBearAt(g2, bear, hexToPixel(bear.getPosition()));
+            if (hex == null || !hex.isVisible()) continue;
+
+            long revision = bear.getDamageRevision();
+            if (bearDamageRevision.getOrDefault(bear, -1L) != revision) {
+                bearDamageRevision.put(bear, revision);
+                if (revision > 0) {
+                    bearDamageStartedAt.put(bear, System.currentTimeMillis());
+                }
+            }
+
+            Point2D center = animatedCenter(bear);
+            if (bear.isAlive()) {
+                drawBearAt(g2, bear, center);
+                if (bear.getActivity() == BearActivity.RETURNING
+                        || bear.getActivity() == BearActivity.RETURNED) {
+                    drawBearReturnEffect(g2, bear, center);
+                }
+            }
+            drawBearDamageEffect(g2, bear, center);
         }
+    }
+
+    private void drawBearReturnEffect(Graphics2D g2, Bear bear, Point2D center) {
+        Point2D den = hexToPixel(bear.getDen());
+        float pulse = (float) ((Math.sin(selectionPulse * 2.2) + 1) / 2.0);
+        g2.setColor(new Color(231, 193, 104, 90 + (int) (pulse * 80)));
+        g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND,
+                0, new float[]{6f, 6f}, selectionPulse * 4));
+        g2.drawLine((int) center.getX(), (int) center.getY(),
+                (int) den.getX(), (int) den.getY());
+        g2.setStroke(new BasicStroke(1f));
+        g2.setFont(new Font("SansSerif", Font.BOLD, 9));
+        g2.drawString(bear.hasReturnedToDen() ? "DEN" : "RETURNING",
+                (int) center.getX() - 22, (int) center.getY() - 27);
+    }
+
+    private void drawBearDamageEffect(Graphics2D g2, Bear bear, Point2D center) {
+        Long started = bearDamageStartedAt.get(bear);
+        if (started == null) return;
+        long elapsed = System.currentTimeMillis() - started;
+        if (elapsed > 750) {
+            bearDamageStartedAt.remove(bear);
+            return;
+        }
+        float progress = elapsed / 750f;
+        int radius = 14 + (int) (progress * 24);
+        int alpha = Math.max(0, 220 - (int) (progress * 220));
+        g2.setColor(new Color(255, 74, 48, alpha));
+        g2.setStroke(new BasicStroke(3f));
+        g2.drawOval((int) center.getX() - radius, (int) center.getY() - radius,
+                radius * 2, radius * 2);
+        g2.setStroke(new BasicStroke(1f));
     }
 
     private void drawBearAt(Graphics2D g2, Bear bear, Point2D center) {

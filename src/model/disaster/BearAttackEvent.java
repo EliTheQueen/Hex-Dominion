@@ -16,7 +16,7 @@ import java.util.List;
 
 public class BearAttackEvent extends DisasterEvent {
 
-    private static final int HUNT_RADIUS = 3;
+    public static final int HUNT_RADIUS = 3;
 
     private final GameMap map;
     private final Player player;
@@ -24,6 +24,7 @@ public class BearAttackEvent extends DisasterEvent {
 
     private final List<Bear> bears = new ArrayList<>();
     private CombatReport lastCombatReport;
+    private boolean completionReady;
 
     public BearAttackEvent(
             HexCoordinate origin,
@@ -88,6 +89,11 @@ public class BearAttackEvent extends DisasterEvent {
 
     public void processTurn() {
 
+        if (!bears.isEmpty() && bears.stream().allMatch(Bear::hasReturnedToDen)) {
+            completionReady = true;
+            return;
+        }
+
         for (Bear bear : new ArrayList<>(bears)) {
 
             if (!bear.isAlive()) {
@@ -100,8 +106,11 @@ public class BearAttackEvent extends DisasterEvent {
             Unit target = findTarget(bear);
 
             if (target == null) {
+                returnToDen(bear);
                 continue;
             }
+
+            bear.setActivity(BearActivity.HUNTING);
 
             while (bear.getCurrentAP() > 0 && !bear.canAttack(target)) {
 
@@ -127,11 +136,29 @@ public class BearAttackEvent extends DisasterEvent {
                 }
                 lastCombatReport = combatService.resolve(
                         CombatRequest.bearAttack(bear, target, militaryDefenders));
+                if (bear.isAlive() && lastCombatReport.getDefenderWins() == 0) {
+                    bear.setActivity(BearActivity.ATTACKING);
+                }
             }
         }
 
         player.removeDeadUnits();
         bears.removeIf(bear -> !bear.isAlive());
+    }
+
+    private void returnToDen(Bear bear) {
+        bear.setActivity(BearActivity.RETURNING);
+
+        while (bear.getCurrentAP() > 0
+                && !bear.getPosition().equals(bear.getDen())) {
+            if (!bear.moveOneStepToward(bear.getDen(), map)) {
+                break;
+            }
+        }
+
+        if (bear.getPosition().equals(bear.getDen())) {
+            bear.setActivity(BearActivity.RETURNED);
+        }
     }
 
     private Unit findTarget(Bear bear) {
@@ -198,20 +225,19 @@ public class BearAttackEvent extends DisasterEvent {
     }
 
     public boolean shouldEnd() {
-        if (bears.isEmpty()) {
-            return true;
-        }
+        return bears.isEmpty() || completionReady;
+    }
 
-        for (Unit unit : player.getUnits()) {
-            if (unit.isAlive()
-                    && getOrigin()
-                    .distanceTo(unit.getPosition())
-                    <= HUNT_RADIUS) {
-                return false;
-            }
-        }
+    @Override
+    protected void onCompleted() {
+        bears.clear();
+        lastCombatReport = null;
+    }
 
-        return true;
+    @Override
+    protected void onCancelled() {
+        bears.clear();
+        lastCombatReport = null;
     }
 
     public List<Bear> getBears() {

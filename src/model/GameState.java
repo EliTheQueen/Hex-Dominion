@@ -57,7 +57,8 @@ public class GameState implements java.io.Serializable {
     private DisasterEvent lastDisasterEvent;
 
     private BearAttackEvent activeBearAttack;
-    private int bearAttackCooldown = 0;
+    private final java.util.Map<HexCoordinate, Integer> bearAreaCooldownUntil =
+            new java.util.HashMap<>();
 
     private final InfrastructureService infrastructureService;
 
@@ -231,10 +232,6 @@ public class GameState implements java.io.Serializable {
         // Beginning-of-turn phase. Expire previous terrain effects before a
         // new event is rolled so newly blocked hexes retain their full duration.
         map.advanceBlockedHexes();
-
-        if (bearAttackCooldown > 0) {
-            bearAttackCooldown--;
-        }
 
         evaluateDisasterAtTurnStart();
 
@@ -460,7 +457,7 @@ public class GameState implements java.io.Serializable {
         DisasterEvent disaster = disasterGenerator.generate(
                 seasonCycle.getCurrentSeason(),
                 false,
-                bearAttackCooldown == 0,
+                true,
                 map,
                 player,
                 random,
@@ -471,6 +468,12 @@ public class GameState implements java.io.Serializable {
             return;
         }
 
+        if (disaster instanceof BearAttackEvent
+                && !isBearAttackAreaAvailable(disaster.getOrigin())) {
+            disaster.cancel();
+            return;
+        }
+
         disaster.start();
         syncTownHallBuildingFromDomain();
         lastDisasterEvent = disaster;
@@ -478,10 +481,28 @@ public class GameState implements java.io.Serializable {
 
         if (disaster instanceof BearAttackEvent) {
             activeBearAttack = (BearAttackEvent) disaster;
-            bearAttackCooldown = 5;
+            // Five complete subsequent turns must pass before this den area
+            // may spawn another attack; remote forest areas remain eligible.
+            bearAreaCooldownUntil.put(disaster.getOrigin(), currentTurn + 6);
         } else {
             disaster.complete();
         }
+    }
+
+    public boolean isBearAttackAreaAvailable(HexCoordinate origin) {
+        if (origin == null || !map.containsCoordinate(origin)) {
+            return false;
+        }
+
+        bearAreaCooldownUntil.entrySet().removeIf(entry -> entry.getValue() <= currentTurn);
+        for (java.util.Map.Entry<HexCoordinate, Integer> entry
+                : bearAreaCooldownUntil.entrySet()) {
+            if (entry.getValue() > currentTurn
+                    && entry.getKey().distanceTo(origin) <= BearAttackEvent.HUNT_RADIUS) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private String describeDisaster(DisasterEvent disaster) {

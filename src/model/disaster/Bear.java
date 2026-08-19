@@ -12,6 +12,8 @@ public class Bear extends Unit {
     private static final int ATTACK_RANGE = 1;
 
     private final HexCoordinate den;
+    private BearActivity activity = BearActivity.HUNTING;
+    private long damageRevision;
 
     public Bear(
             HexCoordinate position,
@@ -59,9 +61,20 @@ public class Bear extends Unit {
             return false;
         }
 
+        return moveOneStepToward(target.getPosition(), map);
+    }
+
+    public boolean moveOneStepToward(
+            HexCoordinate destination,
+            GameMap map
+    ) {
+        if (destination == null || map == null) {
+            return false;
+        }
+
         HexCoordinate best = null;
         int bestDistance =
-                getPosition().distanceTo(target.getPosition());
+                getPosition().distanceTo(destination);
 
         for (model.Hex neighbour : map.getNeighboursOf(getPosition())) {
 
@@ -69,7 +82,7 @@ public class Bear extends Unit {
                 continue;
             }
 
-            int distance = neighbour.getCoordinate().distanceTo(target.getPosition());
+            int distance = neighbour.getCoordinate().distanceTo(destination);
 
             if (distance < bestDistance) {
                 bestDistance = distance;
@@ -83,6 +96,35 @@ public class Bear extends Unit {
 
         setPosition(best);
         return true;
+    }
+
+    @Override
+    public void takeDamage(int amount) {
+        int before = getCurrentHp();
+        super.takeDamage(amount);
+        if (getCurrentHp() < before) {
+            damageRevision++;
+            activity = BearActivity.DAMAGED;
+        }
+    }
+
+    public BearActivity getActivity() {
+        return activity;
+    }
+
+    public void setActivity(BearActivity activity) {
+        if (activity == null) {
+            throw new IllegalArgumentException("activity must not be null");
+        }
+        this.activity = activity;
+    }
+
+    public long getDamageRevision() {
+        return damageRevision;
+    }
+
+    public boolean hasReturnedToDen() {
+        return activity == BearActivity.RETURNED && getPosition().equals(den);
     }
 
     private boolean canEnter(model.Hex hex) {

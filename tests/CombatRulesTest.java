@@ -158,11 +158,12 @@ public final class CombatRulesTest {
         MilitaryHex defenders = fixture.hexAt(fixture.b);
         Swordsman sword = fixture.add(defenders, new Swordsman(fixture.b));
         fixture.map.buildWall(fixture.a, fixture.b);
-        ScriptedRoller roller = new ScriptedRoller(Arrays.asList(6), Arrays.asList(3));
+        ScriptedRoller roller = new ScriptedRoller(Arrays.asList(6), Arrays.asList(3, 2));
         CombatReport report = fixture.service(roller).resolve(
                 CombatRequest.bearAttack(bear, sword, defenders));
-        require(roller.counts.equals(Arrays.asList(1, 1)), "bear and military defense use common dice");
-        require(report.getDefenderRolls().equals(Arrays.asList(5))
+        require(roller.counts.equals(Arrays.asList(1, 2)),
+                "bear rolls one die and player defense rolls exactly two");
+        require(report.getDefenderRolls().equals(Arrays.asList(5, 4))
                         && report.isWallModifierApplied(),
                 "wall modifies military defense against a bear by value");
         require(!sword.isAlive() && !fixture.player.getUnits().contains(sword),
@@ -181,12 +182,15 @@ public final class CombatRulesTest {
         Player player = new Player("bear-event");
         Worker worker = new Worker(targetPosition);
         player.addUnit(worker);
-        CombatService engine = new CombatService(map, player, new ScriptedRoller(),
+        ScriptedRoller roller = new ScriptedRoller(Arrays.asList(6), Arrays.asList(1, 1));
+        CombatService engine = new CombatService(map, player, roller,
                 new MilitaryDamageHandler());
         BearAttackEvent event = new BearAttackEvent(den, map, player, engine);
         event.start();
         event.processTurn();
         require(worker.getCurrentHp() == 65, "bear event applies the specified 35 damage");
+        require(roller.counts.equals(Arrays.asList(1, 2)),
+                "civilian defense also uses the shared one-versus-two dice rule");
         require(event.getLastCombatReport() != null
                         && event.getLastCombatReport().getTargetType()
                         == model.combat.CombatTargetType.WILD_ANIMAL_ATTACK,

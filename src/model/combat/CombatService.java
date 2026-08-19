@@ -119,30 +119,30 @@ public final class CombatService implements Serializable {
             if (defenders == null || !defenders.getAliveUnits().contains(target)) {
                 throw new IllegalArgumentException("military target is not on defender hex");
             }
-            DiceBattle battle = rollBattle(1, distinctDice(defenders.getAliveUnits()),
-                    defendingWall(request));
-            bear.spendAP(1);
-            if (battle.result.getAttackerWins() > 0) {
-                damageHandler.applyHitPointDamage(defenders, bear.getAttackDamage());
-            }
-            if (battle.result.getDefenderWins() > 0) {
-                bear.takeDamage(battle.result.getDefenderWins() * BEAR_DAMAGE_PER_WIN);
-            }
-            cleanupDeadUnits(request);
-            return new CombatReport("BEAR", "MILITARY", battle.attack.getRolls(),
-                    battle.defense.getRolls(), battle.result.getAttackerWins(),
-                    battle.result.getDefenderWins(), target.isAlive() ? "Military defended"
-                    : "Military casualty", 0, 1, CombatTargetType.WILD_ANIMAL_ATTACK,
-                    battle.wallActive, false);
         }
 
+        // Wild animals always roll one attack die and the player always rolls
+        // exactly two defense dice, regardless of the defending unit mix.
+        DiceBattle battle = rollBattle(1, 2, defendingWall(request));
         bear.spendAP(1);
-        target.takeDamage(bear.getAttackDamage());
+        if (battle.result.getAttackerWins() > 0) {
+            if (target instanceof MilitaryUnit) {
+                damageHandler.applyHitPointDamage(defenders, bear.getAttackDamage());
+            } else {
+                target.takeDamage(bear.getAttackDamage());
+            }
+        }
+        if (battle.result.getDefenderWins() > 0) {
+            bear.takeDamage(battle.result.getDefenderWins() * BEAR_DAMAGE_PER_WIN);
+        }
         cleanupDeadUnits(request);
-        return new CombatReport("BEAR", target.getUnitType().name(), Collections.emptyList(),
-                Collections.emptyList(), 0, 0, target.isAlive() ? "Civilian damaged"
-                : "Civilian defeated", 0, 1, CombatTargetType.WILD_ANIMAL_ATTACK,
-                false, false);
+        String casualty = target.isAlive()
+                ? (battle.result.getAttackerWins() > 0 ? "Defender damaged" : "Attack repelled")
+                : "Defender defeated";
+        return new CombatReport("BEAR", target.getUnitType().name(), battle.attack.getRolls(),
+                battle.defense.getRolls(), battle.result.getAttackerWins(),
+                battle.result.getDefenderWins(), casualty, 0, 1,
+                CombatTargetType.WILD_ANIMAL_ATTACK, battle.wallActive, false);
     }
 
     private CombatReport resolveCivilian(CombatRequest request) {
