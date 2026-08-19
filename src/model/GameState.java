@@ -461,9 +461,6 @@ public class GameState {
     }
 
     public boolean tradeAtTradingPost(Constants.ResourceType sell, Constants.ResourceType buy, int quantitySold) {
-        if (!player.hasBuildingType(Constants.BuildingType.TRADING_POST)) {
-            return false;
-        }
 
         TradingPostPolicy policy = new TradingPostPolicy();
         return tradeService.complete(player, policy, sell, buy, quantitySold);
