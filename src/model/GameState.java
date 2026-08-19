@@ -826,42 +826,47 @@ public class GameState implements java.io.Serializable {
         return null;
     }
 
-    /** Validates whether a building may be placed on a coordinate. */
-    public boolean canBuildAt(
+    /** Explains whether a building may be placed on a coordinate. */
+    public ActionAvailability getBuildSiteAvailability(
             HexCoordinate coord,
             Constants.BuildingType type
     ) {
+        if (type == null) return ActionAvailability.disabled("Choose a building type");
         Hex hex = map.getHex(coord);
 
         if (hex == null) {
-            return false;
+            return ActionAvailability.disabled("This hex is outside the map");
         }
 
         if (!hex.getIsExplored()) {
-            return false;
+            return ActionAvailability.disabled("Explore this hex before building");
         }
 
         if (!player.isInTerritory(coord)) {
-            return false;
+            return ActionAvailability.disabled("This hex is outside your territory");
         }
 
         if (player.getBuildingAt(coord) != null
                 || hex.getHasBuilding()) {
 
-            return false;
+            return ActionAvailability.disabled("This hex already contains a building");
         }
 
-        if (hex.getTerrainType() == Constants.TerrainType.SEA
-                || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) return false;
+        if (hex.getTerrainType() == Constants.TerrainType.SEA) {
+            return ActionAvailability.disabled("Buildings cannot be placed at sea");
+        }
+        if (hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) {
+            return ActionAvailability.disabled("Mountain Range is impassable and cannot be built on");
+        }
 
-        switch (type) {
+        boolean allowed = switch (type) {
             case LUMBER_MILL:
-                return hex.hasResource(
+                yield hex.hasResource(
                         Constants.NaturalResourceType.WOOD
                 );
 
             case STONE_MINE:
-                return player.hasResearched(
+                yield player.hasResearched(
                         Constants.TechnologyType.STONE_MINING
                 )
                         && hex.hasResource(
@@ -869,7 +874,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case IRON_MINE:
-                return player.hasResearched(
+                yield player.hasResearched(
                         Constants.TechnologyType.IRON_MINING
                 )
                         && hex.hasResource(
@@ -877,7 +882,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case FARM:
-                return hex.hasResource(
+                yield hex.hasResource(
                         Constants.NaturalResourceType.WHEAT
                 )
                         || hex.hasResource(
@@ -885,7 +890,7 @@ public class GameState implements java.io.Serializable {
                 );
 
             case STABLE:
-                return hex.getTerrainType() == Constants.TerrainType.PLAIN
+                yield hex.getTerrainType() == Constants.TerrainType.PLAIN
                         || hex.hasResource(
                         Constants.NaturalResourceType.COW
                 )
@@ -894,28 +899,57 @@ public class GameState implements java.io.Serializable {
                 );
 
             case TOWNSHIP:
-                return player.hasResearched(
+                yield player.hasResearched(
                         Constants.TechnologyType.TOWNSHIP
                 )
                         && !hex.everHadResource();
 
             case DOCK:
-                return townHall.getLevel().getLevelNumber() >= 2 && map.isCoastal(coord);
+                yield townHall.getLevel().getLevelNumber() >= 2 && map.isCoastal(coord);
 
             case MONUMENT:
-                return hex.getTerrainType() == Constants.TerrainType.PLAIN
+                yield hex.getTerrainType() == Constants.TerrainType.PLAIN
                         && !hex.everHadResource();
 
             case BAZAAR:
-                return townHall.getLevel().getLevelNumber() >= 2
+                yield townHall.getLevel().getLevelNumber() >= 2
                         && !player.hasBuildingType(
                         Constants.BuildingType.BAZAAR
                 )
                         && !hex.everHadResource();
 
             default:
-                return false;
+                yield false;
+        };
+        if (allowed) {
+            return ActionAvailability.enabled(type.name().replace('_', ' ') + " can be built here");
         }
+        String reason = switch (type) {
+            case LUMBER_MILL -> "Lumber Mill requires a WOOD resource";
+            case STONE_MINE -> !player.hasResearched(Constants.TechnologyType.STONE_MINING)
+                    ? "Research STONE MINING first" : "Stone Mine requires a STONE resource";
+            case IRON_MINE -> !player.hasResearched(Constants.TechnologyType.IRON_MINING)
+                    ? "Research IRON MINING first" : "Iron Mine requires an IRON resource";
+            case FARM -> "Farm requires a WHEAT or RICE resource";
+            case STABLE -> "Stable requires PLAIN terrain or a COW/SHEEP resource";
+            case TOWNSHIP -> !player.hasResearched(Constants.TechnologyType.TOWNSHIP)
+                    ? "Research TOWNSHIP first" : "Township requires a site that never held a resource";
+            case DOCK -> townHall.getLevel().getLevelNumber() < 2
+                    ? "Dock requires a Settlement Town Hall" : "Dock requires a coastal land hex";
+            case MONUMENT -> "Monument requires empty PLAIN terrain that never held a resource";
+            case BAZAAR -> townHall.getLevel().getLevelNumber() < 2
+                    ? "Bazaar requires a Settlement Town Hall"
+                    : player.hasBuildingType(Constants.BuildingType.BAZAAR)
+                    ? "Only one active Bazaar is allowed"
+                    : "Bazaar requires a site that never held a resource";
+            case TOWN_HALL -> "A second Town Hall cannot be built";
+        };
+        return ActionAvailability.disabled(reason);
+    }
+
+    /** Validates whether a building may be placed on a coordinate. */
+    public boolean canBuildAt(HexCoordinate coord, Constants.BuildingType type) {
+        return getBuildSiteAvailability(coord, type).isEnabled();
     }
 
     /** Projected next-turn resource change. Does not mutate game state. */

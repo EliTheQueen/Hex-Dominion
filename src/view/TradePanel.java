@@ -1,6 +1,7 @@
 package view;
 
 import controller.GameController;
+import model.ActionAvailability;
 import model.Constants;
 import model.HexCoordinate;
 import model.trade.BazaarTradeLevel;
@@ -45,6 +46,7 @@ public final class TradePanel extends JDialog {
         JPanel south = new JPanel(); south.setBackground(new Color(12, 15, 30));
         preview.setForeground(new Color(180, 205, 215)); preview.setPreferredSize(new Dimension(220, 28));
         confirm.setBackground(new Color(42, 90, 68)); confirm.setForeground(Color.WHITE); confirm.setFocusPainted(false);
+        confirm.setName("trade-confirm");
         JButton close = new JButton("CLOSE"); close.addActionListener(e -> dispose());
         south.add(preview); south.add(confirm); south.add(close); add(south, BorderLayout.SOUTH);
         source.addActionListener(e -> refresh()); sell.addActionListener(e -> refresh()); buy.addActionListener(e -> refresh());
@@ -62,18 +64,32 @@ public final class TradePanel extends JDialog {
 
     private void refresh() {
         boolean hasSource = source.getItemCount() > 0;
-        boolean distinct = sell.getSelectedItem() != buy.getSelectedItem();
         int amount = bazaarSelected() ? (Integer) bazaarTier.getSelectedItem() : (Integer) postAmount.getValue();
         int received;
         if (bazaarSelected()) {
             BazaarTradeLevel tier = BazaarTradeLevel.forQuantity(amount);
             received = tier == null ? 0 : (int) Math.floor(amount * tier.getRate());
         } else received = (int) Math.floor(amount * .8);
-        preview.setText("Sell " + amount + "  →  receive " + received + " (floor)");
         bazaarTier.setEnabled(bazaarSelected()); postAmount.setEnabled(!bazaarSelected());
-        confirm.setEnabled(hasSource && distinct);
-        confirm.setToolTipText(hasSource ? distinct ? "Complete this instant exchange" : "Choose different resources"
-                : "Build a Bazaar or claim a Trading Post");
+        ActionAvailability availability;
+        Constants.ResourceType sold = (Constants.ResourceType) sell.getSelectedItem();
+        Constants.ResourceType bought = (Constants.ResourceType) buy.getSelectedItem();
+        if (!hasSource) {
+            availability = ActionAvailability.disabled("Build a Bazaar or claim a Trading Post");
+        } else if (bazaarSelected()) {
+            availability = controller.getBazaarTradeAvailability(sold, bought, amount);
+        } else {
+            int index = source.getSelectedIndex()
+                    - (controller.getGameState().getActiveBazaar() != null ? 1 : 0);
+            availability = index >= 0 && index < posts.size()
+                    ? controller.getTradingPostTradeAvailability(posts.get(index), sold, bought, amount)
+                    : ActionAvailability.disabled("Choose a valid Trading Post");
+        }
+        preview.setText(availability.isEnabled()
+                ? "Sell " + amount + "  →  receive " + received + " (floor)"
+                : availability.getReason());
+        confirm.setEnabled(availability.isEnabled());
+        confirm.setToolTipText(availability.getReason());
     }
 
     private void execute() {

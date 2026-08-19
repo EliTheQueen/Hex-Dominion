@@ -22,6 +22,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 import controller.GameController;
+import model.ActionAvailability;
 import model.Constants;
 import model.Player;
 import model.ResourceAmount;
@@ -76,8 +77,10 @@ public class TechPanel extends JDialog {
         hall.setForeground(TEXT);
         south.add(hall);
         JButton upgradeBtn = makeButton("UPGRADE TOWN HALL", new Color(48, 78, 100));
-        upgradeBtn.setEnabled(controller.getGameState().getTownHall().canUpgrade() && active == null);
-        upgradeBtn.setToolTipText(upgradeBtn.isEnabled() ? "Start the next Town Hall upgrade" : "Maximum level or command slot occupied");
+        ActionAvailability upgradeAvailability = controller.getTownHallUpgradeAvailability();
+        upgradeBtn.setName("tech-upgrade-town-hall");
+        upgradeBtn.setEnabled(upgradeAvailability.isEnabled());
+        upgradeBtn.setToolTipText(upgradeAvailability.getReason());
         upgradeBtn.addActionListener(e -> { controller.onTownHallUpgrade(); dispose(); });
         south.add(upgradeBtn);
         if (active != null) {
@@ -115,12 +118,10 @@ public class TechPanel extends JDialog {
         card.add(detail);
         if (!researched && !queued) {
             JButton button = makeButton("RESEARCH", new Color(30, 80, 140));
-            boolean available = levelOk && !controller.getGameState().getTownHall().getCommandSlot().isBusy()
-                    && controller.getGameState().getPlayer().canAfford(tech.getCost());
-            button.setEnabled(available);
-            button.setToolTipText(available ? "Start research" : !levelOk ? "Town Hall level too low"
-                    : controller.getGameState().getTownHall().getCommandSlot().isBusy() ? "Town Hall command slot occupied"
-                    : "Insufficient resources");
+            ActionAvailability availability = controller.getPhaseTwoResearchAvailability(tech);
+            button.setName("tech-phase2-" + tech.name().toLowerCase());
+            button.setEnabled(availability.isEnabled());
+            button.setToolTipText(availability.getReason());
             button.setAlignmentX(Component.CENTER_ALIGNMENT);
             button.addActionListener(e -> { controller.onPhaseTwoResearch(tech); dispose(); });
             card.add(Box.createVerticalStrut(8));
@@ -145,8 +146,8 @@ public class TechPanel extends JDialog {
 
     private JPanel buildTechCard(Constants.TechnologyType tech, Player player) {
         boolean researched = player.hasResearched(tech);
-        boolean available = player.canResearch(tech)
-                && !controller.getGameState().getTownHall().getCommandSlot().isBusy();
+        ActionAvailability availabilityResult = controller.getLegacyResearchAvailability(tech);
+        boolean available = availabilityResult.isEnabled();
 
         final Color borderColor = researched ? RESEARCHED : (available ? AVAILABLE : LOCKED);
         final Color bgColor = researched ? new Color(20, 50, 20)
@@ -199,17 +200,17 @@ public class TechPanel extends JDialog {
             card.add(Box.createVerticalStrut(4));
             card.add(costLbl);
 
-            if (available) {
-                JButton resBtn = makeButton("RESEARCH", new Color(30, 80, 140));
-                resBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-                resBtn.setToolTipText("Uses the single Town Hall command slot");
-                resBtn.addActionListener(e -> {
-                    controller.onResearchChosen(tech);
-                    dispose();
-                });
-                card.add(Box.createVerticalStrut(6));
-                card.add(resBtn);
-            }
+            JButton resBtn = makeButton("RESEARCH", new Color(30, 80, 140));
+            resBtn.setName("tech-legacy-" + tech.name().toLowerCase());
+            resBtn.setEnabled(availabilityResult.isEnabled());
+            resBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+            resBtn.setToolTipText(availabilityResult.getReason());
+            resBtn.addActionListener(e -> {
+                controller.onResearchChosen(tech);
+                dispose();
+            });
+            card.add(Box.createVerticalStrut(6));
+            card.add(resBtn);
         }
         return card;
     }

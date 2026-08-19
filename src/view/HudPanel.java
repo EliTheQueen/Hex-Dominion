@@ -71,6 +71,7 @@ public class HudPanel extends JPanel {
         recruitBtn = createBtn("RECRUIT", new Color(60, 30, 80), new Color(90, 50, 120));
         settingsBtn = createBtn("⚙", new Color(45, 50, 70), new Color(70, 78, 105));
         saveBtn = createBtn("SAVE / LOAD", new Color(45, 65, 78), new Color(65, 92, 108));
+        saveBtn.setName("save-load");
         tradeBtn = createBtn("TRADE", new Color(83, 62, 34), new Color(115, 88, 48));
         tribesBtn = createBtn("TRIBES", new Color(63, 50, 83), new Color(89, 70, 116));
 
@@ -160,7 +161,8 @@ public class HudPanel extends JPanel {
 
     public void update() {
         model.save.SaveAvailability availability = controller.getSaveAvailability();
-        saveBtn.setToolTipText("Open Save / Load. " + availability.getReason());
+        saveBtn.setToolTipText("Open Save / Load. Manual save "
+                + (availability.isEnabled() ? "available: " : "disabled: ") + availability.getReason());
         repaint();
     }
 

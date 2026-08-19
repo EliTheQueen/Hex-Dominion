@@ -1,13 +1,11 @@
 package model.tribe;
 
-/** A UI-safe action decision that always carries a useful explanation. */
-public final class TribeActionAvailability {
-    private final boolean available;
-    private final String reason;
+import model.ActionAvailability;
 
+/** A UI-safe action decision that always carries a useful explanation. */
+public final class TribeActionAvailability extends ActionAvailability {
     private TribeActionAvailability(boolean available, String reason) {
-        this.available = available;
-        this.reason = reason;
+        super(available, reason);
     }
 
     public static TribeActionAvailability available(String description) {
@@ -19,6 +17,5 @@ public final class TribeActionAvailability {
         return new TribeActionAvailability(false, reason);
     }
 
-    public boolean isAvailable() { return available; }
-    public String getReason() { return reason; }
+    public boolean isAvailable() { return isEnabled(); }
 }

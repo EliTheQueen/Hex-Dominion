@@ -26,6 +26,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
 import controller.GameController;
+import model.ActionAvailability;
 import model.BorderExpander;
 import model.Builder;
 import model.Building;
@@ -248,7 +249,9 @@ public class SidePanel extends JPanel {
 
         if (u instanceof Explorer) {
             Explorer e = (Explorer) u;
-            addActionBtn((e.isAutoExploreMode() ? "Stop Auto-Explore" : "Start Auto-Explore"), true,
+            addActionBtn((e.isAutoExploreMode() ? "Stop Auto-Explore" : "Start Auto-Explore"),
+                    ActionAvailability.enabled(e.isAutoExploreMode()
+                            ? "Stop automatic movement" : "Automatically explore reachable unknown hexes"),
                     ev -> { controller.onAutoExploreToggled(); gamePanel.repaintAll(); });
         } else if (u instanceof Builder) {
             addBuildBtn("Lumber Mill", Constants.BuildingType.LUMBER_MILL);
@@ -262,7 +265,8 @@ public class SidePanel extends JPanel {
             addBuildBtn("Bazaar", Constants.BuildingType.BAZAAR);
             Builder builder = (Builder) u;
             boolean roadHere = controller.getGameState().getMap().hasRoad(builder.getPosition());
-            addActionBtn(roadHere ? "Demolish Road" : "Build Road", true,
+            addActionBtn(roadHere ? "Demolish Road" : "Build Road",
+                    controller.getRoadAvailability(roadHere),
                     ev -> {
                         if (roadHere) {
                             if (confirmDemolition("road")) controller.onDemolishRoad();
@@ -275,11 +279,9 @@ public class SidePanel extends JPanel {
             for (model.HexCoordinate site : demolitionSites) {
                 Building building = controller.getGameState().getPlayer().getBuildingAt(site);
                 if (building == null || building.getType() == Constants.BuildingType.TOWN_HALL) continue;
-                boolean enabled = controller.getGameState().getInfrastructureService()
-                        .canDemolishBuilding(builder, site);
                 String label = "Demolish " + building.getType().name().replace('_', ' ')
                         + " " + site.getQ() + "," + site.getR();
-                addActionBtn(label, enabled, ev -> {
+                addActionBtn(label, controller.getBuildingDemolitionAvailability(site), ev -> {
                     if (confirmDemolition(building.getType().name().replace('_', ' '))) {
                         controller.onDemolishBuilding(site);
                     }
@@ -292,7 +294,8 @@ public class SidePanel extends JPanel {
                     boolean bridgeExists = controller.getGameState().getMap()
                             .hasBridgeBetween(builder.getPosition(), neighbour);
                     addActionBtn((bridgeExists ? "Demolish bridge " : "Build bridge ")
-                                    + neighbour.getQ() + "," + neighbour.getR(), true,
+                                    + neighbour.getQ() + "," + neighbour.getR(),
+                            controller.getBridgeAvailability(neighbour, bridgeExists),
                             ev -> {
                                 if (bridgeExists) {
                                     if (confirmDemolition("bridge")) controller.onDemolishBridge(neighbour);
@@ -302,13 +305,9 @@ public class SidePanel extends JPanel {
                 }
                 boolean wallExists = controller.getGameState().getMap()
                         .hasWallBetween(builder.getPosition(), neighbour);
-                boolean wallEnabled = wallExists
-                        ? controller.getGameState().getInfrastructureService()
-                        .canDemolishWall(builder, builder.getPosition(), neighbour)
-                        : controller.getGameState().getInfrastructureService()
-                        .canBuildWall(builder, builder.getPosition(), neighbour);
                 String wallLabel = wallExists ? "Demolish wall " : "Build wall (10W 10S) ";
-                addActionBtn(wallLabel + neighbour.getQ() + "," + neighbour.getR(), wallEnabled,
+                addActionBtn(wallLabel + neighbour.getQ() + "," + neighbour.getR(),
+                        controller.getWallAvailability(neighbour, wallExists),
                         ev -> {
                             if (wallExists) {
                                 if (confirmDemolition("wall")) controller.onDemolishWall(neighbour);
@@ -318,19 +317,24 @@ public class SidePanel extends JPanel {
                 }
         } else if (u instanceof Worker) {
             Worker w = (Worker) u;
-            boolean canStation = controller.canStationHere();
-            addActionBtn(w.isStationed() ? "Re-station Here" : "Station Here", canStation,
+            addActionBtn(w.isStationed() ? "Re-station Here" : "Station Here",
+                    controller.getStationAvailability(),
                     ev -> { controller.onStationWorker(); gamePanel.repaintAll(); });
-            addActionBtn("Leave Building", w.isStationed(),
+            addActionBtn("Leave Building", w.isStationed()
+                            ? ActionAvailability.enabled("Stop working at the current building")
+                            : ActionAvailability.disabled("Worker is not stationed at a building"),
                     ev -> { controller.onUnstationWorker(); gamePanel.repaintAll(); });
         } else if (u instanceof BorderExpander) {
             BorderExpander be = (BorderExpander) u;
-            addActionBtn("Expand Border", be.canExpand(),
+            addActionBtn("Expand Border", be.canExpand()
+                            ? ActionAvailability.enabled("Claim this explored hex and explored neighbours for 2 AP")
+                            : ActionAvailability.disabled("Border Expander needs 2 AP"),
                     ev -> { controller.onExpandBorder(); gamePanel.repaintAll(); });
         }
 
         actionPanel.add(Box.createVerticalStrut(6));
-        addActionBtn("Deselect (ESC)", true, ev -> { controller.deselectUnit(); gamePanel.repaintAll(); });
+        addActionBtn("Deselect (ESC)", ActionAvailability.enabled("Clear the current selection"),
+                ev -> { controller.deselectUnit(); gamePanel.repaintAll(); });
     }
 
     private boolean confirmDemolition(String target) {
@@ -341,13 +345,12 @@ public class SidePanel extends JPanel {
     }
 
     private void addBuildBtn(String label, Constants.BuildingType type) {
-        boolean enabled = controller.canBuildType(type);
-        addActionBtn("Build " + label, enabled,
+        addActionBtn("Build " + label, controller.getBuildTypeAvailability(type),
                 ev -> { controller.onBuildChosen(type); gamePanel.repaintAll(); });
     }
 
-    private void addActionBtn(String text, boolean enabled, ActionListener al) {
-        final boolean en = enabled;
+    private void addActionBtn(String text, ActionAvailability availability, ActionListener al) {
+        final boolean en = availability.isEnabled();
         JButton btn = new JButton(text) {
             boolean hovered = false;
             {
@@ -387,6 +390,9 @@ public class SidePanel extends JPanel {
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setEnabled(en);
+        btn.setName("side-action-" + text.toLowerCase().replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", ""));
+        btn.setToolTipText(availability.getReason());
         btn.setMaximumSize(new Dimension(190, 32));
         btn.setPreferredSize(new Dimension(190, 32));
         btn.setAlignmentX(Component.CENTER_ALIGNMENT);

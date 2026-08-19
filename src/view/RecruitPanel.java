@@ -23,6 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 import controller.GameController;
+import model.ActionAvailability;
 import model.Constants;
 import model.ResourceAmount;
 import model.military.MilitaryUnitType;
@@ -68,11 +69,8 @@ public class RecruitPanel extends JDialog {
     }
 
     private JPanel buildMilitaryCard(MilitaryUnitType type) {
-        boolean unlocked = controller.getGameState().canRecruitMilitaryUnit(
-                type, controller.getGameState().getTownHallPos(), controller.getGameState().getTownHall().getLevel());
-        boolean affordable = controller.getGameState().getPlayer().canAfford(type.getCost());
-        boolean slotFree = !controller.getGameState().getTownHall().getCommandSlot().isBusy();
-        boolean enabled = unlocked && affordable && slotFree;
+        ActionAvailability availability = controller.getMilitaryRecruitmentAvailability(type);
+        boolean enabled = availability.isEnabled();
         JPanel card = new JPanel(); card.setBackground(enabled ? new Color(28, 34, 58) : new Color(20, 20, 30));
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(enabled ? GOLD : new Color(65, 65, 80), 1),
@@ -90,8 +88,8 @@ public class RecruitPanel extends JDialog {
         cost.setForeground(TEXT); cost.setFont(new Font("SansSerif", Font.PLAIN, 10)); cost.setAlignmentX(Component.CENTER_ALIGNMENT);
         card.add(Box.createVerticalStrut(5)); card.add(cost);
         JButton train = styledButton("TRAIN", new Color(65, 72, 112)); train.setEnabled(enabled);
-        train.setToolTipText(enabled ? "Use the Town Hall command slot" : !unlocked ? "Level, Stable, cap, or stack requirement not met"
-                : !affordable ? "Insufficient resources" : "Town Hall command slot occupied");
+        train.setName("recruit-military-" + type.name().toLowerCase());
+        train.setToolTipText(availability.getReason());
         train.setAlignmentX(Component.CENTER_ALIGNMENT); train.addActionListener(e -> { controller.onRecruitMilitary(type); dispose(); });
         card.add(Box.createVerticalStrut(8)); card.add(train); return card;
     }
@@ -103,7 +101,8 @@ public class RecruitPanel extends JDialog {
 
     private JPanel buildUnitCard(Constants.UnitType type) {
         ResourceAmount cost = Constants.UNIT_COST.get(type);
-        boolean canAfford = controller.canRecruit(type);
+        ActionAvailability availability = controller.getCivilianRecruitmentAvailability(type);
+        boolean canAfford = availability.isEnabled();
 
         JPanel card = new JPanel();
         card.setBackground(canAfford ? new Color(25, 30, 55) : new Color(20, 20, 30));
@@ -138,16 +137,17 @@ public class RecruitPanel extends JDialog {
             card.add(costLbl);
         }
 
-        if (canAfford) {
-            JButton btn = styledButton("RECRUIT", new Color(40, 90, 60));
-            btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-            btn.addActionListener(e -> {
-                controller.onRecruitUnit(type);
-                dispose();
-            });
-            card.add(Box.createVerticalStrut(6));
-            card.add(btn);
-        }
+        JButton btn = styledButton("RECRUIT", new Color(40, 90, 60));
+        btn.setName("recruit-civilian-" + type.name().toLowerCase());
+        btn.setEnabled(availability.isEnabled());
+        btn.setToolTipText(availability.getReason());
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.addActionListener(e -> {
+            controller.onRecruitUnit(type);
+            dispose();
+        });
+        card.add(Box.createVerticalStrut(6));
+        card.add(btn);
         return card;
     }
 

@@ -2063,7 +2063,22 @@ public class MapPanel extends JPanel
 
         Player player = gs.getPlayer();
         StringBuilder sb = new StringBuilder("<html>");
-        sb.append("<b>Terrain:</b> ").append(h.getTerrainType().name());
+        sb.append("<b>Terrain:</b> ").append(h.getTerrainType().name().replace('_', ' '));
+        model.ActionAvailability movement = controller.getMovementAvailability(coord);
+        if (controller.getSelectedUnit() != null) {
+            sb.append("<br><b>Movement:</b> ").append(movement.getReason());
+        } else if (h.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE) {
+            sb.append("<br><b>Movement:</b> Impassable — Mountain Range blocks all units");
+        } else if (h.isBlocked()) {
+            sb.append("<br><b>Movement:</b> Blocked by disaster for ")
+                    .append(h.getBlockedTurns()).append(" more turn(s)");
+        } else if (h.getTerrainType() == Constants.TerrainType.SEA && !gs.hasSailing()) {
+            sb.append("<br><b>Movement:</b> Requires SAILING (base cost 1 AP)");
+        } else {
+            sb.append("<br><b>Movement cost:</b> base ")
+                    .append(Constants.MOVE_COST.getOrDefault(h.getTerrainType(), 1)).append(" AP")
+                    .append("; roads, rivers, and season may change path cost");
+        }
         if (h.hasNaturalResource()) {
             sb.append("<br><b>Resource:</b> ");
             boolean first = true;
@@ -2089,6 +2104,35 @@ public class MapPanel extends JPanel
               .append(" (AP ").append(u.getCurrentAP()).append("/").append(u.getMaxAP()).append(")");
         }
         if (player.isInTerritory(coord)) sb.append("<br><i>Your territory</i>");
+        if (controller.isBuildMode() && controller.getPendingBuildType() != null) {
+            model.ActionAvailability build = controller.getBuildAtAvailability(
+                    coord, controller.getPendingBuildType());
+            sb.append("<br><b>Build ")
+                    .append(controller.getPendingBuildType().name().replace('_', ' '))
+                    .append(":</b> ").append(build.getReason());
+        } else {
+            java.util.List<String> supported = new java.util.ArrayList<>();
+            for (Constants.BuildingType type : Constants.BuildingType.values()) {
+                if (type != Constants.BuildingType.TOWN_HALL
+                        && gs.getBuildSiteAvailability(coord, type).isEnabled()) {
+                    supported.add(type.name().replace('_', ' '));
+                }
+            }
+            if (supported.isEmpty()) {
+                String buildReason = h.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE
+                        ? "None — Mountain Range cannot be built on"
+                        : h.getTerrainType() == Constants.TerrainType.SEA
+                        ? "None — buildings require land"
+                        : !player.isInTerritory(coord)
+                        ? "None — outside your territory"
+                        : player.getBuildingAt(coord) != null || h.getHasBuilding()
+                        ? "None — site is occupied"
+                        : "No building matches this site's terrain, resources, and technology";
+                sb.append("<br><b>Buildability:</b> ").append(buildReason);
+            } else {
+                sb.append("<br><b>Buildability:</b> ").append(String.join(", ", supported));
+            }
+        }
         sb.append("</html>");
         return sb.toString();
     }

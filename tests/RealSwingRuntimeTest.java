@@ -138,6 +138,16 @@ public final class RealSwingRuntimeTest {
                     "adjacent building demolition control is missing");
             require(findButtonStartingWith(gamePanel.getSidePanel(), "Demolish wall") != null,
                     "wall-edge demolition control is missing");
+            List<JButton> sideActions = new ArrayList<>();
+            collectButtons(gamePanel.getSidePanel(), sideActions);
+            int namedSideActions = 0;
+            for (JButton action : sideActions) {
+                if (action.getName() == null || !action.getName().startsWith("side-action-")) continue;
+                namedSideActions++;
+                require(action.getToolTipText() != null && !action.getToolTipText().isBlank(),
+                        "SidePanel action lacks availability reason: " + action.getText());
+            }
+            require(namedSideActions > 0, "SidePanel exposes no centralized action controls");
             writeSnapshot(gamePanel, new File("/tmp/hex-dominion-selected-builder.png"));
             controller.deselectUnit();
             gamePanel.repaintAll();
@@ -264,6 +274,24 @@ public final class RealSwingRuntimeTest {
                 for (Window openWindow : Window.getWindows()) {
                     if (dialogType.isInstance(openWindow) && openWindow.isShowing()) {
                         observed.set(true);
+                        String actionPrefix = dialogType == RecruitPanel.class ? "recruit-"
+                                : dialogType == TechPanel.class ? "tech-" : null;
+                        if (actionPrefix != null) {
+                            List<JButton> buttons = new ArrayList<>();
+                            collectButtons(openWindow, buttons);
+                            int availabilityButtons = 0;
+                            for (JButton candidate : buttons) {
+                                if (candidate.getName() == null
+                                        || !candidate.getName().startsWith(actionPrefix)) continue;
+                                availabilityButtons++;
+                                require(candidate.getToolTipText() != null
+                                                && !candidate.getToolTipText().isBlank(),
+                                        dialogType.getSimpleName() + " action lacks availability reason: "
+                                                + candidate.getName());
+                            }
+                            require(availabilityButtons > 0,
+                                    dialogType.getSimpleName() + " exposes no availability controls");
+                        }
                         render(openWindow);
                         openWindow.dispose();
                     }
