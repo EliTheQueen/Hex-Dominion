@@ -3,6 +3,7 @@ import java.io.File;
 import javax.imageio.ImageIO;
 import controller.GameController;
 import model.HexCoordinate;
+import model.season.Season;
 import view.MapPanel;
 
 /** Headless render check catches paint-time regressions in procedural map art. */
@@ -20,6 +21,14 @@ public final class VisualSmokeTest {
         panel.paint(image.createGraphics());
         ImageIO.write(image, "png", new File(System.getProperty("java.io.tmpdir"), "hex-dominion-visual-smoke.png"));
         require(image.getRGB(500, 340) != 0, "map render produced pixels");
+        for (Season season : Season.values()) {
+            controller.getGameState().getSeasonCycle().restoreTurn(season.ordinal() * 10 + 1);
+            BufferedImage seasonImage = new BufferedImage(1000, 680, BufferedImage.TYPE_INT_ARGB);
+            panel.paint(seasonImage.createGraphics());
+            File output = new File("/tmp/hex-dominion-season-" + season.name().toLowerCase() + ".png");
+            ImageIO.write(seasonImage, "png", output);
+            require(output.isFile() && output.length() > 0, season + " render was not written");
+        }
         System.out.println("VisualSmokeTest passed");
     }
     private static void require(boolean condition, String message) {

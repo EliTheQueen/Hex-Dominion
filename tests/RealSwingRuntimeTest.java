@@ -25,6 +25,7 @@ import model.Hex;
 import model.HexCoordinate;
 import model.Player;
 import model.Unit;
+import model.season.Season;
 import view.GamePanel;
 import view.MainWindow;
 import view.RecruitPanel;
@@ -80,6 +81,7 @@ public final class RealSwingRuntimeTest {
             render(gamePanel);
             render(gamePanel.getMapPanel());
             writeSnapshot(gamePanel, new File("/tmp/hex-dominion-real-swing.png"));
+            writeSeasonSnapshots(gamePanel, state);
 
             Movement movement = findMovement(state);
             require(movement != null, "no starting unit has a valid movement destination");
@@ -279,6 +281,16 @@ public final class RealSwingRuntimeTest {
         component.paint(graphics);
         graphics.dispose();
         ImageIO.write(image, "png", destination);
+    }
+
+    private static void writeSeasonSnapshots(GamePanel gamePanel, GameState state) throws Exception {
+        int originalTurn = state.getSeasonCycle().getCurrentTurn();
+        for (Season season : Season.values()) {
+            state.getSeasonCycle().restoreTurn(season.ordinal() * 10 + 1);
+            writeSnapshot(gamePanel.getMapPanel(),
+                    new File("/tmp/hex-dominion-real-" + season.name().toLowerCase() + ".png"));
+        }
+        state.getSeasonCycle().restoreTurn(originalTurn);
     }
 
     private static void verifyHudLayout(GamePanel gamePanel) {
