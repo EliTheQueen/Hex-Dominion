@@ -82,6 +82,7 @@ public class GameState implements java.io.Serializable {
     private final TribeWarService tribeWarService;
     private final TribePeaceService tribePeaceService;
     private final TribeTurnService tribeTurnService;
+    private final java.util.Map<String, Integer> tribeMissionCooldownUntil = new java.util.HashMap<>();
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator generator = new MapGenerator();
@@ -374,9 +375,11 @@ public class GameState implements java.io.Serializable {
         currentTurn++;
         seasonCycle.advanceTurn();
 
-        int missionFailures = tribeMissionService.advanceOneTurn();
-        for (int i = 0; i < missionFailures; i++)
+        java.util.List<Tribe> missionFailures = tribeMissionService.advanceOneTurn();
+        for (Tribe failedTribe : missionFailures) {
             happinessService.applyEvent(HappinessEventType.MISSION_FAILED);
+            tribeMissionCooldownUntil.put(failedTribe.getId(), currentTurn + 3);
+        }
         processTribeTurns();
 
         // 9. Active bear event.
@@ -1172,17 +1175,21 @@ public class GameState implements java.io.Serializable {
 
     public MissionActionResult requestMission(Tribe tribe) {
         if (tribe == null) return MissionActionResult.INVALID_REQUEST;
+        if (currentTurn < tribeMissionCooldownUntil.getOrDefault(tribe.getId(), 0)) return MissionActionResult.COOLDOWN;
         TribeMission mission = createMissionFor(tribe);
         return tribeMissionService.acceptMission(mission);
     }
 
     public MissionActionResult turnInMission(Tribe tribe) {
-        return tribeMissionService.claimMission(tribeMissionService.getActiveMission(tribe));
+        MissionActionResult result = tribeMissionService.claimMission(tribeMissionService.getActiveMission(tribe));
+        if (result == MissionActionResult.SUCCESS) tribeMissionCooldownUntil.put(tribe.getId(), currentTurn + 3);
+        return result;
     }
 
     public MissionActionResult cancelMission(Tribe tribe) {
         MissionActionResult result = tribeMissionService.cancelMission(tribeMissionService.getActiveMission(tribe));
         if (result == MissionActionResult.SUCCESS) happinessService.applyEvent(HappinessEventType.MISSION_CANCELLED);
+        if (result == MissionActionResult.SUCCESS) tribeMissionCooldownUntil.put(tribe.getId(), currentTurn + 3);
         return result;
     }
 
@@ -1267,7 +1274,7 @@ public class GameState implements java.io.Serializable {
             if (hex.getCoordinate().distanceTo(townHallPos) < 4
                     || hex.getTerrainType() == Constants.TerrainType.SEA
                     || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE
-                    || map.hasTradingPost(hex.getCoordinate())) continue;
+                    || map.hasTradingPost(hex.getCoordinate()) || hex.hasNaturalResource()) continue;
             TribeType type = types[index];
             result.add(new Tribe(type.name().charAt(0) + type.name().substring(1).toLowerCase()
                     + " Clan", type, hex.getCoordinate(), type == TribeType.WARRIOR ? 180 : 140));

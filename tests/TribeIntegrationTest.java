@@ -15,6 +15,7 @@ public final class TribeIntegrationTest {
         mission.refreshCompletionState();
         require(mission.getStatus() == TribeMissionStatus.READY_TO_TURN_IN, "ready state");
         require(state.turnInMission(farmer) == MissionActionResult.SUCCESS, "mission turn in");
+        require(state.requestMission(farmer) == MissionActionResult.COOLDOWN, "mission cooldown");
 
         farmer.getRelation().setScore(70); mountain.getRelation().setScore(70);
         require(state.requestAlliance(farmer) == DiplomacyResult.SUCCESS, "farmer alliance");

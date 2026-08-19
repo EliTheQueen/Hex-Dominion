@@ -42,6 +42,7 @@ public class MapGenerator {
             if (center.distanceTo(coordinate) < 4) continue;
             if (hex.getTerrainType() == Constants.TerrainType.PLAIN
                     || hex.getTerrainType() == Constants.TerrainType.GRASSLAND) {
+                if (hex.hasNaturalResource()) continue;
                 map.addTradingPost(coordinate);
                 placed++;
             }

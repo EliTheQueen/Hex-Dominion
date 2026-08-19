@@ -109,8 +109,8 @@ public class TribeMissionService implements java.io.Serializable {
         return MissionActionResult.SUCCESS;
     }
 
-    public int advanceOneTurn() {
-        int failures = 0;
+    public java.util.List<Tribe> advanceOneTurn() {
+        java.util.List<Tribe> failures = new java.util.ArrayList<>();
         Map<String, TribeMission> snapshot = new HashMap<>(activeMissionsByTribeId);
 
         for (TribeMission mission : snapshot.values()) {
@@ -124,7 +124,7 @@ public class TribeMissionService implements java.io.Serializable {
                 mission.getTribe().getRelation().decrease(FAILURE_RELATION_PENALTY);
 
                 activeMissionsByTribeId.remove(mission.getTribe().getId());
-                failures++;
+                failures.add(mission.getTribe());
             }
         }
         return failures;
