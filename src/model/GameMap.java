@@ -11,12 +11,16 @@ public class GameMap implements java.io.Serializable {
     private Map<HexCoordinate, Hex> hexes;
     private final Set<HexEdge> riverEdges;
     private final Set<HexEdge> wallEdges;
+    private final Set<HexCoordinate> tradingPosts;
+    private final Map<HexCoordinate, Integer> tradingPostLastTradeTurns;
 
     public GameMap(Map<HexCoordinate, Hex> hexes) {
 
         this.hexes = hexes;
         this.riverEdges = new HashSet<>();
         this.wallEdges = new HashSet<>();
+        this.tradingPosts = new HashSet<>();
+        this.tradingPostLastTradeTurns = new java.util.HashMap<>();
 
     }
 
@@ -242,6 +246,23 @@ public class GameMap implements java.io.Serializable {
         if (edge != null) {
             edge.removeBridge();
         }
+    }
+
+    public void addTradingPost(HexCoordinate coordinate) {
+        Hex hex = getHex(coordinate);
+        if (hex == null || hex.getTerrainType() == Constants.TerrainType.SEA
+                || hex.getTerrainType() == Constants.TerrainType.MOUNTAIN_RANGE)
+            throw new IllegalArgumentException("Trading Post requires passable land");
+        tradingPosts.add(coordinate);
+    }
+    public boolean hasTradingPost(HexCoordinate coordinate) { return tradingPosts.contains(coordinate); }
+    public Set<HexCoordinate> getTradingPosts() { return new HashSet<>(tradingPosts); }
+    public boolean canTradeAtPost(HexCoordinate coordinate, int turn) {
+        return hasTradingPost(coordinate) && tradingPostLastTradeTurns.getOrDefault(coordinate, -1) != turn;
+    }
+    public void markTradingPostUsed(HexCoordinate coordinate, int turn) {
+        if (!hasTradingPost(coordinate)) throw new IllegalArgumentException("No Trading Post");
+        tradingPostLastTradeTurns.put(coordinate, turn);
     }
 
 }

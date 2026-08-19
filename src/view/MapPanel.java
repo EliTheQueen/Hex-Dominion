@@ -156,6 +156,13 @@ public class MapPanel extends JPanel
             }
         }
 
+        for (HexCoordinate post : map.getTradingPosts()) {
+            Hex hex = map.getHex(post);
+            if (hex != null && hex.getIsExplored()) {
+                drawTradingPost(g2, hexToPixel(post), hex.isVisible());
+            }
+        }
+
         for (Unit u : player.getUnits()) {
             if (!u.isAlive()) continue;
             Hex hex = map.getHex(u.getPosition());
@@ -1158,6 +1165,8 @@ public class MapPanel extends JPanel
             case STABLE: drawStable(g2, cx, cy, visible); break;
             case TOWNSHIP: drawTownship(g2, cx, cy, visible); break;
             case DOCK: drawDock(g2, cx, cy, visible); break;
+            case MONUMENT: drawMonument(g2, cx, cy, visible); break;
+            case BAZAAR: drawBazaar(g2, cx, cy, visible); break;
             default: break;
         }
         if (visible) {
@@ -1184,6 +1193,39 @@ public class MapPanel extends JPanel
         g2.setStroke(new BasicStroke(1f));
     }
 
+    private void drawMonument(Graphics2D g2, int cx, int cy, boolean vis) {
+        Color stone = vis ? new Color(214, 208, 184) : new Color(125, 125, 116);
+        g2.setColor(new Color(0, 0, 0, 85)); g2.fillOval(cx - 15, cy + 12, 30, 8);
+        java.awt.geom.Path2D obelisk = new java.awt.geom.Path2D.Double();
+        obelisk.moveTo(cx, cy - 22); obelisk.lineTo(cx + 7, cy - 12);
+        obelisk.lineTo(cx + 6, cy + 13); obelisk.lineTo(cx - 6, cy + 13);
+        obelisk.lineTo(cx - 7, cy - 12); obelisk.closePath();
+        g2.setPaint(new GradientPaint(cx - 7, cy, stone.brighter(), cx + 7, cy, stone.darker()));
+        g2.fill(obelisk); g2.setColor(stone.darker()); g2.draw(obelisk);
+        g2.fillRoundRect(cx - 12, cy + 12, 24, 6, 3, 3);
+        if (vis) { g2.setColor(new Color(255, 215, 90, 90)); g2.drawOval(cx - 13, cy - 26, 26, 26); }
+    }
+
+    private void drawBazaar(Graphics2D g2, int cx, int cy, boolean vis) {
+        Color red = vis ? new Color(194, 63, 66) : new Color(112, 63, 66);
+        Color cream = vis ? new Color(239, 211, 148) : new Color(145, 132, 104);
+        for (int i = 0; i < 5; i++) { g2.setColor(i % 2 == 0 ? red : cream); g2.fillRect(cx - 18 + i * 7, cy - 15, 7, 10); }
+        g2.setColor(new Color(125, 80, 43)); g2.fillRoundRect(cx - 16, cy - 5, 32, 20, 4, 4);
+        g2.setColor(cream); g2.fillOval(cx - 9, cy + 1, 7, 7); g2.fillOval(cx + 3, cy, 8, 8);
+        g2.setColor(new Color(75, 45, 28)); g2.drawRoundRect(cx - 16, cy - 5, 32, 20, 4, 4);
+    }
+
+    private void drawTradingPost(Graphics2D g2, Point2D center, boolean vis) {
+        int cx = (int) center.getX(), cy = (int) center.getY();
+        Color wood = vis ? new Color(154, 111, 66) : new Color(92, 76, 58);
+        g2.setColor(new Color(0, 0, 0, 80)); g2.fillOval(cx - 18, cy + 10, 36, 9);
+        g2.setColor(wood); g2.fillRoundRect(cx - 15, cy - 7, 30, 20, 5, 5);
+        g2.setColor(new Color(70, 110, 126)); g2.fillRect(cx - 17, cy - 14, 34, 8);
+        g2.setColor(new Color(215, 205, 172)); g2.setFont(new Font("Georgia", Font.BOLD, 9));
+        g2.drawString("POST", cx - 12, cy + 6);
+        g2.setColor(new Color(90, 90, 95)); g2.drawRoundRect(cx - 15, cy - 7, 30, 20, 5, 5);
+    }
+
     private void drawRuinedOverlay(Graphics2D g2, int cx, int cy) {
         g2.setColor(new Color(30, 25, 24, 145));
         g2.fillOval(cx - 19, cy - 18, 38, 36);
@@ -1207,7 +1249,8 @@ public class MapPanel extends JPanel
     }
 
     private void drawTownHall(Graphics2D g2, int cx, int cy, boolean vis) {
-        int s = 14;
+        int level = controller.getGameState().getTownHall().getLevel().getLevelNumber();
+        int s = 11 + level * 2;
         g2.setColor(vis ? new Color(212, 175, 55) : new Color(150, 120, 30));
         g2.fillRect(cx - s, cy - s, s * 2, s * 2);
         g2.setColor(new Color(180, 140, 30));
@@ -1220,7 +1263,7 @@ public class MapPanel extends JPanel
         g2.fillRect(cx - 4, cy - 2, 8, s * 2);
         g2.setColor(new Color(255, 230, 120));
         g2.setFont(new Font("Georgia", Font.BOLD, 10));
-        g2.drawString("TH", cx - 8, cy + 8);
+        g2.drawString(level == 1 ? "CAMP" : level == 2 ? "HALL" : "CAP", cx - 11, cy + 8);
     }
 
     private void drawLumberMill(Graphics2D g2, int cx, int cy, boolean vis) {

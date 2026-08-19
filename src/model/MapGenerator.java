@@ -29,8 +29,23 @@ public class MapGenerator {
 
         GameMap map = new GameMap(hexes);
         createRiver(map);
+        placeTradingPosts(map);
 
         return map;
+    }
+
+    private void placeTradingPosts(GameMap map) {
+        int placed = 0;
+        for (Hex hex : map.getAllHexes()) {
+            if (placed >= 2) break;
+            HexCoordinate coordinate = hex.getCoordinate();
+            if (center.distanceTo(coordinate) < 4) continue;
+            if (hex.getTerrainType() == Constants.TerrainType.PLAIN
+                    || hex.getTerrainType() == Constants.TerrainType.GRASSLAND) {
+                map.addTradingPost(coordinate);
+                placed++;
+            }
+        }
     }
 
     private void createBaseMap() {

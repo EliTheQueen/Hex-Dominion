@@ -371,6 +371,19 @@ public class GameController {
     public SavePreview getSavePreview(SaveSlot slot) { return saveManager.preview(slot); }
     public boolean deleteSave(SaveSlot slot) { return saveManager.delete(slot); }
 
+    public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy, int amount) {
+        boolean ok = gameState != null && gameState.tradeAtBazaar(sell, buy, amount);
+        statusMessage = ok ? "Bazaar trade completed" : "Bazaar trade unavailable or invalid";
+        return ok;
+    }
+
+    public boolean tradeAtPost(HexCoordinate post, Constants.ResourceType sell,
+                               Constants.ResourceType buy, int amount) {
+        boolean ok = gameState != null && gameState.tradeAtTradingPost(post, sell, buy, amount);
+        statusMessage = ok ? "Trading Post exchange completed" : "Trading Post trade unavailable or invalid";
+        return ok;
+    }
+
     /** Hexes the selected unit can reach this turn (used to tint the map green). */
     public List<HexCoordinate> getReachableHexes() {
         if (selectedUnit == null || !selectedUnit.canAct()) return Collections.emptyList();

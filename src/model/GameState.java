@@ -53,8 +53,6 @@ public class GameState implements java.io.Serializable {
     private final InfrastructureService infrastructureService;
 
     private final TradeService tradeService;
-    private int lastTradeTurn = -1;
-
     private final AdjacencyBonusService adjacencyBonusService;
 
     private final HappinessTracker happinessTracker;
@@ -1003,20 +1001,16 @@ public class GameState implements java.io.Serializable {
             Constants.ResourceType buy,
             int quantitySold
     ) {
-        if (!canTradeThisTurn()) {
-            return false;
-        }
-
         Building bazaar = getBazaar();
 
-        if (bazaar == null) {
+        if (bazaar == null || !bazaar.canTradeAt(currentTurn)) {
             return false;
         }
 
+        model.trade.BazaarTradeLevel tier = model.trade.BazaarTradeLevel.forQuantity(quantitySold);
+        if (tier == null) return false;
         BazaarTradePolicy policy =
-                new BazaarTradePolicy(
-                        bazaar.getBazaarTradeLevel()
-                );
+                new BazaarTradePolicy(tier);
 
         boolean successful =
                 tradeService.complete(
@@ -1028,7 +1022,7 @@ public class GameState implements java.io.Serializable {
                 );
 
         if (successful) {
-            markTradeUsed();
+            bazaar.markTradedAt(currentTurn);
         }
 
         return successful;
@@ -1059,14 +1053,13 @@ public class GameState implements java.io.Serializable {
         return bazaar.upgradeBazaar();
     }
 
-    public boolean tradeAtTradingPost(
+    public boolean tradeAtTradingPost(HexCoordinate tradingPost,
             Constants.ResourceType sell,
             Constants.ResourceType buy,
             int quantitySold
     ) {
-        if (!canTradeThisTurn()) {
-            return false;
-        }
+        if (tradingPost == null || !map.canTradeAtPost(tradingPost, currentTurn)
+                || !player.isInTerritory(tradingPost)) return false;
 
         TradingPostPolicy policy =
                 new TradingPostPolicy();
@@ -1081,18 +1074,18 @@ public class GameState implements java.io.Serializable {
                 );
 
         if (successful) {
-            markTradeUsed();
+            map.markTradingPostUsed(tradingPost, currentTurn);
         }
 
         return successful;
     }
 
-    public boolean canTradeThisTurn() {
-        return lastTradeTurn != currentTurn;
-    }
-
-    private void markTradeUsed() {
-        lastTradeTurn = currentTurn;
+    public Building getActiveBazaar() { return getBazaar(); }
+    public java.util.Set<HexCoordinate> getEligibleTradingPosts() {
+        java.util.Set<HexCoordinate> result = new java.util.HashSet<>();
+        for (HexCoordinate coordinate : map.getTradingPosts())
+            if (player.isInTerritory(coordinate)) result.add(coordinate);
+        return result;
     }
 
     public boolean canRecruitMilitaryUnit(

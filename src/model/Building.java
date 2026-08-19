@@ -17,6 +17,7 @@ public class Building implements java.io.Serializable {
     private int productionBlockedTurns = 0;
 
     private BazaarTradeLevel bazaarTradeLevel;
+    private int lastTradeTurn = -1;
 
     public Building(HexCoordinate position, Constants.BuildingType type) {
         this.position = position;
@@ -180,4 +181,8 @@ public class Building implements java.io.Serializable {
 
         return false;
     }
+
+    public boolean canTradeAt(int turn) { return lastTradeTurn != turn; }
+    public void markTradedAt(int turn) { lastTradeTurn = turn; }
+    public int getLastTradeTurn() { return lastTradeTurn; }
 }

@@ -20,4 +20,9 @@ public enum BazaarTradeLevel {
     public int getSellCount() {
         return sellCount;
     }
+
+    public static BazaarTradeLevel forQuantity(int quantity) {
+        for (BazaarTradeLevel tier : values()) if (tier.sellCount == quantity) return tier;
+        return null;
+    }
 }

@@ -39,6 +39,7 @@ public class HudPanel extends JPanel {
     private final JButton recruitBtn;
     private final JButton settingsBtn;
     private final JButton saveBtn;
+    private final JButton tradeBtn;
 
     private static final Color BG = new Color(15, 17, 35);
     private static final Color BORDER_COLOR = new Color(80, 70, 30);
@@ -60,6 +61,7 @@ public class HudPanel extends JPanel {
         recruitBtn = createBtn("RECRUIT", new Color(60, 30, 80), new Color(90, 50, 120));
         settingsBtn = createBtn("⚙", new Color(45, 50, 70), new Color(70, 78, 105));
         saveBtn = createBtn("SAVE / LOAD", new Color(45, 65, 78), new Color(65, 92, 108));
+        tradeBtn = createBtn("TRADE", new Color(83, 62, 34), new Color(115, 88, 48));
 
         endTurnBtn.addActionListener(e -> {
             controller.onEndTurnClicked();
@@ -74,6 +76,10 @@ public class HudPanel extends JPanel {
         saveBtn.addActionListener(e -> {
             MainWindow window = (MainWindow) SwingUtilities.getWindowAncestor(this);
             new SaveLoadDialog(window, controller, true).setVisible(true);
+            gamePanel.repaintAll();
+        });
+        tradeBtn.addActionListener(e -> {
+            new TradePanel(controller, (JFrame) SwingUtilities.getWindowAncestor(this)).setVisible(true);
             gamePanel.repaintAll();
         });
     }
@@ -122,6 +128,7 @@ public class HudPanel extends JPanel {
         recruitBtn.setBounds(getWidth() - 380, 14, 115, 40);
         settingsBtn.setBounds(getWidth() - 428, 14, 40, 40);
         saveBtn.setBounds(getWidth() - 548, 14, 112, 40);
+        tradeBtn.setBounds(getWidth() - 660, 14, 104, 40);
     }
 
     public void update() { repaint(); }
