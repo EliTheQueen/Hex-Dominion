@@ -34,8 +34,17 @@ public final class Constants {
         MILITARY,
         BEAR
     }
-    public enum BuildingType { TOWN_HALL, LUMBER_MILL, STONE_MINE, IRON_MINE, FARM, STABLE, TOWNSHIP, DOCK }
-    public enum TechnologyType { STORAGE_I, STORAGE_II, STONE_MINING, IRON_MINING, PROFESSIONAL_TOOLS, TOWNSHIP }
+    public enum BuildingType {
+        TOWN_HALL,
+        LUMBER_MILL,
+        STONE_MINE,
+        IRON_MINE,
+        FARM,
+        STABLE,
+        TOWNSHIP,
+        DOCK,
+        MONUMENT
+    }    public enum TechnologyType { STORAGE_I, STORAGE_II, STONE_MINING, IRON_MINING, PROFESSIONAL_TOOLS, TOWNSHIP }
     public enum UnitState { IDLE, MOVING, STATIONED, AUTO_EXPLORE }
 
     private Constants() {}
@@ -95,12 +104,14 @@ public final class Constants {
         }
         BUILD_AP.put(BuildingType.TOWNSHIP,2);
         BUILD_AP.put(BuildingType.DOCK, 2);
+        BUILD_AP.put(BuildingType.MONUMENT, 3);
         WORKER_CAP.put(BuildingType.LUMBER_MILL,2);
         WORKER_CAP.put(BuildingType.STONE_MINE,2);
         WORKER_CAP.put(BuildingType.IRON_MINE,2);
         WORKER_CAP.put(BuildingType.FARM,3);
         WORKER_CAP.put(BuildingType.STABLE,2);
         WORKER_CAP.put(BuildingType.DOCK, 2);
+        WORKER_CAP.put(BuildingType.MONUMENT, 0);
         PRODUCES.put(BuildingType.LUMBER_MILL, ResourceType.WOOD);
         PRODUCES.put(BuildingType.STONE_MINE, ResourceType.STONE);
         PRODUCES.put(BuildingType.IRON_MINE, ResourceType.IRON);
@@ -119,6 +130,7 @@ public final class Constants {
         BUILD_COST.put(BuildingType.TOWNSHIP, ResourceAmount.of(0,25,25,8));
         BUILD_COST.put(BuildingType.TOWN_HALL, ResourceAmount.zero());
         BUILD_COST.put(BuildingType.DOCK, ResourceAmount.of(0, 20, 10, 0));
+        BUILD_COST.put(BuildingType.MONUMENT, ResourceAmount.of(0, 30, 40, 20));
         UPKEEP.put(BuildingType.LUMBER_MILL, ResourceAmount.of(0,1,0,0));
         UPKEEP.put(BuildingType.FARM, ResourceAmount.of(0,1,0,0));
         UPKEEP.put(BuildingType.STABLE, ResourceAmount.of(0,1,0,0));
@@ -126,6 +138,7 @@ public final class Constants {
         UPKEEP.put(BuildingType.IRON_MINE, ResourceAmount.of(0,1,1,0));
         UPKEEP.put(BuildingType.TOWNSHIP, ResourceAmount.of(1,1,1,0));
         UPKEEP.put(BuildingType.DOCK, ResourceAmount.of(0, 1, 0, 0));
+        UPKEEP.put(BuildingType.MONUMENT, ResourceAmount.of(1, 0, 0, 0));
         UNIT_COST.put(UnitType.EXPLORER, ResourceAmount.of(8,8,0,0));
         UNIT_COST.put(UnitType.BUILDER, ResourceAmount.of(10,12,0,0));
         UNIT_COST.put(UnitType.WORKER, ResourceAmount.of(8,8,0,0));

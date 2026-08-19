@@ -256,4 +256,14 @@ public class Player {
     public boolean canStore(ResourceAmount cost) {
         return resources.canStore(cost);
     }
+
+    public boolean hasBuildingType(Constants.BuildingType type) {
+        for (Building building : buildings) {
+            if (building.getType() == type && building.isActive()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

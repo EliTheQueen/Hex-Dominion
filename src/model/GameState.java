@@ -339,6 +339,10 @@ public class GameState {
             case DOCK:
                 return map.isCoastal(coord);
 
+            case MONUMENT:
+                return !player.hasBuildingType(Constants.BuildingType.MONUMENT)
+                        && !hex.everHadResource();
+
             default:
                 return false;
         }
