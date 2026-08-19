@@ -10,6 +10,7 @@ import model.military.MilitaryRecruitmentService;
 import model.military.MilitaryUnit;
 import model.military.MilitaryUnitType;
 import model.season.SeasonCycle;
+import model.season.SeasonProductionModifiers;
 import model.townhall.TownHallLevel;
 import model.townhall.TownHall;
 import model.townhall.TownHallCommandService;
@@ -169,7 +170,7 @@ public class GameState {
             bearAttackCooldown--;
         }
 
-        boolean professionalTools = player.hasProfessionalTools();
+        boolean professionalTools = player.hasProfessionalTools() || hasSteelTools();
 
         applyRecurringHappiness();
 
@@ -205,6 +206,9 @@ public class GameState {
             if (producedResource != null) {
                 int production =
                         yield.get(producedResource) + adjacencyBonus;
+
+                production = SeasonProductionModifiers.apply(
+                        production, seasonCycle.getCurrentSeason(), building.getType());
 
                 int modifiedProduction =
                         HappinessModifiers.applyProductionModifiers(
@@ -717,7 +721,7 @@ public class GameState {
                 new int[Constants.ResourceType.values().length];
 
         boolean professionalTools =
-                player.hasProfessionalTools();
+                player.hasProfessionalTools() || hasSteelTools();
 
         HappinessLevel happinessLevel =
                 happinessService.getCurrentLevel();
@@ -757,6 +761,9 @@ public class GameState {
                 int production =
                         yield.get(producedResource)
                                 + adjacencyBonus;
+
+                production = SeasonProductionModifiers.apply(
+                        production, seasonCycle.getCurrentSeason(), building.getType());
 
                 int modifiedProduction =
                         HappinessModifiers

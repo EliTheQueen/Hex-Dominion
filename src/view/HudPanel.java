@@ -27,6 +27,8 @@ import model.ProductionTask;
 import model.ResourceStorage;
 import model.season.Season;
 import model.season.SeasonCycle;
+import model.happiness.HappinessLevel;
+import model.townhall.ProductionCommand;
 
 /** Top heads-up display: resources with net rates, unit cap, turn, queue, warnings and actions. */
 public class HudPanel extends JPanel {
@@ -213,6 +215,22 @@ public class HudPanel extends JPanel {
             String event = gs.getLastTurnEvents().get(gs.getLastTurnEvents().size() - 1);
             drawBadge(g2, wx, wy, event.replace('_', ' '), new Color(110, 185, 235));
         }
+
+        HappinessLevel happiness = gs.getHappinessLevel();
+        Color happinessColor = happiness == HappinessLevel.GOLDEN_AGE ? GOLD
+                : happiness == HappinessLevel.NORMAL ? new Color(150, 185, 170)
+                : happiness == HappinessLevel.UNHAPPY ? new Color(125, 155, 195) : RED;
+        drawBadge(g2, 12, 84, "HAPPINESS " + (gs.getHappinessScore() >= 0 ? "+" : "")
+                + gs.getHappinessScore() + "  " + happiness.name().replace('_', ' '), happinessColor);
+
+        ProductionCommand hallCommand = gs.getTownHall().getCommandSlot().getActiveCommand();
+        String hallText = "TOWN HALL " + gs.getTownHall().getLevel().getLevelNumber()
+                + "  " + gs.getTownHall().getCurrentHp() + "/" + gs.getTownHall().getMaxHp() + " HP";
+        if (hallCommand != null) hallText += "  •  " + hallCommand.getRemainingTurns() + " turns";
+        drawBadge(g2, 220, 84, hallText, new Color(125, 175, 220));
+
+        drawBadge(g2, 515, 84, "MILITARY " + gs.getMilitaryUnitCount() + "/"
+                + gs.getMilitaryUnitCap(gs.getTownHall().getLevel()), new Color(200, 145, 105));
 
         // Status message near the buttons.
         String status = controller.getStatusMessage();

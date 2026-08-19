@@ -40,16 +40,21 @@ public class AdjacencyBonusService {
     }
 
     private int farmPairBonus(Building building, Player player, GameMap map) {
+        int bonus = 0;
         for (Hex neighbour : map.getNeighboursOf(building.getPosition())) {
             Building neighbourBuilding = player.getBuildingAt(neighbour.getCoordinate());
 
             if (neighbourBuilding != null
                     && neighbourBuilding.isActive()
-                    && neighbourBuilding.getType() == Constants.BuildingType.FARM) {
-                return 1;
+                    && neighbourBuilding.getType() == Constants.BuildingType.FARM
+                    && comesBefore(building.getPosition(), neighbour.getCoordinate())) {
+                bonus++;
             }
         }
+        return bonus;
+    }
 
-        return 0;
+    private boolean comesBefore(HexCoordinate a, HexCoordinate b) {
+        return a.getQ() < b.getQ() || a.getQ() == b.getQ() && a.getR() < b.getR();
     }
 }
