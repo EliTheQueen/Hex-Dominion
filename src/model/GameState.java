@@ -5,6 +5,10 @@ import java.util.List;
 
 import model.disaster.*;
 import model.season.SeasonCycle;
+import model.trade.BazaarTradeLevel;
+import model.trade.BazaarTradePolicy;
+import model.trade.TradeService;
+import model.trade.TradingPostPolicy;
 
 import java.util.Random;
 
@@ -31,6 +35,8 @@ public class GameState {
     private int bearAttackCooldown = 0;
 
     private final InfrastructureService infrastructureService;
+
+    private final TradeService tradeService;
 
     public GameState(int mapWidth, int mapHeight) {
         MapGenerator gen = new MapGenerator();
@@ -74,6 +80,8 @@ public class GameState {
         gameOverReason = "";
         finalScore = 0;
         starving = false;
+
+        this.tradeService = new TradeService();
     }
 
     /** Doc start: 1 Explorer, 2 Builders, 2 Workers placed around the Town Hall. */
@@ -343,6 +351,10 @@ public class GameState {
                 return !player.hasBuildingType(Constants.BuildingType.MONUMENT)
                         && !hex.everHadResource();
 
+            case BAZAAR:
+                return !player.hasBuildingType(Constants.BuildingType.BAZAAR)
+                        && !hex.everHadResource();
+
             default:
                 return false;
         }
@@ -436,6 +448,25 @@ public class GameState {
                 h.setVisible(true);
             }
         }
+    }
+
+    public boolean tradeAtBazaar(Constants.ResourceType sell, Constants.ResourceType buy,
+                                 int quantitySold, BazaarTradeLevel level) {
+        if (!player.hasBuildingType(Constants.BuildingType.BAZAAR)) {
+            return false;
+        }
+
+        BazaarTradePolicy policy = new BazaarTradePolicy(level);
+        return tradeService.complete(player, policy, sell, buy, quantitySold);
+    }
+
+    public boolean tradeAtTradingPost(Constants.ResourceType sell, Constants.ResourceType buy, int quantitySold) {
+        if (!player.hasBuildingType(Constants.BuildingType.TRADING_POST)) {
+            return false;
+        }
+
+        TradingPostPolicy policy = new TradingPostPolicy();
+        return tradeService.complete(player, policy, sell, buy, quantitySold);
     }
 
     public GameMap getMap() { return map; }

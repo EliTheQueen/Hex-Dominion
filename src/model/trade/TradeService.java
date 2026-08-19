@@ -34,8 +34,7 @@ public final class TradeService {
         }
 
         ResourceAmount sellAmount = createResourceAmount(sell, quantitySold);
-        ResourceAmount receiveAmount = createResourceAmount(buy,quantitySold);
-
+        ResourceAmount receiveAmount = createResourceAmount(buy, receivedQuantity);
         if (!player.canAfford(sellAmount)) {
             return false;
         }
