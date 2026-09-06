@@ -8,5 +8,7 @@ public enum MessageType {
     END_TURN,
     BUILD,
     STATE_UPDATE,
-    ERROR
+    ERROR,
+    PING,
+    PONG
 }
