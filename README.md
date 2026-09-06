@@ -56,8 +56,6 @@ java -cp "$BUILD_DIR" MapGenerationSafetyPropertyTest
 
 The performance guard uses a deterministic 41×35 map for 250 turns. The map safety property checks 500 seeds.
 
-The audit-to-implementation traceability record is in [`REQUIREMENT_MATRIX.md`](REQUIREMENT_MATRIX.md).
-
 ## Gameplay
 
 You lead a young civilization on a fog-covered hex map. This is an open-ended **sandbox**:
