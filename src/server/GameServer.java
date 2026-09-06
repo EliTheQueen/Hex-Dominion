@@ -56,7 +56,6 @@ public final class GameServer implements Closeable {
                 int clientId = nextClientId.getAndIncrement();
                 ClientHandler handler = new ClientHandler(this, socket, clientId);
                 clients.put(clientId, handler);
-                assignControllerIfNeeded();
                 clientPool.execute(handler);
             }
         } catch (SocketException exception) {
@@ -66,18 +65,24 @@ public final class GameServer implements Closeable {
         }
     }
 
-    void clientReady(ClientHandler client) {
-        boolean controller = client.getClientId() == controllerClientId;
-        client.send(NetworkMessage.response(MessageType.HELLO, null,
-                new HelloResponse(client.getClientId(), controller, getPort())));
-        AuthoritativeGameService.Snapshot snapshot = game.snapshot();
-        if (snapshot != null) client.send(stateMessage(null, snapshot));
-    }
-
     void handle(ClientHandler client, NetworkMessage message) {
         if (message.getType() == MessageType.HELLO) {
-            client.send(NetworkMessage.response(MessageType.HELLO, message.getRequestId(),
-                    new HelloResponse(client.getClientId(), client.getClientId() == controllerClientId, getPort())));
+            if (!client.identify()) {
+                sendError(client, message, "ALREADY_IDENTIFIED",
+                        "HELLO has already been completed for this connection.");
+                return;
+            }
+            assignControllerIfNeeded();
+            client.send(NetworkMessage.response(MessageType.HELLO_ACK, message.getRequestId(),
+                    new HelloResponse(client.getClientId(), client.getClientId() == controllerClientId,
+                            getPort())));
+            AuthoritativeGameService.Snapshot snapshot = game.snapshot();
+            if (snapshot != null) client.send(stateMessage(null, snapshot));
+            return;
+        }
+        if (!client.isIdentified()) {
+            sendError(client, message, "HELLO_REQUIRED",
+                    "Send HELLO before gameplay requests.");
             return;
         }
         if (client.getClientId() != controllerClientId) {
@@ -129,20 +134,15 @@ public final class GameServer implements Closeable {
         clients.remove(client.getClientId(), client);
         if (controllerClientId == client.getClientId()) {
             controllerClientId = -1;
-            assignControllerIfNeeded();
         }
     }
 
     private synchronized void assignControllerIfNeeded() {
         if (controllerClientId != -1 && clients.containsKey(controllerClientId)) return;
-        controllerClientId = clients.keySet().stream().min(Comparator.naturalOrder()).orElse(-1);
-        if (controllerClientId != -1) {
-            ClientHandler promoted = clients.get(controllerClientId);
-            if (promoted != null && promoted.isReady()) {
-                promoted.send(NetworkMessage.response(MessageType.HELLO, null,
-                        new HelloResponse(controllerClientId, true, getPort())));
-            }
-        }
+        controllerClientId = clients.values().stream()
+                .filter(ClientHandler::isIdentified)
+                .map(ClientHandler::getClientId)
+                .min(Comparator.naturalOrder()).orElse(-1);
     }
 
     public int getPort() {

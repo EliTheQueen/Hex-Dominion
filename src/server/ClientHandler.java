@@ -20,7 +20,7 @@ public final class ClientHandler implements Runnable, Closeable {
     private final Socket socket;
     private final int clientId;
     private final AtomicBoolean closed = new AtomicBoolean();
-    private volatile boolean ready;
+    private final AtomicBoolean identified = new AtomicBoolean();
     private PrintWriter writer;
 
     ClientHandler(GameServer server, Socket socket, int clientId) {
@@ -36,8 +36,6 @@ public final class ClientHandler implements Runnable, Closeable {
              PrintWriter output = new PrintWriter(socket.getOutputStream(), true,
                      StandardCharsets.UTF_8)) {
             writer = output;
-            ready = true;
-            server.clientReady(this);
             String line;
             while (!closed.get() && (line = reader.readLine()) != null) {
                 try {
@@ -66,7 +64,8 @@ public final class ClientHandler implements Runnable, Closeable {
     }
 
     int getClientId() { return clientId; }
-    boolean isReady() { return ready && !closed.get(); }
+    boolean identify() { return identified.compareAndSet(false, true); }
+    boolean isIdentified() { return identified.get(); }
 
     @Override
     public void close() {

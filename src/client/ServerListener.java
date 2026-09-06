@@ -41,7 +41,7 @@ final class ServerListener implements Runnable {
 
     private void dispatch(NetworkMessage message) {
         switch (message.getType()) {
-            case HELLO -> {
+            case HELLO_ACK -> {
                 HelloPayload hello = JsonMessageCodec.payload(message, HelloPayload.class);
                 manager.deliver(listener -> listener.onHello(hello.clientId, hello.controller));
             }
