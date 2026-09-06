@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -72,7 +71,7 @@ public final class GameServer implements Closeable {
                         "HELLO has already been completed for this connection.");
                 return;
             }
-            assignControllerIfNeeded();
+            assignControllerIfNeeded(client);
             client.send(NetworkMessage.response(MessageType.HELLO_ACK, message.getRequestId(),
                     new HelloResponse(client.getClientId(), client.getClientId() == controllerClientId,
                             getPort())));
@@ -137,12 +136,11 @@ public final class GameServer implements Closeable {
         }
     }
 
-    private synchronized void assignControllerIfNeeded() {
+    private synchronized void assignControllerIfNeeded(ClientHandler candidate) {
         if (controllerClientId != -1 && clients.containsKey(controllerClientId)) return;
-        controllerClientId = clients.values().stream()
-                .filter(ClientHandler::isIdentified)
-                .map(ClientHandler::getClientId)
-                .min(Comparator.naturalOrder()).orElse(-1);
+        if (candidate.isIdentified() && clients.containsKey(candidate.getClientId())) {
+            controllerClientId = candidate.getClientId();
+        }
     }
 
     public int getPort() {
