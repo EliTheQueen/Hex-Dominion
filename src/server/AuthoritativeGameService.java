@@ -11,9 +11,9 @@ import model.PathFinder;
 import model.ResourceAmount;
 import model.Unit;
 import network.GameStateSnapshotCodec;
-import network.massages.BuildRequest;
-import network.massages.MoveUnitRequest;
-import network.massages.StartGameRequest;
+import network.messages.BuildRequest;
+import network.messages.MoveUnitRequest;
+import network.messages.StartGameRequest;
 
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;

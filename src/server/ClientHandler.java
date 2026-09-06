@@ -3,7 +3,7 @@ package server;
 import network.JsonMessageCodec;
 import network.MessageType;
 import network.NetworkMessage;
-import network.massages.ErrorResponse;
+import network.messages.ErrorResponse;
 
 import java.io.BufferedReader;
 import java.io.Closeable;

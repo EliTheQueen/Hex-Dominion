@@ -1,4 +1,4 @@
-package network.massages;
+package network.messages;
 
 import network.Response;
 

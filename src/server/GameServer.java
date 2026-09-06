@@ -3,11 +3,11 @@ package server;
 import network.JsonMessageCodec;
 import network.MessageType;
 import network.NetworkMessage;
-import network.massages.BuildRequest;
-import network.massages.ErrorResponse;
-import network.massages.GameStateUpdate;
-import network.massages.MoveUnitRequest;
-import network.massages.StartGameRequest;
+import network.messages.BuildRequest;
+import network.messages.ErrorResponse;
+import network.messages.GameStateUpdate;
+import network.messages.MoveUnitRequest;
+import network.messages.StartGameRequest;
 
 import java.io.Closeable;
 import java.io.IOException;

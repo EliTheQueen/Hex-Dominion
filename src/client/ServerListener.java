@@ -4,8 +4,8 @@ import model.GameState;
 import network.GameStateSnapshotCodec;
 import network.JsonMessageCodec;
 import network.NetworkMessage;
-import network.massages.ErrorResponse;
-import network.massages.GameStateUpdate;
+import network.messages.ErrorResponse;
+import network.messages.GameStateUpdate;
 
 import javax.swing.SwingUtilities;
 import java.io.BufferedReader;

@@ -4,10 +4,10 @@ import model.Constants;
 import model.HexCoordinate;
 import network.MessageType;
 import network.NetworkMessage;
-import network.massages.BuildRequest;
-import network.massages.EndTurnRequest;
-import network.massages.MoveUnitRequest;
-import network.massages.StartGameRequest;
+import network.messages.BuildRequest;
+import network.messages.EndTurnRequest;
+import network.messages.MoveUnitRequest;
+import network.messages.StartGameRequest;
 import network.JsonMessageCodec;
 
 import javax.swing.SwingUtilities;
