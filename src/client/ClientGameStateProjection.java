@@ -36,10 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Read-only UI projection built from JSON. It intentionally does not participate in
- * authoritative mutation; scoped actions are always sent back through NetworkManager.
- */
+/** Read-only UI projection built from the server's JSON snapshot. */
 public final class ClientGameStateProjection extends GameState {
     private final GameStateSnapshotDto snapshot;
     private final GameMap projectedMap;
