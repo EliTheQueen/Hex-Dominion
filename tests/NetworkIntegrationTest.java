@@ -1,12 +1,17 @@
 import client.NetworkEventListener;
 import client.NetworkManager;
 import client.UdpHeartbeatClient;
+import client.ClientGameStateProjection;
 import model.Builder;
 import model.Constants;
 import model.GameState;
 import model.HexCoordinate;
 import model.Unit;
-import network.GameStateSnapshotCodec;
+import network.GameStateSnapshotMapper;
+import network.JsonMessageCodec;
+import network.MessageType;
+import network.NetworkMessage;
+import network.messages.GameStateUpdate;
 import server.GameServer;
 import server.UdpHeartbeatServer;
 
@@ -20,9 +25,19 @@ import java.util.concurrent.atomic.AtomicReference;
 /** Real socket coverage for controller/observer synchronization and disconnect safety. */
 public final class NetworkIntegrationTest {
     public static void main(String[] args) throws Exception {
-        GameState roundTrip = GameStateSnapshotCodec.decode(
-                GameStateSnapshotCodec.encode(new GameState(15, 13, 991L)));
+        GameState source = new GameState(15, 13, 991L);
+        NetworkMessage stateMessage = NetworkMessage.response(MessageType.STATE_UPDATE, "snapshot-test",
+                new GameStateUpdate(1, GameStateSnapshotMapper.toDto(source)));
+        String stateJson = JsonMessageCodec.encode(stateMessage);
+        require(stateJson.contains("\"snapshot\"") && stateJson.contains("\"hexes\""),
+                "STATE_UPDATE must contain a structured JSON snapshot");
+        require(!stateJson.contains("rO0AB"), "STATE_UPDATE must not contain Java serialization data");
+        GameStateUpdate decodedUpdate = JsonMessageCodec.payload(JsonMessageCodec.decode(stateJson),
+                GameStateUpdate.class);
+        GameState roundTrip = new ClientGameStateProjection(decodedUpdate.getSnapshot());
         require(roundTrip.getCurrentTurn() == 1, "state snapshot must round-trip");
+        require(roundTrip.getMap().getAllHexes().size() == source.getMap().getAllHexes().size(),
+                "JSON snapshot must preserve the rendered map");
         GameServer server = new GameServer(0);
         Thread tcpThread = new Thread(() -> {
             try { server.start(); } catch (Exception exception) {
@@ -75,6 +90,15 @@ public final class NetworkIntegrationTest {
             require("UNIT_NOT_FOUND".equals(controllerProbe.errorCode.get()),
                     "invalid move must return a specific error code");
 
+            Probe malformedProbe = new Probe();
+            controller.addListener(malformedProbe);
+            controller.send(new NetworkMessage(MessageType.MOVE_UNIT));
+            require(malformedProbe.error.await(3, TimeUnit.SECONDS),
+                    "malformed move must return ERROR");
+            require("MALFORMED_REQUEST".equals(malformedProbe.errorCode.get()),
+                    "missing move fields must be reported as malformed");
+            controller.removeListener(malformedProbe);
+
             BuildFixture build = findBuild(moved);
             controller.build(build.builderIndex, build.type, build.coordinate);
             GameState built = awaitRevision(controllerProbe, observerProbe, 3);
@@ -90,6 +114,8 @@ public final class NetworkIntegrationTest {
             controller.endTurn();
             awaitSingleRevision(controllerProbe, 5);
             require(controller.isConnected(), "remaining client must survive observer disconnect");
+            require(controllerProbe.helloEvents.get() == 1 && observerProbe.helloEvents.get() == 1,
+                    "each connection must receive exactly one HELLO_ACK");
         } finally {
             controller.disconnect();
             observer.disconnect();
@@ -174,12 +200,14 @@ public final class NetworkIntegrationTest {
         private final CountDownLatch hello = new CountDownLatch(1);
         private final CountDownLatch error = new CountDownLatch(1);
         private final AtomicInteger revision = new AtomicInteger();
+        private final AtomicInteger helloEvents = new AtomicInteger();
         private final AtomicReference<GameState> state = new AtomicReference<>();
         private final AtomicReference<String> errorCode = new AtomicReference<>();
         private volatile boolean controllerRole;
 
         @Override public void onHello(int clientId, boolean controller) {
             controllerRole = controller;
+            helloEvents.incrementAndGet();
             hello.countDown();
         }
 
