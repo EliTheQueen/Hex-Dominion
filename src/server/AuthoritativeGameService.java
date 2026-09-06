@@ -10,7 +10,8 @@ import model.HexCoordinate;
 import model.PathFinder;
 import model.ResourceAmount;
 import model.Unit;
-import network.GameStateSnapshotCodec;
+import network.GameStateSnapshotMapper;
+import network.dto.GameStateSnapshotDto;
 import network.messages.BuildRequest;
 import network.messages.MoveUnitRequest;
 import network.messages.StartGameRequest;
@@ -153,7 +154,7 @@ public final class AuthoritativeGameService {
         stateLock.lock();
         try {
             if (gameState == null) return null;
-            return new Snapshot(revision, GameStateSnapshotCodec.encode(gameState));
+            return new Snapshot(revision, GameStateSnapshotMapper.toDto(gameState));
         } finally {
             stateLock.unlock();
         }
@@ -218,14 +219,14 @@ public final class AuthoritativeGameService {
 
     public static final class Snapshot {
         private final long revision;
-        private final String encodedState;
+        private final GameStateSnapshotDto state;
 
-        private Snapshot(long revision, String encodedState) {
+        private Snapshot(long revision, GameStateSnapshotDto state) {
             this.revision = revision;
-            this.encodedState = encodedState;
+            this.state = state;
         }
 
         public long getRevision() { return revision; }
-        public String getEncodedState() { return encodedState; }
+        public GameStateSnapshotDto getState() { return state; }
     }
 }

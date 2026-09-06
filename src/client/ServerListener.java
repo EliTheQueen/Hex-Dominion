@@ -1,7 +1,6 @@
 package client;
 
 import model.GameState;
-import network.GameStateSnapshotCodec;
 import network.JsonMessageCodec;
 import network.NetworkMessage;
 import network.messages.ErrorResponse;
@@ -47,7 +46,7 @@ final class ServerListener implements Runnable {
             }
             case STATE_UPDATE -> {
                 GameStateUpdate update = JsonMessageCodec.payload(message, GameStateUpdate.class);
-                GameState state = GameStateSnapshotCodec.decode(update.getState());
+                GameState state = new ClientGameStateProjection(update.getSnapshot());
                 manager.deliver(listener -> listener.onStateUpdate(state, update.getRevision()));
             }
             case ERROR -> {

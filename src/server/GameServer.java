@@ -118,7 +118,7 @@ public final class GameServer implements Closeable {
 
     private NetworkMessage stateMessage(String requestId, AuthoritativeGameService.Snapshot snapshot) {
         return NetworkMessage.response(MessageType.STATE_UPDATE, requestId,
-                new GameStateUpdate(snapshot.getRevision(), snapshot.getEncodedState()));
+                new GameStateUpdate(snapshot.getRevision(), snapshot.getState()));
     }
 
     private void sendError(ClientHandler client, NetworkMessage request, String code, String text) {
