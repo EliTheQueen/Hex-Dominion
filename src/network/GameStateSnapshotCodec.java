@@ -40,8 +40,16 @@ public final class GameStateSnapshotCodec {
             throw new IllegalArgumentException("Invalid state snapshot encoding", exception);
         }
         try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
-            input.setObjectInputFilter(ObjectInputFilter.Config.createFilter(
-                    "model.**;java.base/**;!*"));
+            input.setObjectInputFilter(info -> {
+                Class<?> type = info.serialClass();
+                if (type == null) return ObjectInputFilter.Status.UNDECIDED;
+                while (type.isArray()) type = type.getComponentType();
+                if (type.isPrimitive()) return ObjectInputFilter.Status.ALLOWED;
+                String name = type.getName();
+                return name.startsWith("model.") || name.startsWith("java.")
+                        ? ObjectInputFilter.Status.ALLOWED
+                        : ObjectInputFilter.Status.REJECTED;
+            });
             Object value = input.readObject();
             if (!(value instanceof GameState)) {
                 throw new IllegalArgumentException("Snapshot does not contain a GameState");
