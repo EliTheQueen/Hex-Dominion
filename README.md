@@ -29,7 +29,8 @@ Or simply open the project in IntelliJ IDEA and run `app.Main`.
 
 ## How to test
 
-The tests are dependency-free Java entry points, so they work even when Maven is unavailable:
+The tests are plain Java entry points, so they can run without Maven when Gson is supplied
+on the classpath:
 
 ```bash
 BUILD_DIR=$(mktemp -d /tmp/hex-dominion-tests.XXXXXX)
