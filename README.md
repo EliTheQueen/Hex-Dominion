@@ -12,10 +12,15 @@ java -jar target/hex-dominion-1.0.0.jar
 ```
 
 ### Without Maven (plain javac, Java 17)
+
+The network protocol uses Gson 2.11.0. Put `gson-2.11.0.jar` on the compile and runtime
+classpath when building without Maven:
+
 ```bash
 BUILD_DIR=$(mktemp -d /tmp/hex-dominion-build.XXXXXX)
-javac --release 17 -Xlint:unchecked -d "$BUILD_DIR" $(rg --files src -g '*.java')
-java -cp "$BUILD_DIR" app.Main
+javac --release 17 -Xlint:unchecked -cp /path/to/gson-2.11.0.jar \
+  -d "$BUILD_DIR" $(rg --files src -g '*.java')
+java -cp "$BUILD_DIR:/path/to/gson-2.11.0.jar" app.Main
 ```
 
 Or simply open the project in IntelliJ IDEA and run `app.Main`.
@@ -28,12 +33,15 @@ The tests are dependency-free Java entry points, so they work even when Maven is
 
 ```bash
 BUILD_DIR=$(mktemp -d /tmp/hex-dominion-tests.XXXXXX)
-javac --release 17 -Xlint:unchecked -d "$BUILD_DIR" $(rg --files src tests -g '*.java')
+javac --release 17 -Xlint:unchecked -cp /path/to/gson-2.11.0.jar \
+  -d "$BUILD_DIR" $(rg --files src tests -g '*.java')
 for test_source in tests/*Test.java; do
   test_class=$(basename "$test_source" .java)
-  [ "$test_class" = "RealSwingRuntimeTest" ] || java -cp "$BUILD_DIR" "$test_class" || exit 1
+  [ "$test_class" = "RealSwingRuntimeTest" ] || \
+    java -cp "$BUILD_DIR:/path/to/gson-2.11.0.jar" "$test_class" || exit 1
 done
-java -Djava.awt.headless=false -cp "$BUILD_DIR" RealSwingRuntimeTest
+java -Djava.awt.headless=false \
+  -cp "$BUILD_DIR:/path/to/gson-2.11.0.jar" RealSwingRuntimeTest
 ```
 
 `RealSwingRuntimeTest` launches the real `app.Main`, opens the gameplay dialogs, renders the map and combat UI, and fails on uncaught EDT/Timer errors. Run it in a graphical desktop session.
@@ -114,3 +122,29 @@ mute toggle. Quitting the game always asks for confirmation first.
 - `controller` — `GameController` mediates between the views and the model.
 - `view` — Swing/Java2D UI: animated menu, hex map renderer, HUD, side panel, dialogs and end screen.
 - `app` — `Main` entry point.
+
+## Network mode
+
+Network mode keeps the authoritative `GameState` on a multi-threaded raw-socket server.
+TCP carries newline-delimited JSON for `HELLO`, `HELLO_ACK`, `START_GAME`, `MOVE_UNIT`,
+`BUILD`, `END_TURN`, `STATE_UPDATE`, and `ERROR`. UDP is used only for JSON `PING/PONG`
+heartbeats. The first client to complete the handshake is the controller; later clients
+are read-only observers.
+
+Start these commands in three terminals:
+
+```bash
+# Terminal 1: TCP 8082 and UDP 8083
+mvn -Dmain.class=app.ServerMain -Dexec.args="8082 8083" compile exec:java
+
+# Terminal 2: controller Swing client
+mvn -Dmain.class=app.NetworkSwingMain \
+  -Dexec.args="localhost 8082 8083" compile exec:java
+
+# Terminal 3: observer Swing client
+mvn -Dmain.class=app.NetworkSwingMain \
+  -Dexec.args="localhost 8082 8083" compile exec:java
+```
+
+For a console-only demonstration, replace `app.NetworkSwingMain` with
+`app.NetworkClientMain`. Supported commands are printed after connection.
