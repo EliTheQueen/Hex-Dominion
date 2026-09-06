@@ -3,10 +3,10 @@ package network.messages;
 import network.Request;
 
 public final class BuildRequest extends Request {
-    private final int builderIndex;
+    private final Integer builderIndex;
     private final String buildingType;
-    private final int x;
-    private final int y;
+    private final Integer x;
+    private final Integer y;
 
     public BuildRequest(int builderIndex, String buildingType, int x, int y) {
         this.builderIndex = builderIndex;
@@ -15,8 +15,8 @@ public final class BuildRequest extends Request {
         this.y = y;
     }
 
-    public int getBuilderIndex() { return builderIndex; }
+    public Integer getBuilderIndex() { return builderIndex; }
     public String getBuildingType() { return buildingType; }
-    public int getX() { return x; }
-    public int getY() { return y; }
+    public Integer getX() { return x; }
+    public Integer getY() { return y; }
 }

@@ -32,7 +32,7 @@ final class ServerListener implements Runnable {
                             "INVALID_SERVER_MESSAGE", exception.getMessage()));
                 }
             }
-            manager.connectionClosed("Server closed the connection.");
+            if (manager.isConnected()) manager.connectionClosed("Server closed the connection.");
         } catch (IOException exception) {
             if (manager.isConnected()) manager.connectionClosed("Connection lost: " + exception.getMessage());
         }

@@ -49,10 +49,13 @@ public final class AuthoritativeGameService {
         try {
             ActionResult readiness = requireRunningGame();
             if (readiness != null) return readiness;
-            if (request == null) return malformed("MOVE_UNIT payload is required.");
+            if (request == null || request.getUnitIndex() == null
+                    || request.getX() == null || request.getY() == null) {
+                return malformed("MOVE_UNIT requires unitIndex, x and y.");
+            }
             List<Unit> units = gameState.getPlayer().getUnits();
             if (request.getUnitIndex() < 0 || request.getUnitIndex() >= units.size()) {
-                return ActionResult.failure("UNIT_NOT_FOUND", "The requested unit does not exist.");
+                return ActionResult.failure("UNIT_NOT_FOUND", "Unit index is out of range.");
             }
             Unit unit = units.get(request.getUnitIndex());
             HexCoordinate destination = new HexCoordinate(request.getX(), request.getY());
@@ -96,7 +99,9 @@ public final class AuthoritativeGameService {
         try {
             ActionResult readiness = requireRunningGame();
             if (readiness != null) return readiness;
-            if (request == null || request.getBuildingType() == null) {
+            if (request == null || request.getBuilderIndex() == null
+                    || request.getBuildingType() == null || request.getBuildingType().isBlank()
+                    || request.getX() == null || request.getY() == null) {
                 return malformed("BUILD requires builderIndex, buildingType, x and y.");
             }
             List<Unit> units = gameState.getPlayer().getUnits();

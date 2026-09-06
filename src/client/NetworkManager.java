@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -43,6 +44,7 @@ public final class NetworkManager implements Closeable {
     private BufferedReader reader;
     private PrintWriter writer;
     private UdpHeartbeatClient heartbeat;
+    private Thread heartbeatThread;
 
     public NetworkManager(String host, int tcpPort) {
         this(host, tcpPort, tcpPort + 1);
@@ -73,13 +75,21 @@ public final class NetworkManager implements Closeable {
     }
 
     public void connectAsync() {
-        networkExecutor.execute(() -> {
-            try {
-                connect();
-            } catch (IOException exception) {
-                connectionClosed("Could not connect: " + exception.getMessage());
-            }
-        });
+        if (networkExecutor.isShutdown()) {
+            deliver(listener -> listener.onError("CLIENT_CLOSED", "The network client is closed."));
+            return;
+        }
+        try {
+            networkExecutor.execute(() -> {
+                try {
+                    connect();
+                } catch (IOException exception) {
+                    connectionClosed("Could not connect: " + exception.getMessage());
+                }
+            });
+        } catch (RejectedExecutionException exception) {
+            deliver(listener -> listener.onError("CLIENT_CLOSED", "The network client is closed."));
+        }
     }
 
     public void addListener(NetworkEventListener listener) {
@@ -110,22 +120,30 @@ public final class NetworkManager implements Closeable {
     }
 
     public void send(NetworkMessage message) {
-        networkExecutor.execute(() -> {
-            PrintWriter current = writer;
-            if (!connected.get() || current == null) {
-                deliver(listener -> listener.onError("NOT_CONNECTED", "Not connected to the server."));
-                return;
-            }
-            current.println(JsonMessageCodec.encode(message));
-            if (current.checkError()) connectionClosed("Could not send data to the server.");
-        });
+        if (networkExecutor.isShutdown()) {
+            deliver(listener -> listener.onError("CLIENT_CLOSED", "The network client is closed."));
+            return;
+        }
+        try {
+            networkExecutor.execute(() -> {
+                PrintWriter current = writer;
+                if (!connected.get() || current == null) {
+                    deliver(listener -> listener.onError("NOT_CONNECTED", "Not connected to the server."));
+                    return;
+                }
+                current.println(JsonMessageCodec.encode(message));
+                if (current.checkError()) connectionClosed("Could not send data to the server.");
+            });
+        } catch (RejectedExecutionException exception) {
+            deliver(listener -> listener.onError("CLIENT_CLOSED", "The network client is closed."));
+        }
     }
 
     private void startHeartbeat() {
         try {
             heartbeat = new UdpHeartbeatClient(host, udpPort,
                     reachable -> deliver(listener -> listener.onHeartbeat(reachable)));
-            Thread heartbeatThread = new Thread(heartbeat, "udp-heartbeat-client");
+            heartbeatThread = new Thread(heartbeat, "udp-heartbeat-client");
             heartbeatThread.setDaemon(true);
             heartbeatThread.start();
         } catch (IOException exception) {
@@ -162,6 +180,7 @@ public final class NetworkManager implements Closeable {
 
     private synchronized void closeResources() {
         if (heartbeat != null) heartbeat.close();
+        if (heartbeatThread != null) heartbeatThread.interrupt();
         if (socket != null) {
             try { socket.close(); } catch (IOException ignored) {}
         }

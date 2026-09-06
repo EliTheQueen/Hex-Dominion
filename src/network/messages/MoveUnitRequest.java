@@ -3,9 +3,9 @@ package network.messages;
 import network.Request;
 
 public final class MoveUnitRequest extends Request {
-    private final int unitIndex;
-    private final int x;
-    private final int y;
+    private final Integer unitIndex;
+    private final Integer x;
+    private final Integer y;
 
     public MoveUnitRequest(int unitIndex, int x, int y) {
         this.unitIndex = unitIndex;
@@ -13,7 +13,7 @@ public final class MoveUnitRequest extends Request {
         this.y = y;
     }
 
-    public int getUnitIndex() { return unitIndex; }
-    public int getX() { return x; }
-    public int getY() { return y; }
+    public Integer getUnitIndex() { return unitIndex; }
+    public Integer getX() { return x; }
+    public Integer getY() { return y; }
 }
