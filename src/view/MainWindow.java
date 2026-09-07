@@ -22,6 +22,10 @@ public class MainWindow extends JFrame {
     private final GameController controller;
 
     public MainWindow() {
+        this(new GameController());
+    }
+
+    public MainWindow(GameController controller) {
         super("Hex Dominion");
         // Confirm before exiting (handled in confirmExit) rather than closing immediately.
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
@@ -34,7 +38,8 @@ public class MainWindow extends JFrame {
 
         SoundManager.getInstance().startMusic();
 
-        controller = new GameController();
+        if (controller == null) throw new IllegalArgumentException("controller is required");
+        this.controller = controller;
         controller.setMainWindow(this);
 
         cardLayout = new CardLayout();
@@ -66,13 +71,21 @@ public class MainWindow extends JFrame {
                 "Are you sure you want to exit Hex Dominion?", "Exit game",
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (choice == JOptionPane.YES_OPTION) {
+            controller.disconnectNetwork();
             System.exit(0);
         }
     }
 
     public void startGame() {
         controller.startNewGame();
-        showCurrentGame();
+        if (controller.getGameState() != null) showCurrentGame();
+    }
+
+    /** Called on the EDT after the server pushes a new authoritative snapshot. */
+    public void onRemoteStateChanged() {
+        if (controller.getGameState() == null) return;
+        if (gamePanel == null) showCurrentGame();
+        else gamePanel.repaintAll();
     }
 
     public void showCurrentGame() {

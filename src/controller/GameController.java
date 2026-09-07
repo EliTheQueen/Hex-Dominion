@@ -20,6 +20,8 @@ import model.ResourceAmount;
 import model.Unit;
 import model.Worker;
 import view.MainWindow;
+import client.NetworkEventListener;
+import client.NetworkManager;
 
 import static model.Constants.BuildingType;
 import static model.Constants.TechnologyType;
@@ -49,6 +51,8 @@ public class GameController {
     private Tribe lastOpenedTribe;
     private final SaveManager saveManager;
     private String savedStateFingerprint;
+    private final NetworkManager networkManager;
+    private boolean remoteController;
 
     public GameController() {
         this(new SaveManager(Paths.get(
@@ -58,17 +62,61 @@ public class GameController {
     public GameController(SaveManager saveManager) {
         if (saveManager == null) throw new IllegalArgumentException("save manager is required");
         this.saveManager = saveManager;
+        this.networkManager = null;
+    }
+
+    /** Creates a controller whose scoped core actions are executed by the server. */
+    public GameController(NetworkManager networkManager) {
+        if (networkManager == null) throw new IllegalArgumentException("network manager is required");
+        this.saveManager = new SaveManager(Paths.get(
+                System.getProperty("hex.dominion.saveDir", "saves")));
+        this.networkManager = networkManager;
+        networkManager.addListener(new NetworkEventListener() {
+            @Override public void onHello(int clientId, boolean controller) {
+                remoteController = controller;
+                statusMessage = controller
+                        ? "Connected as controller" : "Connected as read-only observer";
+                refreshRemoteView();
+            }
+
+            @Override public void onStateUpdate(GameState state, long revision) {
+                gameState = state;
+                resetSessionSelection();
+                statusMessage = "Synchronized with server (revision " + revision + ")";
+                refreshRemoteView();
+            }
+
+            @Override public void onError(String code, String message) {
+                statusMessage = message;
+                refreshRemoteView();
+            }
+
+            @Override public void onDisconnected(String reason) {
+                statusMessage = reason;
+                refreshRemoteView();
+            }
+        });
     }
 
     public void setMainWindow(MainWindow w) { this.mainWindow = w; }
 
     public void startNewGame() {
+        if (isRemote()) {
+            networkManager.startGame(15, 13, null);
+            statusMessage = "Waiting for server to start the game...";
+            return;
+        }
         gameState = new GameState(15, 13);
         resetSessionSelection();
     }
 
     /** Starts a reproducible game for tests and deterministic evaluation scenarios. */
     public void startNewGame(long seed) {
+        if (isRemote()) {
+            networkManager.startGame(15, 13, seed);
+            statusMessage = "Waiting for server to start the game...";
+            return;
+        }
         gameState = new GameState(15, 13, seed);
         resetSessionSelection();
     }
@@ -88,6 +136,8 @@ public class GameController {
     public boolean isBuildMode() { return buildMode; }
     public BuildingType getPendingBuildType() { return pendingBuildType; }
     public String getStatusMessage() { return statusMessage; }
+    public boolean isRemote() { return networkManager != null; }
+    public boolean isRemoteController() { return !isRemote() || remoteController; }
 
     public void onHexClicked(HexCoordinate coord) {
         if (gameState == null || gameState.isGameOver()) return;
@@ -133,9 +183,14 @@ public class GameController {
             if (movement.isEnabled()) {
                 Unit existing = player.getUnitAt(coord);
                 if (existing == null || existing == selectedUnit) {
-                    selectedUnit.moveTo(gameState.getMap(), coord, gameState.getMovementPolicy());
-                    gameState.updateVisibility();
-                    statusMessage = "";
+                    if (isRemote()) {
+                        networkManager.moveUnit(indexOfUnit(selectedUnit), coord);
+                        statusMessage = "Movement request sent to server...";
+                    } else {
+                        selectedUnit.moveTo(gameState.getMap(), coord, gameState.getMovementPolicy());
+                        gameState.updateVisibility();
+                        statusMessage = "";
+                    }
                 }
             } else {
                 // A click on another unit selects it; otherwise retain the unit and explain the rule.
@@ -169,6 +224,9 @@ public class GameController {
         ActionAvailability availability = getBuildAtAvailability(coord, pendingBuildType);
         if (!availability.isEnabled()) {
             statusMessage = availability.getReason();
+        } else if (isRemote()) {
+            networkManager.build(indexOfUnit(builder), pendingBuildType, coord);
+            statusMessage = "Build request sent to server...";
         } else {
             player.spend(cost);
             Building b = new Building(coord, pendingBuildType);
@@ -189,6 +247,19 @@ public class GameController {
 
     public void onEndTurnClicked() {
         if (gameState == null) return;
+        if (isRemote()) {
+            if (!remoteController) {
+                statusMessage = "Observer clients cannot end the turn";
+                return;
+            }
+            networkManager.endTurn();
+            selectedUnit = null;
+            selectedHex = null;
+            buildMode = false;
+            pendingBuildType = null;
+            statusMessage = "End-turn request sent to server...";
+            return;
+        }
         gameState.endTurn();
         selectedUnit = null;
         selectedHex = null;
@@ -227,6 +298,9 @@ public class GameController {
 
     public ActionAvailability getMovementAvailability(HexCoordinate destination) {
         if (gameState == null) return ActionAvailability.disabled("Start or load a game first");
+        if (isRemote() && !remoteController) {
+            return ActionAvailability.disabled("Observer clients cannot move units");
+        }
         if (selectedUnit == null) return ActionAvailability.disabled("Select a unit to see movement cost");
         if (!selectedUnit.isAlive()) return ActionAvailability.disabled("This unit is no longer alive");
         if (destination == null || !gameState.getMap().containsCoordinate(destination)) {
@@ -270,6 +344,9 @@ public class GameController {
 
     public ActionAvailability getBuildTypeAvailability(BuildingType type) {
         if (gameState == null) return ActionAvailability.disabled("Start or load a game first");
+        if (isRemote() && !remoteController) {
+            return ActionAvailability.disabled("Observer clients cannot construct buildings");
+        }
         if (type == null || type == BuildingType.TOWN_HALL) {
             return ActionAvailability.disabled("Choose a constructible building type");
         }
@@ -972,5 +1049,17 @@ public class GameController {
         return new ArrayList<>(PathFinder.reachable(
                 gameState.getMap(), selectedUnit.getPosition(), selectedUnit.getCurrentAP(),
                 gameState.getMovementPolicy()));
+    }
+
+    private int indexOfUnit(Unit unit) {
+        return gameState.getPlayer().getUnits().indexOf(unit);
+    }
+
+    private void refreshRemoteView() {
+        if (mainWindow != null) mainWindow.onRemoteStateChanged();
+    }
+
+    public void disconnectNetwork() {
+        if (networkManager != null) networkManager.disconnect();
     }
 }
